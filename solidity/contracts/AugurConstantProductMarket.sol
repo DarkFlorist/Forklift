@@ -25,15 +25,15 @@ contract AugurConstantProduct is ERC20 {
 
 	function addLiquidity(uint256 sharesToBuy) external {
 		// TODO: gas golf this function a bit, though it doesn't really matter
-		uint256 poolConstantBefore = sqrt(getPoolConstant());
+		uint256 poolConstantBefore = sqrt(poolConstant());
 
 		dai.transferFrom(msg.sender, address(this), sharesToBuy * 100);
 		shareToken.publicBuyCompleteSets(augurMarket, sharesToBuy);
 
 		if (poolConstantBefore == 0) {
-			_mint(msg.sender, sqrt(getPoolConstant()));
+			_mint(msg.sender, sqrt(poolConstant()));
 		} else {
-			_mint(msg.sender, totalSupply() * sqrt(getPoolConstant()) / poolConstantBefore - totalSupply());
+			_mint(msg.sender, totalSupply() * sqrt(poolConstant()) / poolConstantBefore - totalSupply());
 		}
 	}
 
@@ -61,22 +61,23 @@ contract AugurConstantProduct is ERC20 {
 		uint256 invalidToUser = setsToBuy;
 		uint256 noToUser = setsToBuy;
 		uint256 yesToUser = setsToBuy;
+
+		require(poolInvalid > invalidToUser, "AugurCP: The pool doesn't have enough INVALID tokens to fulfill the request.");
+		require(poolNo > noToUser, "AugurCP: The pool doesn't have enough NO tokens to fulfill the request.");
+		require(poolYes > yesToUser, "AugurCP: The pool doesn't have enough YES tokens to fulfill the request.");
+
 		poolInvalid = poolInvalid - invalidToUser;
 		poolNo = poolNo - noToUser;
 		poolYes = poolYes - yesToUser;
 
-		require(poolInvalid > 0, "AugurCP: The pool doesn't have enough INVALID tokens to fulfill the request.");
-		require(poolNo > 0, "AugurCP: The pool doesn't have enough NO tokens to fulfill the request.");
-		require(poolYes > 0, "AugurCP: The pool doesn't have enough YES tokens to fulfill the request.");
-
 		// simulate user swapping YES to NO or NO to YES
-		uint256 poolConstant = poolYes * poolNo;
+		uint256 simulatedPoolConstant = poolYes * poolNo;
 		if (buyYes) {
 			// yesToUser += poolYes - poolConstant / (poolNo + noToUser)
-			yesToUser = yesToUser + poolYes - poolConstant / (poolNo + noToUser);
+			yesToUser = yesToUser + poolYes - simulatedPoolConstant / (poolNo + noToUser);
 			noToUser = 0;
 		} else {
-			noToUser = noToUser + poolNo - poolConstant / (poolYes + yesToUser);
+			noToUser = noToUser + poolNo - simulatedPoolConstant / (poolYes + yesToUser);
 			yesToUser = 0;
 		}
 
@@ -102,19 +103,19 @@ contract AugurConstantProduct is ERC20 {
 		require(userNo > setsToSell || userYes > setsToSell, "AugurCP: You don't have enough YES or NO tokens to close out for this amount.");
 
 		// simulate user swapping enough NO ➡ YES or YES ➡ NO to create setsToSell complete sets
-		uint256 poolConstant = poolYes * poolNo;
+		uint256 simulatedPoolConstant = poolYes * poolNo;
 		uint256 invalidFromUser = setsToSell;
 		uint256 noFromUser = 0;
 		uint256 yesFromUser = 0;
 		if (userYes > userNo) {
 			uint256 noToUser = setsToSell - userNo;
-			uint256 yesToPool = poolConstant / (poolNo - noToUser) - poolYes;
+			uint256 yesToPool = simulatedPoolConstant / (poolNo - noToUser) - poolYes;
 			require(yesToPool <= userYes - setsToSell, "AugurCP: You don't have enough YES tokens to close out for this amount.");
 			noFromUser = userNo;
 			yesFromUser = yesToPool + setsToSell;
 		} else {
 			uint256 yesToUser = setsToSell - userYes;
-			uint256 noToPool = poolConstant / (poolYes - yesToUser) - poolNo;
+			uint256 noToPool = simulatedPoolConstant / (poolYes - yesToUser) - poolNo;
 			require(noToPool <= userNo - setsToSell, "AugurCP: You don't have enough NO tokens to close out for this amount.");
 			yesFromUser = userYes;
 			noFromUser = noToPool + setsToSell;
@@ -128,24 +129,24 @@ contract AugurConstantProduct is ERC20 {
 	function swap(uint256 inputShares, bool inputYes) external returns (uint256) {
 		// TODO: gas golf this down by creating another function that only fetches YES/NO
 		(, uint256 poolNo, uint256 poolYes) = shareBalances(address(this));
-		uint256 poolConstant = poolYes * poolNo;
+		uint256 currentPoolConstant = poolYes * poolNo;
 		if (inputYes) {
 			uint256 yesFromUser = inputShares;
 			// noToUser = poolNo - poolConstant / (poolYes + yesFromUser)
-			uint256 noToUser = poolNo - poolConstant / (poolYes + yesFromUser);
+			uint256 noToUser = poolNo - currentPoolConstant / (poolYes + yesFromUser);
 			shareToken.unsafeTransferFrom(msg.sender, address(this), YES, yesFromUser);
 			shareToken.unsafeTransferFrom(address(this), msg.sender, NO, noToUser);
 			return noToUser;
 		} else {
 			uint256 noFromUser = inputShares;
-			uint256 yesToUser = poolYes - poolConstant / (poolNo + noFromUser);
+			uint256 yesToUser = poolYes - currentPoolConstant / (poolNo + noFromUser);
 			shareToken.unsafeTransferFrom(msg.sender, address(this), NO, noFromUser);
 			shareToken.unsafeTransferFrom(address(this), msg.sender, YES, yesToUser);
 			return yesToUser;
 		}
 	}
 
-	function getPoolConstant() public view returns (uint256) {
+	function poolConstant() public view returns (uint256) {
 		return shareToken.balanceOf(address(this), YES) * shareToken.balanceOf(address(this), NO);
 	}
 

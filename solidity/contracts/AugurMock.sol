@@ -29,6 +29,7 @@ contract ShareToken {
 	function unsafeTransferFrom(address from, address to, uint256 id, uint256 amount) public {
 		require(to != address(0), "ERC1155: transfer to the zero address");
 		require(from == msg.sender || isApprovedForAll[from][msg.sender], "ERC1155: caller is not owner nor approved");
+		require(balanceOf[from][id] >= amount, "ERC1155: insufficient balance for transfer");
 
 		balanceOf[from][id] = balanceOf[from][id] - amount;
 		balanceOf[to][id] = balanceOf[to][id] + amount;
