@@ -17,7 +17,12 @@ const compileAugurConstantProductMarket = async () => {
 		sources: {
 			'AugurConstantProductMarket.sol': { content: await fs.readFile('contracts/AugurConstantProductMarket.sol', 'utf8') },
 			'AugurMock.sol': { content: await fs.readFile('contracts/AugurMock.sol', 'utf8') },
+			'Context.sol': { content: await fs.readFile('contracts/Context.sol', 'utf8') },
 			'DaiMock.sol': { content: await fs.readFile('contracts/DaiMock.sol', 'utf8') },
+			'draft-IERC6093.sol': { content: await fs.readFile('contracts/draft-IERC6093.sol', 'utf8') },
+			'ERC20.sol': { content: await fs.readFile('contracts/ERC20.sol', 'utf8') },
+			'IERC20.sol': { content: await fs.readFile('contracts/IERC20.sol', 'utf8') },
+			'IERC20Metadata.sol': { content: await fs.readFile('contracts/IERC20Metadata.sol', 'utf8') },
 		},
 		settings: {
 			viaIR: true,
