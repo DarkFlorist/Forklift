@@ -1,0 +1,15 @@
+{
+	"version": "1.0.0",
+	"description": "Augur-Constant-Product-Market-Contracts",
+	"scripts": {
+		"compile": "tsc && node ./compile.js && node --input-type=module -e \"import { promises as fs } from 'fs'; await fs.rm('./compile.js')\""
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/node": "22.5.4",
+		"typescript": "5.5.4",
+		"solc": "0.8.26"
+	}
+}

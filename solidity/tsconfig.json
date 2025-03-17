@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"target": "ESNext",
+		"moduleResolution": "node",
+		"rootDir": ".",
+		"sourceMap": false,
+		"inlineSources": false,
+		"declaration": false,
+		"declarationMap": false,
+		"noEmit": false,
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"lib": ["ESNext"],
+		"typeRoots": ["node_modules/@types", "types"],
+		"types": [ "node" ],
+	},
+	"include": [
+		"types/index.d.ts",
+		"compile.ts"
+	]
+}
