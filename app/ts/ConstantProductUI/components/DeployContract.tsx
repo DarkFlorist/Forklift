@@ -1,7 +1,7 @@
 import { Signal } from '@preact/signals'
-import { deployAugurConstantProductMarketContract } from '../utils/utilities.js'
-import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { AccountAddress } from '../types/types.js'
+import { deployAugurConstantProductMarketContract } from '../../utils/utilities.js'
+import { OptionalSignal } from '../../utils/OptionalSignal.js'
+import { AccountAddress } from '../../types/types.js'
 
 interface DeployProps {
 	areContractsDeployed: Signal<boolean | undefined>
