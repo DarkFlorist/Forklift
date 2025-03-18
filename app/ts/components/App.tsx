@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress } from '../types/types.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { ensureError, getAccounts, getChainId, requestAccounts, isAugurConstantProductMarketDeployed } from '../utils/utilities.js'
+import { DeployContract } from './DeployContract.js'
 
 interface WalletComponentProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
@@ -82,11 +83,12 @@ export function App() {
 			<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress } />
 			<div style = 'display: block'>
 				<div class = 'augur-constant-product-market'>
-					<img src = 'favicon.png' alt = 'Icon' style ='width: 60px;'/> Augur Constant Product Market
+					<img src = 'favicon.svg' alt = 'Icon' style ='width: 60px;'/> Augur Constant Product Market
 				</div>
 				<p class = 'sub-title'>Swap Augur tokens!</p>
 			</div>
 		</div>
+		<DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed } />
 		<div class = 'text-white/50 text-center'>
 			<div class = 'mt-8'>
 				Augur Constant Product Market by&nbsp;

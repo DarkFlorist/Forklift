@@ -1,7 +1,8 @@
 import 'viem/window'
-import { AccountAddress } from '../types/types'
+import { AccountAddress } from '../types/types.js'
 import { createPublicClient, createWalletClient, custom, getContractAddress, http, numberToBytes, publicActions } from 'viem'
 import { mainnet } from 'viem/chains'
+import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 
 export async function sleep(milliseconds: number) {
 	await new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -136,20 +137,20 @@ export const getChainId = async (accountAddress: AccountAddress) => {
 export const proxyDeployerAddress = `0x7a0d94f55792c434d74a40883c6ed8545e406d12`
 
 export function getAugurConstantProductMarketAddress() {
-	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProductMarket.evm.bytecode.object }`
+	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.bytecode.object }`
 	return getContractAddress({ bytecode, from: proxyDeployerAddress, opcode: 'CREATE2', salt: numberToBytes(0) })
 }
 
 export const isAugurConstantProductMarketDeployed = async (accountAddress: AccountAddress | undefined) => {
 	const wallet = createReadClient(accountAddress)
-	const expectedDeployedBytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProductMarket.evm.deployedBytecode.object }`
+	const expectedDeployedBytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.deployedBytecode.object }`
 	const address = getAugurConstantProductMarketAddress()
 	const deployedBytecode = await wallet.getCode({ address })
 	return deployedBytecode === expectedDeployedBytecode
 }
 
 export const deployAugurConstantProductMarketTransaction = () => {
-	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProductMarket.evm.bytecode.object }`
+	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.bytecode.object }`
 	return { to: proxyDeployerAddress, data: bytecode } as const
 }
 
