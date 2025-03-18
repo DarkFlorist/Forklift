@@ -1,8 +1,8 @@
 import { Signal, useSignal } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
-import { AccountAddress } from '../types/types.js'
-import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { ensureError, getAccounts, getChainId, requestAccounts, isAugurConstantProductMarketDeployed } from '../utils/utilities.js'
+import { AccountAddress } from '../../types/types.js'
+import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
+import { ensureError, getAccounts, getChainId, requestAccounts, isAugurConstantProductMarketDeployed } from '../../utils/utilities.js'
 import { DeployContract } from './DeployContract.js'
 
 interface WalletComponentProps {
