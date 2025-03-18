@@ -4,17 +4,16 @@
 	"license": "Unlicense",
 	"type": "module",
 	"devDependencies": {
-		"@types/node": "22.5.4",
+		"@types/node": "22.13.10",
 		"@zoltu/file-copier": "3.0.0",
-		"better-typescript-lib": "2.8.0",
-		"typescript": "5.5.4",
-		"funtypes": "5.1.0"
+		"better-typescript-lib": "2.11.0",
+		"typescript": "5.8.2",
+		"funtypes": "5.1.1"
 	},
 	"dependencies": {
-		"@preact/signals": "1.2.2",
-		"multiformats": "13.2.2",
-		"preact": "10.19.3",
-		"viem": "2.18.5"
+		"@preact/signals": "2.0.1",
+		"preact": "10.26.4",
+		"viem": "2.23.12"
 	},
 	"scripts": {
 		"setup": "npm ci --ignore-scripts && npm run contracts && npm run vendor && npm run build",
