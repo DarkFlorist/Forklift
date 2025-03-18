@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
-import path = require('path')
-import { compile } from 'solc'
+import * as path from 'path'
+import solc from 'solc'
 
 async function exists(path: string) {
 	try {
@@ -40,8 +40,7 @@ const compileAugurConstantProductMarket = async () => {
 			},
 		},
 	}
-
-	var output = compile(JSON.stringify(input))
+	var output = solc.compile(JSON.stringify(input))
 	const artifactsDir = path.join(process.cwd(), 'artifacts')
 	if (!await exists(artifactsDir)) await fs.mkdir(artifactsDir, { recursive: false })
 	await fs.writeFile(path.join(artifactsDir, 'AugurConstantProductMarket.json'), output)

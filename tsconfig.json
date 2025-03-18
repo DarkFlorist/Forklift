@@ -31,6 +31,6 @@
 	},
 	"include": [
 		"./app/ts/**/*.ts",
-		"./app/ts/**/*.tsx", "app/ts/tests/test.mts",
+		"./app/ts/**/*.tsx", "solidity/ts/tests/test.mts",
 	],
 }
