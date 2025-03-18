@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v5.1.0) (interfaces/draft-IERC6093.sol)
-pragma solidity 0.8.26;
+pragma solidity 0.8.29;
 
 /**
  * @dev Standard ERC-20 Errors
