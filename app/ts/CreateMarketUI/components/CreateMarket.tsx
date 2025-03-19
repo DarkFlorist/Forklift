@@ -116,7 +116,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 				value = { endTime.value }
 				onInput = { e => handleEndTimeInput(e.currentTarget.value) }
 			/>
-			<p style = 'margin: 0;'> Market Creator Fee: </p>
+			<p style = 'margin: 0;'> Market Creator Fee (%): </p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
