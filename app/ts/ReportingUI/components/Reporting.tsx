@@ -1,19 +1,16 @@
 import { useSignal } from '@preact/signals'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress } from '../../types/types.js'
-import { fetchMarket } from '../../utils/utilities.js'
-import { addressString } from '../../utils/ethereumUtils.js'
+import { fetchHotLoadingMarketData } from '../../utils/utilities.js'
+import { addressString, bigintToRoundedPrettyDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
+import { assertNever, jsonStringify } from '../../utils/errorHandling.js'
+import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
 
 type MarketData = {
 	marketAddress: `0x${ string }`
-	extraInfo: string
 	parsedExtraInfo: ExtraInfo | undefined
-	marketCreator: `0x${ string }`
-	outcomes: readonly `0x${ string }`[]
-	displayPrices: readonly bigint[]
-	marketType: number
-	recommendedTradeInterval: bigint
+	hotLoadingMarketData: Awaited<ReturnType<typeof fetchHotLoadingMarketData>>
 }
 
 interface MarketProps {
@@ -24,32 +21,87 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.parsedExtraInfo === undefined) {
 		return <>
-			<p> Failed to parse Extra data, unparsed extra data: </p>
+			<span> Failed to parse Extra data, unparsed extra data: </span>
 			<textarea
 				style = 'height: fit-content; width: 100%'
 				placeholder = 'This market resolves...'
-				value = { marketData.deepValue.extraInfo }
+				value = { marketData.deepValue.hotLoadingMarketData.extraInfo }
 				readOnly = { true }
 			/>
 		</>
 	}
 	return <>
-		<p> Description: { marketData.deepValue.parsedExtraInfo.description }</p>
-		<p> Long Description: { marketData.deepValue.parsedExtraInfo.longDescription }</p>
-		<p> Categories: { (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</p>
-		<p> Tags: { (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</p>
+		<span> <b>Description:</b> { marketData.deepValue.parsedExtraInfo.description }</span>
+		<span> <b>Long Description:</b> { marketData.deepValue.parsedExtraInfo.longDescription }</span>
+		<span> <b>Categories:</b> { (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
+		<span> <b>Tags:</b> { (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
 	</>
 }
 
 export const Market = ({ marketData }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <></>
-	return <div>
-		<p> Market Address: { marketData.deepValue.marketAddress }</p>
-		<p> Market Creator: { marketData.deepValue.marketCreator }</p>
-		<p> Market Type: { marketData.deepValue.marketType }</p>
-		<p> Recommended Trade Interval: { marketData.deepValue.recommendedTradeInterval }</p>
-		<p> Display Prices: { marketData.deepValue.displayPrices.join(', ') }</p>
-		<p> Outcomes: { marketData.deepValue.outcomes.join(', ') }</p>
+
+	const formatVolumes = () => {
+		if (marketData.deepValue === undefined) return ''
+		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
+		const volumes = marketData.deepValue.hotLoadingMarketData.outcomeVolumes
+		switch(marketType) {
+			case 'Categorical':
+			case 'Scalar': {
+				return volumes.join(', ')
+			}
+			case 'Yes/No': {
+				return <div style = 'display: grid'>
+					{ YES_NO_OPTIONS.map((option, index) => (
+						<span>{ option }: { volumes[index] === undefined ? 'undefined' : bigintToRoundedPrettyDecimalString(volumes[index], 18n, 4) } DAI</span>
+					)) }
+				</div>
+			}
+			case undefined: throw new Error(`invalid marketType: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
+			default: assertNever(marketType)
+		}
+	}
+	const formatWinningOption = () => {
+		if (marketData.deepValue === undefined) return ''
+		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
+		const payouts = marketData.deepValue.hotLoadingMarketData.winningPayout
+		switch(marketType) {
+			case 'Categorical':
+			case 'Scalar': {
+				return payouts.join(', ')
+			}
+			case 'Yes/No': {
+				const winningIndex = payouts.findIndex((payout) => payout > 0)
+				return YES_NO_OPTIONS[winningIndex]
+			}
+			case undefined: throw new Error(`invalid marketType: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
+			default: assertNever(marketType)
+		}
+	}
+
+	return <div style = 'display: grid'>
+		<span> <b>Market Address:</b> { marketData.deepValue.marketAddress }</span>
+		<span> <b>Market Creator:</b> { marketData.deepValue.hotLoadingMarketData.marketCreator }</span>
+		<span> <b>Owner:</b> { marketData.deepValue.hotLoadingMarketData.owner }</span>
+		<span> <b>Outcomes:</b> { marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
+		<span> <b>Market Type:</b> { MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
+		<span> <b>Display Prices:</b> { marketData.deepValue.hotLoadingMarketData.displayPrices.join(', ') }</span>
+		<span> <b>Designated Reporter:</b> { marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
+		<span> <b>Reporting State:</b> { REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
+		<span> <b>Dispute Round:</b> { marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
+		<span> <b>Winning Outcome:</b> { formatWinningOption() }</span>
+		<span> <b>Volume:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n, 4) } DAI</span>
+		<span> <b>Open Interest:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n, 4) } DAI</span>
+		<span> <b>Last Traded Prices:</b> { marketData.deepValue.hotLoadingMarketData.lastTradedPrices.join(', ') }</span>
+		<span> <b>Universe:</b> { marketData.deepValue.hotLoadingMarketData.universe }</span>
+		<span> <b>Num Ticks:</b> { marketData.deepValue.hotLoadingMarketData.numTicks }</span>
+		<span> <b>Fee:</b> { marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` }</span>
+		<span> <b>Affiliate Fee:</b> { marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` }</span>
+		<span> <b>End Time:</b> { formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }</span>
+		<span> <b>Num Outcomes:</b> { marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
+		<span> <b>Validity Bond:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n, 4) } REP</span>
+		<span> <b>Reporting Fee:</b> { marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
+		<span> <b>Outcome Volumes:</b> { formatVolumes() }</span>
 		<DisplayExtraInfo marketData = { marketData } />
 	</div>
 }
@@ -77,9 +129,10 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
 		const parsedMarketAddressString = addressString(marketAddress.value)
-		const newMarketData = await fetchMarket(account.value, parsedMarketAddressString)
+		const newMarketData = await fetchHotLoadingMarketData(account.value, parsedMarketAddressString)
+		console.log(jsonStringify(newMarketData))
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
-		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, ...newMarketData }
+		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 	}
 
 	function handleMarketAddress(value: string) {
