@@ -2,7 +2,7 @@ import { useSignal } from '@preact/signals'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { fetchHotLoadingMarketData } from '../../utils/utilities.js'
-import { addressString, bigintToRoundedPrettyDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
@@ -53,7 +53,7 @@ export const Market = ({ marketData }: MarketProps) => {
 			case 'Yes/No': {
 				return <div style = 'display: grid'>
 					{ YES_NO_OPTIONS.map((option, index) => (
-						<span>{ option }: { volumes[index] === undefined ? 'undefined' : bigintToRoundedPrettyDecimalString(volumes[index], 18n, 4) } DAI</span>
+						<span>{ option }: { volumes[index] === undefined ? 'undefined' : bigintToDecimalString(volumes[index], 18n) } DAI</span>
 					)) }
 				</div>
 			}
@@ -90,8 +90,8 @@ export const Market = ({ marketData }: MarketProps) => {
 		<span> <b>Reporting State:</b> { REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
 		<span> <b>Dispute Round:</b> { marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
 		<span> <b>Winning Outcome:</b> { formatWinningOption() }</span>
-		<span> <b>Volume:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n, 4) } DAI</span>
-		<span> <b>Open Interest:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n, 4) } DAI</span>
+		<span> <b>Volume:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n) } DAI</span>
+		<span> <b>Open Interest:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n) } DAI</span>
 		<span> <b>Last Traded Prices:</b> { marketData.deepValue.hotLoadingMarketData.lastTradedPrices.join(', ') }</span>
 		<span> <b>Universe:</b> { marketData.deepValue.hotLoadingMarketData.universe }</span>
 		<span> <b>Num Ticks:</b> { marketData.deepValue.hotLoadingMarketData.numTicks }</span>
@@ -99,7 +99,7 @@ export const Market = ({ marketData }: MarketProps) => {
 		<span> <b>Affiliate Fee:</b> { marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` }</span>
 		<span> <b>End Time:</b> { formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }</span>
 		<span> <b>Num Outcomes:</b> { marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
-		<span> <b>Validity Bond:</b> { bigintToRoundedPrettyDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n, 4) } REP</span>
+		<span> <b>Validity Bond:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n) } REP</span>
 		<span> <b>Reporting Fee:</b> { marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
 		<span> <b>Outcome Volumes:</b> { formatVolumes() }</span>
 		<DisplayExtraInfo marketData = { marketData } />
