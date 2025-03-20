@@ -1,9 +1,12 @@
 import { Signal, useSignal } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
-import { AccountAddress } from '../../types/types.js'
-import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { ensureError, getAccounts, getChainId, requestAccounts, isAugurConstantProductMarketDeployed } from '../../utils/utilities.js'
-import { DeployContract } from './DeployContract.js'
+import { AccountAddress } from './types/types.js'
+import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
+import { getAccounts, getChainId, requestAccounts, isAugurConstantProductMarketDeployed } from './utils/utilities.js'
+import { DeployContract } from './ConstantProductUI/components/DeployContract.js'
+import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
+import { ensureError } from './utils/errorHandling.js'
+import { Reporting } from './ReportingUI/components/Reporting.js'
 
 interface WalletComponentProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
@@ -89,6 +92,8 @@ export function App() {
 			</div>
 		</div>
 		<DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed } />
+		<CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress } />
+		<Reporting maybeAccountAddress = { maybeAccountAddress } />
 		<div class = 'text-white/50 text-center'>
 			<div class = 'mt-8'>
 				Augur Constant Product Market by&nbsp;
