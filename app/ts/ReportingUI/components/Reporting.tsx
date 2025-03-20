@@ -31,10 +31,10 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 		</>
 	}
 	return <>
-		<span> <b>Description:</b> { marketData.deepValue.parsedExtraInfo.description }</span>
-		<span> <b>Long Description:</b> { marketData.deepValue.parsedExtraInfo.longDescription }</span>
-		<span> <b>Categories:</b> { (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
-		<span> <b>Tags:</b> { (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
+		<span><b>Description:</b> { marketData.deepValue.parsedExtraInfo.description }</span>
+		<span><b>Long Description:</b> { marketData.deepValue.parsedExtraInfo.longDescription }</span>
+		<span><b>Categories:</b> { (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
+		<span><b>Tags:</b> { (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
 	</>
 }
 
