@@ -4,7 +4,7 @@ import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { fetchHotLoadingMarketData } from '../../utils/utilities.js'
 import { addressString, bigintToRoundedPrettyDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
-import { assertNever, jsonStringify } from '../../utils/errorHandling.js'
+import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
 
 type MarketData = {
@@ -130,7 +130,6 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		if (!marketAddress.success) throw new Error('market not defined')
 		const parsedMarketAddressString = addressString(marketAddress.value)
 		const newMarketData = await fetchHotLoadingMarketData(account.value, parsedMarketAddressString)
-		console.log(jsonStringify(newMarketData))
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 	}

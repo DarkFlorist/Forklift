@@ -49,38 +49,68 @@ export function isSameAddress(address1: `0x${ string }` | undefined, address2: `
 	return address1.toLowerCase() === address2.toLowerCase()
 }
 
-export const bigintToNumberFormatParts = (amount: bigint, decimals = 18n, maximumSignificantDigits = 4) => {
-	const floatValue = Number(formatUnits(amount, Number(decimals)))
+export const bigintToNumberFormatParts = (amount: bigint, decimals = 18, maximumSignificantDigits = 4) => {
+	const formattedString = formatUnits(amount, decimals)
+	const [ integerPartRaw, fractionPartRaw = '' ] = formattedString.split('.')
+	if (integerPartRaw === undefined) throw new Error('failed to format bigint to string')
+	const absoluteIntPart = BigInt(integerPartRaw.replace('-', ''))
+	const useCompact = absoluteIntPart >= 10000n * 10n ** BigInt(decimals)
 
-	let formatterOptions: Intl.NumberFormatOptions = { useGrouping: false, maximumFractionDigits: 3 }
-
-	// maintain accuracy if value is a fraction of 1 ex 0.00001
-	if (floatValue % 1 === floatValue) formatterOptions.maximumSignificantDigits = maximumSignificantDigits
-
-	// apply only compacting with prefixes for values >= 10k or values <= -10k
-	if (Math.abs(floatValue) >= 1e4) {
-		formatterOptions = { minimumFractionDigits: 0, notation: 'compact' }
-	}
-
-	const formatter = new Intl.NumberFormat('en-US', formatterOptions)
-	const parts = formatter.formatToParts(floatValue)
 	const partsMap = new Map<Intl.NumberFormatPartTypes, string>()
 
-	for (const part of parts) {
-		if (part.type === 'compact') {
-			// replace American format with Metric prefixes https://www.ibiblio.org/units/prefixes.html
-			const prefix = part.value.replace('K', 'k').replace('B', 'G')
-			partsMap.set(part.type, prefix)
-			continue
+	if (useCompact) {
+		const suffixes = [
+			{ value: 1000000000000n, symbol: 'T' },
+			{ value: 1000000000n, symbol: 'G' },
+			{ value: 1000000n, symbol: 'M' },
+			{ value: 1000n, symbol: 'k' }
+		]
+		let chosenSuffix = ''
+		let divisor = 1n
+		for (const { value, symbol } of suffixes) {
+			if (absoluteIntPart >= value) {
+				divisor = value
+				chosenSuffix = symbol
+				break
+			}
 		}
-		partsMap.set(part.type, part.value)
-	}
+		const fractionLength = fractionPartRaw.length
+		const totalScale = 10n ** BigInt(fractionLength)
+		const fullValueBigInt = BigInt(integerPartRaw) * totalScale + (fractionPartRaw ? BigInt(fractionPartRaw) : 0n)
 
-	return partsMap
+		const maxFracDigits = maximumSignificantDigits
+		const scaleFactor = 10n ** BigInt(maxFracDigits)
+		const scaledValue = fullValueBigInt * scaleFactor / (divisor * totalScale)
+		const scaledStr = scaledValue.toString().padStart(maxFracDigits + 1, '0')
+		const integerPartCompact = scaledStr.slice(0, -maxFracDigits) || '0'
+		const fractionPartCompact = scaledStr.slice(-maxFracDigits).replace(/0+$/, '')
+		partsMap.set('integer', integerPartCompact)
+		if (fractionPartCompact) {
+			partsMap.set('decimal', '.')
+			partsMap.set('fraction', fractionPartCompact)
+		}
+		partsMap.set('compact', chosenSuffix)
+		return partsMap
+	} else {
+		const numValue = parseFloat(formattedString)
+		const formatterOptions: Intl.NumberFormatOptions = {
+			useGrouping: false,
+			maximumSignificantDigits: maximumSignificantDigits,
+			maximumFractionDigits: 3
+		}
+		const formatter = new Intl.NumberFormat('en-US', formatterOptions)
+		const parts = formatter.formatToParts(numValue)
+		for (const part of parts) {
+			partsMap.set(part.type, part.value)
+		}
+		return partsMap
+	}
 }
 
-export const bigintToRoundedPrettyDecimalString = (amount: bigint, decimals?: bigint, maximumSignificantDigits = 4) => {
-	const numberParts = bigintToNumberFormatParts(amount, decimals, maximumSignificantDigits)
+
+export const bigintToRoundedPrettyDecimalString = (amount: bigint, decimals: bigint, maximumSignificantDigits = 4) => {
+	if (decimals > 100n) throw new Error('Too many decimals provided')
+	const numberParts = bigintToNumberFormatParts(amount, Number(decimals), maximumSignificantDigits)
 	let numberString = ''
 	for (const [_type, value] of numberParts) numberString += value
 	return numberString
