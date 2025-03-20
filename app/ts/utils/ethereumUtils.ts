@@ -46,3 +46,8 @@ export function isSameAddress(address1: `0x${ string }` | undefined, address2: `
 	if (address1 === undefined || address2 === undefined) return false
 	return address1.toLowerCase() === address2.toLowerCase()
 }
+
+export const formatUnixTimestampISO = (timestamp: bigint): string => {
+	const date = new Date(Number(timestamp) * 1000)
+	return date.toISOString()
+}

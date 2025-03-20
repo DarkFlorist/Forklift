@@ -5,8 +5,9 @@ import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUGUR_CONTRACT, GENESIS_UNIVERSE, PROXY_DEPLOYER_ADDRESS } from './constants.js'
+import { AUGUR_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
+import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -109,3 +110,12 @@ export const fetchMarket = async (reader: AccountAddress, marketAddress: Account
 	})
 }
 
+export const fetchHotLoadingMarketData = async (reader: AccountAddress, marketAddress: AccountAddress) => {
+	const client = createWriteClient(reader)
+	return await client.readContract({
+		abi: HOT_LOADING_ABI,
+		functionName: 'getMarketData',
+		address: HOT_LOADING_ADDRESS,
+		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
+	})
+}
