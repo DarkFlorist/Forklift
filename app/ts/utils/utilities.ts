@@ -1,5 +1,5 @@
 import 'viem/window'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { createPublicClient, createWalletClient, custom, getContractAddress, http, numberToBytes, publicActions } from 'viem'
 import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
@@ -10,6 +10,7 @@ import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
+import { bytes32String } from './ethereumUtils.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -151,6 +152,7 @@ export const buyParticipationTokens = async (writer: AccountAddress, attotokens:
 		args: [GENESIS_UNIVERSE, attotokens]
 	})
 }
+
 export const doInitialReport = async (writer: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
 	const client = createWriteClient(writer)
 	return await client.writeContract({
@@ -159,4 +161,43 @@ export const doInitialReport = async (writer: AccountAddress, market: AccountAdd
 		address: market,
 		args: [payoutNumerators, description, additionalStake]
 	})
+}
+
+export const finalizeMarket = async (writer: AccountAddress, market: AccountAddress) => {
+	const client = createWriteClient(writer)
+	return await client.writeContract({
+		abi: MARKET_ABI,
+		functionName: 'finalize',
+		address: market,
+		args: []
+	})
+}
+
+export const derivePayoutDistributionHash = async (reader: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[]) => {
+	// TODO, this can be computed locally too, see here: https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/Augur.sol#L243
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: MARKET_ABI,
+		functionName: 'derivePayoutDistributionHash',
+		address: market,
+		args: [payoutNumerators]
+	})
+}
+
+export const getStakeInOutcome = async (reader: AccountAddress, market: AccountAddress, payoutDistributionHash: EthereumBytes32) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: MARKET_ABI,
+		functionName: 'getStakeInOutcome',
+		address: market,
+		args: [bytes32String(payoutDistributionHash)]
+	})
+}
+
+export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (reader: AccountAddress, market: AccountAddress, numOutcomes: number, numTicks: EthereumQuantity) => {
+	const allPayoutNumeratorCombinations = Array.from({ length: numOutcomes }, (_, outcome) =>
+		Array.from({ length: numOutcomes }, (_, index) => index === outcome ? numTicks : 0n)
+	)
+	const payoutDistributionHashes = await Promise.all(allPayoutNumeratorCombinations.map(async (payoutNumerator) => EthereumQuantity.parse(await derivePayoutDistributionHash(reader, market, payoutNumerator))))
+	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getStakeInOutcome(reader, market, payoutDistributionHash)))
 }
