@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds } from '../../utils/utilities.js'
-import { addressString, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
+import { buyParticipationTokens, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getStakesOnAllOutcomesOnYesNoMarketOrCategorical } from '../../utils/utilities.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampISO, stringToUint8Array, stripTrailingZeros } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
@@ -144,6 +144,25 @@ export const ValidityBond = ({ totalValidityBondsForAMarket }: ValidityBondProps
 	</div>
 }
 
+type OutcomeStake = {
+	outcomeName: string,
+	repStake: bigint
+}
+interface DisplayStakesProps {
+	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+}
+export const DisplayStakes = ({ outcomeStakes }: DisplayStakesProps) => {
+	if (outcomeStakes.deepValue === undefined) return <></>
+	return <div class = 'panel'>
+		<div style = 'display: grid'>
+			<span><b>Market REP Stakes:</b></span>
+			{ outcomeStakes.deepValue.map((outcomeStake) => (
+				<span>{ outcomeStake.outcomeName }: { bigintToDecimalString(outcomeStake.repStake, 18n) } REP</span>
+			)) }
+		</div>
+	</div>
+}
+
 interface ReportingProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
 }
@@ -153,6 +172,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const disputeWindowData = useOptionalSignal<DisputeWindowData>(undefined)
 	const totalValidityBondsForAMarket = useOptionalSignal<bigint>(undefined)
+	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -168,14 +188,31 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		marketData.deepValue = undefined
 		disputeWindowData.deepValue = undefined
 		totalValidityBondsForAMarket.deepValue = undefined
+		outcomeStakes.deepValue = undefined
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
 		const parsedMarketAddressString = addressString(marketAddress.value)
 		const newMarketData = await fetchHotLoadingMarketData(account.value, parsedMarketAddressString)
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
+		const currentMarketData = marketData.deepValue
 		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(account.value)
 		totalValidityBondsForAMarket.deepValue = await fetchHotLoadingTotalValidityBonds(account.value, [parsedMarketAddressString])
+		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
+			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(account.value, parsedMarketAddressString, Number(marketData.deepValue.hotLoadingMarketData.numOutcomes), marketData.deepValue.hotLoadingMarketData.numTicks)
+			outcomeStakes.deepValue = stakes.map((repStake, index) => {
+				const getOutcomeName = (index: number) => {
+					if (index === 0) return 'Invalid'
+					if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No') return YES_NO_OPTIONS[index]
+					const outcomeName = currentMarketData.hotLoadingMarketData.outcomes[index - 1]
+					if (outcomeName === undefined) return undefined
+					return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
+				}
+				const outcomeName = getOutcomeName(index)
+				if (outcomeName === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ currentMarketData.hotLoadingMarketData.outcomes.join(',') }]`)
+				return { outcomeName, repStake }
+			})
+		}
 	}
 
 	const buyParticipationTokensButton = async () => {
@@ -193,6 +230,13 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		const reason = 'Just my initial report'
 		const additionalStake = 0n
 		await doInitialReport(account.value, marketData.deepValue.marketAddress, report, reason, additionalStake)
+	}
+
+	const finalizeMarketButton = async () => {
+		const account = maybeAccountAddress.peek()
+		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		if (marketData.deepValue === undefined) throw new Error('missing market data')
+		await finalizeMarket(account.value, marketData.deepValue.marketAddress)
 	}
 
 	function handleMarketAddress(value: string) {
@@ -219,6 +263,8 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
 			<button class = 'button is-primary' onClick = { doInitialReportButton }>Do Initial Report On First Option</button>
+			<DisplayStakes outcomeStakes = { outcomeStakes }/>
+			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
 		</div>
 	</div>
 }

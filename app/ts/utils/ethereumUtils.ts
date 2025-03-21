@@ -12,10 +12,35 @@ export function dataString(data: Uint8Array | null) {
 }
 
 export const addressString = (address: bigint): `0x${ string }` => `0x${ address.toString(16).padStart(40, '0') }`
+export const bytes32String = (bytes32: bigint): `0x${ string }` => `0x${ bytes32.toString(16).padStart(64, '0') }`
 
 export function dataStringWith0xStart(data: Uint8Array | null): `0x${ string }` {
 	if (data === null) return '0x'
 	return `0x${ dataString(data) }`
+}
+
+export function bigintToUint8Array(value: bigint, numberOfBytes: number) {
+	if (typeof value === 'number') value = BigInt(value)
+	if (value >= 2n ** BigInt(numberOfBytes * 8) || value < 0n) throw new Error(`Cannot fit ${ value } into a ${ numberOfBytes }-byte unsigned integer.`)
+	const result = new Uint8Array(numberOfBytes)
+	for (let i = 0; i < result.length; ++i) {
+		result[i] = Number((value >> BigInt(numberOfBytes - i - 1) * 8n) & 0xffn)
+	}
+	return result
+}
+
+export function stringToUint8Array(data: string) {
+	const dataLength = (data.length - 2) / 2
+	if (dataLength === 0) return new Uint8Array()
+	return bigintToUint8Array(BigInt(data), dataLength)
+}
+export function stripTrailingZeros(data: Uint8Array): Uint8Array {
+	const end = data.length - 1
+	let lastNonZero = end
+	while (lastNonZero >= 0 && data[lastNonZero] === 0) {
+		lastNonZero--
+	}
+	return data.slice(0, lastNonZero + 1)
 }
 
 export function isDecimalString(value: string): boolean {
