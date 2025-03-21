@@ -29,7 +29,7 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.parsedExtraInfo === undefined) {
 		return <>
-			<span> Failed to parse Extra data, unparsed extra data: </span>
+			<span>Failed to parse Extra data, unparsed extra data:</span>
 			<textarea
 				style = 'height: fit-content; width: 100%'
 				placeholder = 'This market resolves...'
@@ -39,10 +39,10 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 		</>
 	}
 	return <>
-		<span><b>Description:</b> { marketData.deepValue.parsedExtraInfo.description }</span>
-		<span><b>Long Description:</b> { marketData.deepValue.parsedExtraInfo.longDescription }</span>
-		<span><b>Categories:</b> { (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
-		<span><b>Tags:</b> { (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
+		<span><b>Description:</b>{ marketData.deepValue.parsedExtraInfo.description }</span>
+		<span><b>Long Description:</b>{ marketData.deepValue.parsedExtraInfo.longDescription }</span>
+		<span><b>Categories:</b>{ (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
+		<span><b>Tags:</b>{ (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
 	</>
 }
 
@@ -89,28 +89,28 @@ export const Market = ({ marketData }: MarketProps) => {
 
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
-			<span> <b>Market Address:</b> { marketData.deepValue.marketAddress }</span>
-			<span> <b>Market Creator:</b> { marketData.deepValue.hotLoadingMarketData.marketCreator }</span>
-			<span> <b>Owner:</b> { marketData.deepValue.hotLoadingMarketData.owner }</span>
-			<span> <b>Outcomes:</b> { marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
-			<span> <b>Market Type:</b> { MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
-			<span> <b>Display Prices:</b> { marketData.deepValue.hotLoadingMarketData.displayPrices.join(', ') }</span>
-			<span> <b>Designated Reporter:</b> { marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
-			<span> <b>Reporting State:</b> { REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
-			<span> <b>Dispute Round:</b> { marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
-			<span> <b>Winning Outcome:</b> { formatWinningOption() }</span>
-			<span> <b>Volume:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n) } DAI</span>
-			<span> <b>Open Interest:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n) } DAI</span>
-			<span> <b>Last Traded Prices:</b> { marketData.deepValue.hotLoadingMarketData.lastTradedPrices.join(', ') }</span>
-			<span> <b>Universe:</b> { marketData.deepValue.hotLoadingMarketData.universe }</span>
-			<span> <b>Num Ticks:</b> { marketData.deepValue.hotLoadingMarketData.numTicks }</span>
-			<span> <b>Fee:</b> { marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` }</span>
-			<span> <b>Affiliate Fee:</b> { marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` }</span>
-			<span> <b>End Time:</b> { formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }</span>
-			<span> <b>Num Outcomes:</b> { marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
-			<span> <b>Validity Bond:</b> { bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n) } REP</span>
-			<span> <b>Reporting Fee:</b> { marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
-			<span> <b>Outcome Volumes:</b> { formatVolumes() }</span>
+			<span><b>Market Address:</b>{ marketData.deepValue.marketAddress }</span>
+			<span><b>Market Creator:</b>{ marketData.deepValue.hotLoadingMarketData.marketCreator }</span>
+			<span><b>Owner:</b>{ marketData.deepValue.hotLoadingMarketData.owner }</span>
+			<span><b>Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
+			<span><b>Market Type:</b>{ MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
+			<span><b>Display Prices:</b>{ marketData.deepValue.hotLoadingMarketData.displayPrices.join(', ') }</span>
+			<span><b>Designated Reporter:</b>{ marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
+			<span><b>Reporting State:</b>{ REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
+			<span><b>Dispute Round:</b>{ marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
+			<span><b>Winning Outcome:</b>{ formatWinningOption() }</span>
+			<span><b>Volume:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n) } DAI</span>
+			<span><b>Open Interest:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n) } DAI</span>
+			<span><b>Last Traded Prices:</b>{ marketData.deepValue.hotLoadingMarketData.lastTradedPrices.join(', ') }</span>
+			<span><b>Universe:</b>{ marketData.deepValue.hotLoadingMarketData.universe }</span>
+			<span><b>Num Ticks:</b>{ marketData.deepValue.hotLoadingMarketData.numTicks }</span>
+			<span><b>Fee:</b>{ marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` }</span>
+			<span><b>Affiliate Fee:</b>{ marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` }</span>
+			<span><b>End Time:</b>{ formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }</span>
+			<span><b>Num Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
+			<span><b>Validity Bond:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n) } REP</span>
+			<span><b>Reporting Fee:</b>{ marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
+			<span><b>Outcome Volumes:</b>{ formatVolumes() }</span>
 			<DisplayExtraInfo marketData = { marketData } />
 		</div>
 	</div>
@@ -123,11 +123,11 @@ export const DisputeWindow = ({ disputeWindowData }: DisputeWindowProps) => {
 	if (disputeWindowData.deepValue === undefined) return <></>
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
-			<span> <b>Dispute Window:</b> { disputeWindowData.deepValue.disputeWindow }</span>
-			<span> <b>Start Time:</b> { formatUnixTimestampISO(disputeWindowData.deepValue.startTime) }</span>
-			<span> <b>End Time:</b> { formatUnixTimestampISO(disputeWindowData.deepValue.endTime) }</span>
-			<span> <b>Fees:</b> { bigintToDecimalString(disputeWindowData.deepValue.fees, 18n) } DAI</span>
-			<span> <b>Purchased:</b> { disputeWindowData.deepValue.purchased } Participation Tokens</span>
+			<span><b>Dispute Window:</b>{ disputeWindowData.deepValue.disputeWindow }</span>
+			<span><b>Start Time:</b>{ formatUnixTimestampISO(disputeWindowData.deepValue.startTime) }</span>
+			<span><b>End Time:</b>{ formatUnixTimestampISO(disputeWindowData.deepValue.endTime) }</span>
+			<span><b>Fees:</b>{ bigintToDecimalString(disputeWindowData.deepValue.fees, 18n) } DAI</span>
+			<span><b>Purchased:</b>{ disputeWindowData.deepValue.purchased } Participation Tokens</span>
 		</div>
 	</div>
 }
@@ -139,7 +139,7 @@ export const ValidityBond = ({ totalValidityBondsForAMarket }: ValidityBondProps
 	if (totalValidityBondsForAMarket.deepValue === undefined) return <></>
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
-			<span> <b>Total Validity Bonds For A Market:</b> { bigintToDecimalString(totalValidityBondsForAMarket.deepValue, 18n) } REP</span>
+			<span><b>Total Validity Bonds For A Market:</b>{ bigintToDecimalString(totalValidityBondsForAMarket.deepValue, 18n) } REP</span>
 		</div>
 	</div>
 }
@@ -200,9 +200,9 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 	}
 
 	return <div class = 'subApplication'>
-		<p style = 'margin: 0;'> Reporting: </p>
+		<p style = 'margin: 0;'>Reporting:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'> Market address: </p>
+			<p style = 'margin: 0;'>Market address:</p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
@@ -213,12 +213,12 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 				onInput = { e => handleMarketAddress(e.currentTarget.value) }
 			/>
 
-			<button class = 'button is-primary' onClick = { fetchMarketData }> Fetch Market Information</button>
+			<button class = 'button is-primary' onClick = { fetchMarketData }>Fetch Market Information</button>
 			<Market marketData = { marketData } />
 			<DisputeWindow disputeWindowData = { disputeWindowData } />
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
-			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }> Buy 10 Particiption Tokens</button>
-			<button class = 'button is-primary' onClick = { doInitialReportButton }> Do Initial Report On First Option</button>
+			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
+			<button class = 'button is-primary' onClick = { doInitialReportButton }>Do Initial Report On First Option</button>
 		</div>
 	</div>
 }

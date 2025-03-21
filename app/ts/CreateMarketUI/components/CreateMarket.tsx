@@ -104,9 +104,9 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 	}
 
 	return <div class = 'subApplication'>
-		<p style = 'margin: 0;'> Create Market: </p>
+		<p style = 'margin: 0;'>Create Market:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'> End Time (UTC): </p>
+			<p style = 'margin: 0;'>End Time (UTC):</p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
@@ -116,7 +116,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 				value = { endTime.value }
 				onInput = { e => handleEndTimeInput(e.currentTarget.value) }
 			/>
-			<p style = 'margin: 0;'> Market Creator Fee (%): </p>
+			<p style = 'margin: 0;'>Market Creator Fee (%):</p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
@@ -127,7 +127,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 				onInput = { e => handleMarketCreatorFee(e.currentTarget.value) }
 			/>
 			<div>
-				<p style = 'margin: 0;'> Affiliate Validator Address: </p>
+				<p style = 'margin: 0;'>Affiliate Validator Address:</p>
 				<input
 					style = 'height: fit-content;'
 					class = 'input'
@@ -137,7 +137,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 					value = { affiliateValidator.value }
 					onInput = { e => handleAffiliateValidator(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'> Affiliate Fee (%): </p>
+				<p style = 'margin: 0;'>Affiliate Fee (%):</p>
 				<select onInput = { e => handleAffiliateFee(e.currentTarget.value) }>
 					{ affiliateFeeOptions.map((fee) => (
 						<option key = { fee.id } value = { fee.id }>
@@ -146,7 +146,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 					)) }
 				</select>
 			</div>
-			<p style = 'margin: 0;'> Designated Reporter Address: </p>
+			<p style = 'margin: 0;'>Designated Reporter Address:</p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
@@ -157,7 +157,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 				onInput = { e => handleDesignatedReporterAddress(e.currentTarget.value) }
 			/>
 			<div>
-				<p style = 'margin: 0;'> Description: </p>
+				<p style = 'margin: 0;'>Description:</p>
 				<input
 					style = 'height: fit-content; width: 100%'
 					class = 'input'
@@ -166,14 +166,14 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 					value = { description.value }
 					onInput = { e => handleDescription(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'> Long description: </p>
+				<p style = 'margin: 0;'>Long description:</p>
 				<textarea
 					style = 'height: fit-content; width: 100%'
 					placeholder = 'This market resolves...'
 					value = { longDescription.value }
 					onInput = { e => handleLongDescription(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'> Categories (comma separated): </p>
+				<p style = 'margin: 0;'>Categories (comma separated):</p>
 				<input
 					style = 'height: fit-content; width: 100%'
 					class = 'input'
@@ -182,7 +182,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 					value = { categories.value }
 					onInput = { e => handleCategories(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'> Tags (comma separated): </p>
+				<p style = 'margin: 0;'>Tags (comma separated):</p>
 				<input
 					style = 'height: fit-content; width: 100%'
 					class = 'input'
@@ -192,9 +192,9 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 					onInput = { e => handleTags(e.currentTarget.value) }
 				/>
 			</div>
-			<button class = 'button is-primary' onClick = { createMarket }> Create Market </button>
-			<button class = 'button is-primary' onClick = { approveRep }> Approve REP </button>
-			<button class = 'button is-primary' onClick = { approveDai }> Approve DAI </button>
+			<button class = 'button is-primary' onClick = { createMarket }>Create Market</button>
+			<button class = 'button is-primary' onClick = { approveRep }>Approve REP</button>
+			<button class = 'button is-primary' onClick = { approveDai }>Approve DAI</button>
 		</div>
 	</div>
 }

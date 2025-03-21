@@ -17,7 +17,7 @@ export const DeployContract = ({ maybeAccountAddress, areContractsDeployed }: De
 	}
 	if (areContractsDeployed.value !== false) return <></>
 	return <div class = 'subApplication'>
-		<p class = 'error-component' style = 'width: 100%; margin-left: 10px; text-align: center;'> Augur Constant Product Market contract is not deployed. </p>
-		<button class = 'button is-primary' onClick = { deploy }> Deploy contract</button>
+		<p class = 'error-component' style = 'width: 100%; margin-left: 10px; text-align: center;'>Augur Constant Product Market contract is not deployed.</p>
+		<button class = 'button is-primary' onClick = { deploy }>Deploy contract</button>
 	</div>
 }
