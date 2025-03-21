@@ -5,9 +5,10 @@ import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUGUR_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS } from './constants.js'
+import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
+import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -117,5 +118,35 @@ export const fetchHotLoadingMarketData = async (reader: AccountAddress, marketAd
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
 		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
+	})
+}
+
+export const fetchHotLoadingCurrentDisputeWindowData = async (reader: AccountAddress) => {
+	const client = createWriteClient(reader)
+	return await client.readContract({
+		abi: HOT_LOADING_ABI,
+		functionName: 'getCurrentDisputeWindowData',
+		address: HOT_LOADING_ADDRESS,
+		args: [AUGUR_CONTRACT, GENESIS_UNIVERSE]
+	})
+}
+
+export const fetchHotLoadingTotalValidityBonds = async (reader: AccountAddress, marketAddresses: readonly AccountAddress[]) => {
+	const client = createWriteClient(reader)
+	return await client.readContract({
+		abi: HOT_LOADING_ABI,
+		functionName: 'getTotalValidityBonds',
+		address: HOT_LOADING_ADDRESS,
+		args: [marketAddresses]
+	})
+}
+
+export const buyParticipationTokens = async (writer: AccountAddress, attotokens: EthereumQuantity) => {
+	const client = createWriteClient(writer)
+	return await client.writeContract({
+		abi: BUY_PARTICIPATION_TOKENS_ABI,
+		functionName: 'buyParticipationTokens',
+		address: BUY_PARTICIPATION_TOKENS_CONTRACT,
+		args: [GENESIS_UNIVERSE, attotokens]
 	})
 }
