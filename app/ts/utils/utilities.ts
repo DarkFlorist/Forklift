@@ -9,6 +9,7 @@ import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT,
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
+import { MARKET_ABI } from '../ABI/MarketAbi.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -148,5 +149,14 @@ export const buyParticipationTokens = async (writer: AccountAddress, attotokens:
 		functionName: 'buyParticipationTokens',
 		address: BUY_PARTICIPATION_TOKENS_CONTRACT,
 		args: [GENESIS_UNIVERSE, attotokens]
+	})
+}
+export const doInitialReport = async (writer: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
+	const client = createWriteClient(writer)
+	return await client.writeContract({
+		abi: MARKET_ABI,
+		functionName: 'doInitialReport',
+		address: market,
+		args: [payoutNumerators, description, additionalStake]
 	})
 }

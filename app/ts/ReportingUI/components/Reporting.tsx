@@ -1,5 +1,5 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds } from '../../utils/utilities.js'
+import { buyParticipationTokens, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds } from '../../utils/utilities.js'
 import { addressString, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
@@ -184,6 +184,17 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		await buyParticipationTokens(account.value, 10n)
 	}
 
+	const doInitialReportButton = async () => {
+		const account = maybeAccountAddress.peek()
+		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		if (marketData.deepValue === undefined) throw new Error('missing market data')
+		const ticks = marketData.deepValue.hotLoadingMarketData.numTicks
+		const report = Array(Number(marketData.deepValue.hotLoadingMarketData.numOutcomes)).fill(0n).map((_, option) => option === 1 ? ticks : 0n)
+		const reason = 'Just my initial report'
+		const additionalStake = 0n
+		await doInitialReport(account.value, marketData.deepValue.marketAddress, report, reason, additionalStake)
+	}
+
 	function handleMarketAddress(value: string) {
 		marketAddressString.value = value
 	}
@@ -207,6 +218,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			<DisputeWindow disputeWindowData = { disputeWindowData } />
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }> Buy 10 Particiption Tokens</button>
+			<button class = 'button is-primary' onClick = { doInitialReportButton }> Do Initial Report On First Option</button>
 		</div>
 	</div>
 }
