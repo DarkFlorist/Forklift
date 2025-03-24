@@ -132,13 +132,19 @@ contract AugurConstantProduct is ERC20 {
 		uint256 yesFromUser = 0;
 		if (userYes > userNo) {
 			uint256 noToUser = setsToSell - userNo;
-			uint256 yesToPool = simulatedPoolConstant / (poolNo - noToUser) - poolYes;
+			uint256 poolNoLessTouser = poolNo - noToUser;
+			uint256 yesToPool = simulatedPoolConstant / poolNoLessTouser;
+			if (yesToPool * poolNoLessTouser < simulatedPoolConstant) yesToPool += 1;
+			yesToPool = yesToPool - poolYes;
 			require(yesToPool <= userYes - setsToSell, "AugurCP: You don't have enough YES tokens to close out for this amount.");
 			noFromUser = userNo;
 			yesFromUser = yesToPool + setsToSell;
 		} else {
 			uint256 yesToUser = setsToSell - userYes;
-			uint256 noToPool = simulatedPoolConstant / (poolYes - yesToUser) - poolNo;
+			uint256 poolYesLessToUser = poolYes - yesToUser;
+			uint256 noToPool = simulatedPoolConstant / poolYesLessToUser;
+			if (noToPool * poolYesLessToUser < simulatedPoolConstant) noToPool += 1;
+			noToPool = noToPool - poolNo;
 			require(noToPool <= userNo - setsToSell, "AugurCP: You don't have enough NO tokens to close out for this amount.");
 			yesFromUser = userYes;
 			noFromUser = noToPool + setsToSell;
