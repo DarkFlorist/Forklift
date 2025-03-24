@@ -96,7 +96,6 @@ contract AugurConstantProduct is ERC20 {
 		// simulate user swapping YES to NO or NO to YES
 		uint256 simulatedPoolConstant = poolYes * poolNo;
 		if (buyYes) {
-			// yesToUser += poolYes - poolConstant / (poolNo + noToUser)
 			yesToUser = yesToUser + poolYes - simulatedPoolConstant / (poolNo + noToUser);
 			noToUser = 0;
 		} else {
@@ -206,9 +205,9 @@ contract AugurConstantProduct is ERC20 {
 			amounts[0] = invalidAmount != 0 ? invalidAmount : noAmount != 0 ? noAmount : yesAmount;
 		} else if (size == 2) {
 			tokenIds[0] = invalidAmount != 0 ? INVALID : NO;
-			tokenIds[1] = invalidAmount != 0 ? YES : NO;
+			tokenIds[1] = yesAmount != 0 ? YES : NO;
 			amounts[0] = invalidAmount != 0 ? invalidAmount : noAmount;
-			amounts[1] = invalidAmount != 0 ? yesAmount : noAmount;
+			amounts[1] = yesAmount != 0 ? yesAmount : noAmount;
 		} else {
 			tokenIds[0] = INVALID;
 			tokenIds[1] = NO;
