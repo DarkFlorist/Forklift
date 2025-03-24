@@ -48,6 +48,7 @@ contract AugurConstantProduct is ERC20 {
 
 		_burn(msg.sender, poolTokensToSell);
 
+		uint256 poolDai = dai.balanceOf(address(this));
 		uint256 invalidShare = poolInvalid * poolTokensToSell / poolSupply;
 		uint256 noShare = poolNo * poolTokensToSell / poolSupply;
 		uint256 yesShare = poolYes * poolTokensToSell / poolSupply;
@@ -57,7 +58,9 @@ contract AugurConstantProduct is ERC20 {
 		completeSetsToSell = noShare < completeSetsToSell ? noShare : completeSetsToSell;
 		completeSetsToSell = yesShare < completeSetsToSell ? yesShare : completeSetsToSell;
 		shareToken.publicSellCompleteSets(augurMarketAddress, completeSetsToSell);
-		
+		uint256 poolDaiAfterSale = dai.balanceOf(address(this));
+		uint256 daiFromCompleteSets = poolDaiAfterSale - poolDai;
+
 		// Send shares
 		uint256[] memory tokenIds = new uint256[](3);
 		tokenIds[0] = INVALID;
@@ -71,8 +74,7 @@ contract AugurConstantProduct is ERC20 {
 		shareToken.unsafeBatchTransferFrom(address(this), msg.sender, tokenIds, tokenValues);
 
 		// Send DAI
-		uint256 poolDai = dai.balanceOf(address(this));
-		uint256 daiShare = poolDai * poolTokensToSell / poolSupply;
+		uint256 daiShare = daiFromCompleteSets + poolDai * poolTokensToSell / poolSupply;
 		dai.transfer(msg.sender, daiShare);
 	}
 

@@ -32,8 +32,8 @@ test('canAddAndRemoveLiquidity', async () => {
 	await addLiquidity(client, lpToBuy)
 	const lpBalance = await getPoolLiquidityBalance(client)
 	assert.strictEqual(lpBalance, lpToBuy, `Liquidity not bought correctly`)
-	const afterBuyDaiBalance = await getDaiBalance(client)
-	assert.strictEqual(originalDaiBalance - afterBuyDaiBalance, expectedCost, `Dai not removed as expected. Costed ${originalDaiBalance - afterBuyDaiBalance}. Expected: ${expectedCost}`)
+	const daiBalanceAfterBuy = await getDaiBalance(client)
+	assert.strictEqual(originalDaiBalance - daiBalanceAfterBuy, expectedCost, `Dai not removed as expected. Costed ${originalDaiBalance - daiBalanceAfterBuy}. Expected: ${expectedCost}`)
 
 	const acpmAddress = getAugurConstantProductMarketAddress()
 	const acpmShareBalances = await getShareBalances(client, acpmAddress)
@@ -41,20 +41,36 @@ test('canAddAndRemoveLiquidity', async () => {
 	assert.strictEqual(acpmShareBalances[1], lpToBuy, `ACPM did not get expected No shares. Got: ${acpmShareBalances[1]}. Expected: ${lpToBuy}`)
 	assert.strictEqual(acpmShareBalances[2], lpToBuy, `ACPM did not get expected Yes shares. Got: ${acpmShareBalances[2]}. Expected: ${lpToBuy}`)
 
-	// Remove Liquidity
-	await removeLiquidity(client, lpToBuy)
+	// Remove Partial Liquidity (10%)
+	const partialLiquidityRemovalAmount = lpToBuy / 10n
+	const expectedLiquidityAfterRemoval = lpToBuy - partialLiquidityRemovalAmount
+	await removeLiquidity(client, partialLiquidityRemovalAmount)
 	const newLPBalance = await getPoolLiquidityBalance(client)
-	assert.strictEqual(newLPBalance, 0n, `Liquidity not removed correctly`)
+	assert.strictEqual(newLPBalance, expectedLiquidityAfterRemoval, `Liquidity not removed correctly`)
 
-	const daiBalance = await getDaiBalance(client)
 	const reportingFee = await getReportingFee(client)
-	const expectedDaiBalance = originalDaiBalance - (expectedCost / reportingFee)
-	assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not returned as expected. Got ${daiBalance}. Expected: ${expectedDaiBalance}`)
+	const daiBalanceAfterPartialRemoval = await getDaiBalance(client)
+	const expectedBaseReturn = partialLiquidityRemovalAmount * numTicks
+	const expectedReturnAfterFee = expectedBaseReturn - (expectedBaseReturn / reportingFee)
+	const expectedDaiBalanceAfterPartialRemoval = daiBalanceAfterBuy + expectedReturnAfterFee
+	assert.strictEqual(daiBalanceAfterPartialRemoval, expectedDaiBalanceAfterPartialRemoval, `Dai not returned as expected. Got ${daiBalanceAfterPartialRemoval}. Expected: ${expectedDaiBalanceAfterPartialRemoval}`)
 
 	const shareBalances = await getShareBalances(client, client.account.address)
 	assert.strictEqual(shareBalances[0], 0n, `User received Invalid shares incorrectly`)
 	assert.strictEqual(shareBalances[1], 0n, `User received No shares incorrectly`)
 	assert.strictEqual(shareBalances[2], 0n, `User received Yes shares incorrectly`)
+
+    // Remove all Liquidity
+
+	await removeLiquidity(client, expectedLiquidityAfterRemoval)
+	const daiBalance = await getDaiBalance(client)
+	const expectedDaiBalance = originalDaiBalance - (expectedCost / reportingFee)
+	assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not returned as expected. Got ${daiBalance}. Expected: ${expectedDaiBalance}`)
+
+	const finalShareBalances = await getShareBalances(client, client.account.address)
+	assert.strictEqual(finalShareBalances[0], 0n, `User received Invalid shares incorrectly`)
+	assert.strictEqual(finalShareBalances[1], 0n, `User received No shares incorrectly`)
+	assert.strictEqual(finalShareBalances[2], 0n, `User received Yes shares incorrectly`)
 })
 
 test('canEnterAndExitYesPosition', async () => {
@@ -140,6 +156,8 @@ test('canEnterAndExitNoPosition', async () => {
 	assert.strictEqual(shareBalancesAfterExit[1], 0n, `Did not close out No position when exiting No position`)
 	assert.strictEqual(shareBalancesAfterExit[2], 0n, `Recieved Yes shares when exiting a No position`)
 })
+
+
 
 // TODO
 // remove partial liquidity
