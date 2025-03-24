@@ -1,5 +1,5 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators } from '../../utils/utilities.js'
+import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getPreemptiveDisputeCrowdsourcer, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators } from '../../utils/utilities.js'
 import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, stringToUint8Array, stripTrailingZeros } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
@@ -155,9 +155,10 @@ interface DisplayStakesProps {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	maybeAccountAddress: OptionalSignal<AccountAddress>
 	marketData: OptionalSignal<MarketData>
+	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 }
 
-export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData }: DisplayStakesProps) => {
+export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, preemptiveDisputeCrowdsourcerStake }: DisplayStakesProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const selectedOutcome = useSignal<string | null>(null)
@@ -216,7 +217,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData }
 						onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
 					/>
 					{' '}
-					{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? '' : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) }` }
+					{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n) } REP` : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) } REP` }
 				</label>
 			</span>
 		))
@@ -245,7 +246,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData }
 						Amount:{' '}
 						<input
 							type = 'text'
-							placeholder = 'Enter amount as integer'
+							placeholder = ''
 							value = { amountInput.value }
 							onChange = { (event) => {
 								const target = event.target as HTMLInputElement
@@ -292,6 +293,8 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
+	const preemptiveDisputeCrowdsourcerAddress = useOptionalSignal<AccountAddress>(undefined)
+	const preemptiveDisputeCrowdsourcerStake = useOptionalSignal<bigint>(undefined)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -310,6 +313,8 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		outcomeStakes.deepValue = undefined
 		disputeWindowAddress.deepValue = undefined
 		disputeWindowInfo.deepValue = undefined
+		preemptiveDisputeCrowdsourcerAddress.deepValue = undefined
+		preemptiveDisputeCrowdsourcerStake.deepValue = 0n
 
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
@@ -345,10 +350,12 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			})
 		}
 		disputeWindowAddress.deepValue = await getDisputeWindow(account.value, parsedMarketAddressString)
-		console.log(disputeWindowAddress.deepValue)
 		if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
-			console.log('info')
 			disputeWindowInfo.deepValue = await getDisputeWindowInfo(account.value, disputeWindowAddress.deepValue)
+		}
+		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(account.value, parsedMarketAddressString)
+		if (EthereumAddress.parse(preemptiveDisputeCrowdsourcerAddress.deepValue) !== 0n) {
+			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(account.value, preemptiveDisputeCrowdsourcerAddress.deepValue)
 		}
 	}
 
@@ -396,11 +403,11 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 
 			<button class = 'button is-primary' onClick = { fetchMarketData }>Fetch Market Information</button>
 			<Market marketData = { marketData } />
-			<DisputeWindow disputeWindowData = { disputeWindowData } />
+			<DisputeWindow disputeWindowData = { disputeWindowData }/>
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
 			<button class = 'button is-primary' onClick = { doInitialReportButton }>Do Initial Report On First Option</button>
-			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeAccountAddress = { maybeAccountAddress }/>
+			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
 			<DisplayDisputeWindow disputeWindowAddress = { disputeWindowAddress } disputeWindowInfo = { disputeWindowInfo }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
 		</div>

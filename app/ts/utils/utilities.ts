@@ -286,3 +286,23 @@ export const getWinningPayoutNumerators = async (reader: AccountAddress, market:
 	if (EthereumQuantity.parse(participantAddress) === 0n) return undefined
 	return await getPayoutNumeratorsForReportingParticipant(reader, participantAddress)
 }
+
+export const getPreemptiveDisputeCrowdsourcer = async (reader: AccountAddress, market: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: MARKET_ABI,
+		functionName: 'preemptiveDisputeCrowdsourcer',
+		address: market,
+		args: []
+	})
+}
+
+export const getStakeOfReportingParticipant = async (reader: AccountAddress, market: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: REPORTING_PARTICIPANT_ABI,
+		functionName: 'getStake',
+		address: market,
+		args: []
+	})
+}
