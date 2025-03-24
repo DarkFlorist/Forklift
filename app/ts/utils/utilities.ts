@@ -196,11 +196,7 @@ export const getStakeInOutcome = async (reader: AccountAddress, market: AccountA
 	})
 }
 
-export const getAllPayoutNumeratorCombinations = (numOutcomes: number, numTicks: EthereumQuantity): readonly bigint[][] => {
-	return Array.from({ length: numOutcomes }, (_, outcome) =>
-		Array.from({ length: numOutcomes }, (_, index) => index === outcome ? numTicks : 0n)
-	)
-}
+export const getAllPayoutNumeratorCombinations = (numOutcomes: number, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: numOutcomes }, (_, outcome) => Array.from({ length: numOutcomes }, (_, index) => index === outcome ? numTicks : 0n))
 
 export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (reader: AccountAddress, market: AccountAddress, numOutcomes: number, numTicks: EthereumQuantity) => {
 	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
