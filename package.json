@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@preact/signals": "2.0.1",
 		"preact": "10.26.4",
-		"viem": "2.23.12"
+		"viem": "2.23.15"
 	},
 	"scripts": {
 		"setup": "npm ci --ignore-scripts && npm run contracts && npm run vendor && npm run build",
