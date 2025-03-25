@@ -7,6 +7,7 @@ import { DeployContract } from './ConstantProductUI/components/DeployContract.js
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
+import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 
 interface WalletComponentProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
@@ -94,6 +95,7 @@ export function App() {
 		<DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed } />
 		<CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress } />
 		<Reporting maybeAccountAddress = { maybeAccountAddress } />
+		<ClaimFunds maybeAccountAddress = { maybeAccountAddress } />
 		<div class = 'text-white/50 text-center'>
 			<div class = 'mt-8'>
 				Augur Constant Product Market by&nbsp;

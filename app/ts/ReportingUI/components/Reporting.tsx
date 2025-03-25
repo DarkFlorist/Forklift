@@ -242,6 +242,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 			}/>
 		</div>
 	}
+
 	const TotalRepStaked = () => {
 		if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
 		return <div style = 'display: grid; margin-top: 1rem'>

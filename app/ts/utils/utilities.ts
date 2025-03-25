@@ -5,7 +5,7 @@ import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS, REPV2_TOKEN_ADDRESS, YES_NO_OPTIONS } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS, REDEEM_STAKE_ADDRESS, REPV2_TOKEN_ADDRESS, YES_NO_OPTIONS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
@@ -14,6 +14,8 @@ import { bytes32String, stringToUint8Array, stripTrailingZeros } from './ethereu
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
 import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
 import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
+import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
+import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -397,4 +399,71 @@ export const getOutcomeName = (index: number, marketType: MarketType, outcomes: 
 	const outcomeName = outcomes[index - 1]
 	if (outcomeName === undefined) return undefined
 	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
+}
+
+export const redeemStake = async (reader: AccountAddress, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
+	const client = createWriteClient(reader)
+	return await client.writeContract({
+		abi: REDEEM_STAKE_ABI,
+		functionName: 'redeemStake',
+		address: REDEEM_STAKE_ADDRESS,
+		args: [reportingParticipants, disputeWindows]
+	})
+}
+
+export const getAvailableShareData = async (reader: AccountAddress, account: AccountAddress) => {
+	const client = createReadClient(reader)
+	let offset = 0n
+	const pageSize = 10n
+	let pages: { market: `0x${ string }`, payout: bigint }[] = []
+	do {
+		const page = await client.readContract({
+			abi: AUDIT_FUNDS_ABI,
+			functionName: 'getAvailableShareData',
+			address: AUDIT_FUNDS_ADDRESS,
+			args: [account, offset, pageSize]
+		})
+		pages.push(...page[0])
+		if (page[1]) break
+		offset += pageSize
+	} while(true)
+	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
+}
+
+export const getAvailableReports = async (reader: AccountAddress, account: AccountAddress) => {
+	const client = createReadClient(reader)
+	let offset = 0n
+	const pageSize = 10n
+	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
+	do {
+		const page = await client.readContract({
+			abi: AUDIT_FUNDS_ABI,
+			functionName: 'getAvailableReports',
+			address: AUDIT_FUNDS_ADDRESS,
+			args: [account, offset, pageSize]
+		})
+		pages.push(...page[0])
+		if (page[1]) break
+		offset += pageSize
+	} while(true)
+	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
+}
+
+export const getAvailableDisputes = async (reader: AccountAddress, account: AccountAddress) => {
+	const client = createReadClient(reader)
+	let offset = 0n
+	const pageSize = 10n
+	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
+	do {
+		const page = await client.readContract({
+			abi: AUDIT_FUNDS_ABI,
+			functionName: 'getAvailableDisputes',
+			address: AUDIT_FUNDS_ADDRESS,
+			args: [account, offset, pageSize]
+		})
+		pages.push(...page[0])
+		if (page[1]) break
+		offset += pageSize
+	} while(true)
+	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
 }
