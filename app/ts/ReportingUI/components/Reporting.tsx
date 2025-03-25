@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators } from '../../utils/utilities.js'
-import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, stringToUint8Array, stripTrailingZeros } from '../../utils/ethereumUtils.js'
+import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getForkValues, getOutcomeName, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, ReportingHistoryElement } from '../../utils/utilities.js'
+import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
@@ -327,6 +327,30 @@ export const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
 	</div>
 }
 
+interface ReportingHistoryProps {
+	reportingHistory: OptionalSignal<readonly ReportingHistoryElement[]>
+	marketData: OptionalSignal<MarketData>
+}
+export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHistoryProps) => {
+	if (reportingHistory.deepValue === undefined) return <></>
+	if (marketData.deepValue === undefined) return <></>
+	const allPayoutNumerators = getAllPayoutNumeratorCombinations(Number(marketData.deepValue.hotLoadingMarketData.numOutcomes), marketData.deepValue.hotLoadingMarketData.numTicks)
+
+	return <div class = 'panel'>
+		<span><b>Reporting history for the market</b></span>
+		<div style = 'display: grid'>
+			{ reportingHistory.deepValue.map((round) => {
+				if (marketData.deepValue === undefined) return <></>
+				const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
+				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
+				const payoutIndex = allPayoutNumerators.findIndex((option) => areEqualArrays(option, round.payoutNumerators))
+				const outcomeName = getOutcomeName(payoutIndex, marketType, marketData.deepValue.hotLoadingMarketData.outcomes || [])
+				return <span><b>Round { ' ' }{ round.round }</b>{ ': ' }{ outcomeName }{ ' ' }for{ ' ' }{ bigintToDecimalString(round.stake, 18n) }{ ' ' }REP</span>
+			})}
+		</div>
+	</div>
+}
+
 interface ReportingProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
 }
@@ -342,6 +366,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 	const preemptiveDisputeCrowdsourcerAddress = useOptionalSignal<AccountAddress>(undefined)
 	const preemptiveDisputeCrowdsourcerStake = useOptionalSignal<bigint>(undefined)
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
+	const reportingHistory = useOptionalSignal<readonly ReportingHistoryElement[]>(undefined)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -362,6 +387,8 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		disputeWindowInfo.deepValue = undefined
 		preemptiveDisputeCrowdsourcerAddress.deepValue = undefined
 		preemptiveDisputeCrowdsourcerStake.deepValue = 0n
+		forkValues.deepValue = undefined
+		reportingHistory.deepValue = undefined
 
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
@@ -378,14 +405,9 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
 			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(account.value, parsedMarketAddressString, Number(marketData.deepValue.hotLoadingMarketData.numOutcomes), marketData.deepValue.hotLoadingMarketData.numTicks)
 			outcomeStakes.deepValue = stakes.map((repStake, index) => {
-				const getOutcomeName = (index: number) => {
-					if (index === 0) return 'Invalid'
-					if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No') return YES_NO_OPTIONS[index]
-					const outcomeName = currentMarketData.hotLoadingMarketData.outcomes[index - 1]
-					if (outcomeName === undefined) return undefined
-					return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
-				}
-				const outcomeName = getOutcomeName(index)
+				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
+				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
+				const outcomeName = getOutcomeName(index, marketType, currentMarketData.hotLoadingMarketData.outcomes || [])
 				const payoutNumerators = allPayoutNumerators[index]
 				if (outcomeName === undefined || payoutNumerators === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ currentMarketData.hotLoadingMarketData.outcomes.join(',') }]`)
 				return {
@@ -406,6 +428,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		}
 
 		forkValues.deepValue = await getForkValues(account.value)
+		reportingHistory.deepValue = await getReportingHistory(account.value, parsedMarketAddressString, newMarketData.disputeRound)
 	}
 
 	const buyParticipationTokensButton = async () => {
@@ -459,6 +482,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues }/>
 			<DisplayDisputeWindow disputeWindowAddress = { disputeWindowAddress } disputeWindowInfo = { disputeWindowInfo }/>
 			<DisplayForkValues forkValues = { forkValues }/>
+			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
 		</div>
 	</div>

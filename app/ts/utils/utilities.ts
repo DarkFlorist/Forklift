@@ -5,12 +5,12 @@ import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS, REPV2_TOKEN_ADDRESS } from './constants.js'
+import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS, REPV2_TOKEN_ADDRESS, YES_NO_OPTIONS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
-import { bytes32String } from './ethereumUtils.js'
+import { bytes32String, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
 import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
 import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
@@ -347,4 +347,54 @@ export const getForkValues = async (reader: AccountAddress) => {
 		initialReportMinValue,
 		disputeThresholdForDisputePacing
 	}
+}
+
+// a slow function that gets history of reporting rounds
+export type ReportingHistoryElement = {
+	round: bigint,
+	participantAddress: AccountAddress,
+	payoutNumerators: readonly bigint[],
+	stake: bigint
+}
+export const getReportingHistory = async(reader: AccountAddress, market: AccountAddress, currentRound: bigint) => {
+	const client = createReadClient(reader)
+
+	// loop over all (intentionally sequential not to spam)
+	const result: ReportingHistoryElement[] = []
+	for (let round = 0n; round <= currentRound; round++) {
+		const participantAddress = await client.readContract({
+			abi: MARKET_ABI,
+			functionName: 'participants',
+			address: market,
+			args: [round]
+		})
+		const payoutNumerators = await client.readContract({
+			abi: REPORTING_PARTICIPANT_ABI,
+			functionName: 'getPayoutNumerators',
+			address: participantAddress,
+			args: []
+		})
+		const stake = await client.readContract({
+			abi: REPORTING_PARTICIPANT_ABI,
+			functionName: 'getStake',
+			address: participantAddress,
+			args: []
+		})
+		result.push({
+			round,
+			participantAddress,
+			payoutNumerators,
+			stake
+		})
+	}
+	return result
+}
+
+type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
+export const getOutcomeName = (index: number, marketType: MarketType, outcomes: readonly `0x${ string }`[]) => {
+	if (index === 0) return 'Invalid'
+	if (marketType === 'Yes/No') return YES_NO_OPTIONS[index]
+	const outcomeName = outcomes[index - 1]
+	if (outcomeName === undefined) return undefined
+	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
 }
