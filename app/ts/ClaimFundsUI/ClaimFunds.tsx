@@ -2,7 +2,7 @@ import { Signal, useSignal } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/utilities.js'
+import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
 
 interface DisplayShareDataProps {
 	availaleShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
