@@ -233,6 +233,8 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData }
 						<input
 							type = 'text'
 							value = { reason.value }
+							style = { 'width: 100%' }
+							placeholder = 'Optional: Explain why you believe this outcome is correct'
 							onChange = { (event) => {
 								const target = event.target as HTMLInputElement
 								reason.value = target.value
