@@ -246,8 +246,8 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 		if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
 		return <div style = 'display: grid; margin-top: 1rem'>
 			<span><b>Total Rep staked on the market:</b>{ ' ' }{ bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n) } REP</span>
-			<span><b>Entering Slow Reporting after:</b>{ ' ' }{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForDisputePacing, 18n) } REP is staked</span>
-			<span><b>Forking Augur after:</b>{ ' ' }{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n) } REP is staked</span>
+			<span><b>Entering Slow Reporting after:</b>{ ' ' }{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForDisputePacing, 18n) } REP is staked within one round</span>
+			<span><b>Forking Augur after:</b>{ ' ' }{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n) } REP is staked within one round</span>
 		</div>
 	}
 
@@ -320,8 +320,8 @@ export const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
 		<span><b>Fork Values</b></span>
 		<div style = 'display: grid'>
 			<span><b>Initial Report Min Value:</b>{ bigintToDecimalString(forkValues.deepValue.initialReportMinValue, 18n) } REP</span>
-			<span><b>Dispute Threshold For Dispute Pacing:</b>{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForDisputePacing, 18n) } REP</span>
-			<span><b>Dispute Threshold For Fork:</b>{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n) } REP</span>
+			<span><b>Dispute Threshold For Dispute Pacing (one round):</b>{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForDisputePacing, 18n) } REP</span>
+			<span><b>Dispute Threshold For Fork (one round):</b>{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n) } REP</span>
 			<span><b>Fork Reputation Goal:</b>{ bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n) } REP</span>
 		</div>
 	</div>
