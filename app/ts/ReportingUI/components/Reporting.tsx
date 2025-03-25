@@ -49,27 +49,6 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 
 export const Market = ({ marketData }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <></>
-
-	const formatVolumes = () => {
-		if (marketData.deepValue === undefined) return ''
-		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
-		const volumes = marketData.deepValue.hotLoadingMarketData.outcomeVolumes
-		switch(marketType) {
-			case 'Categorical':
-			case 'Scalar': {
-				return volumes.join(', ')
-			}
-			case 'Yes/No': {
-				return <div style = 'display: grid'>
-					{ YES_NO_OPTIONS.map((option, index) => (
-						<span>{ option }: { volumes[index] === undefined ? 'undefined' : bigintToDecimalString(volumes[index], 18n) } DAI</span>
-					)) }
-				</div>
-			}
-			case undefined: throw new Error(`invalid marketType: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
-			default: assertNever(marketType)
-		}
-	}
 	const formatWinningOption = () => {
 		if (marketData.deepValue === undefined) return ''
 		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
@@ -95,14 +74,11 @@ export const Market = ({ marketData }: MarketProps) => {
 			<span><b>Owner:</b>{ marketData.deepValue.hotLoadingMarketData.owner }</span>
 			<span><b>Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
 			<span><b>Market Type:</b>{ MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
-			<span><b>Display Prices:</b>{ marketData.deepValue.hotLoadingMarketData.displayPrices.join(', ') }</span>
 			<span><b>Designated Reporter:</b>{ marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
 			<span><b>Reporting State:</b>{ REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
 			<span><b>Dispute Round:</b>{ marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
 			<span><b>Winning Outcome:</b>{ formatWinningOption() }</span>
-			<span><b>Volume:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.volume, 18n) } DAI</span>
 			<span><b>Open Interest:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n) } DAI</span>
-			<span><b>Last Traded Prices:</b>{ marketData.deepValue.hotLoadingMarketData.lastTradedPrices.join(', ') }</span>
 			<span><b>Universe:</b>{ marketData.deepValue.hotLoadingMarketData.universe }</span>
 			<span><b>Num Ticks:</b>{ marketData.deepValue.hotLoadingMarketData.numTicks }</span>
 			<span><b>Fee:</b>{ marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` }</span>
@@ -111,7 +87,6 @@ export const Market = ({ marketData }: MarketProps) => {
 			<span><b>Num Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
 			<span><b>Validity Bond:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n) } REP</span>
 			<span><b>Reporting Fee:</b>{ marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
-			<span><b>Outcome Volumes:</b>{ formatVolumes() }</span>
 			<DisplayExtraInfo marketData = { marketData } />
 		</div>
 	</div>
