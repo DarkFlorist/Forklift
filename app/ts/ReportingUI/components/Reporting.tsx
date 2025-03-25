@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators } from '../../utils/utilities.js'
-import { addressString, areEqualArrays, bigintToDecimalString, formatUnixTimestampISO, stringToUint8Array, stripTrailingZeros } from '../../utils/ethereumUtils.js'
+import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, stringToUint8Array, stripTrailingZeros } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
@@ -150,39 +150,125 @@ type OutcomeStake = {
 	status: 'Winning' | 'Losing'
 	payoutNumerators: EthereumQuantity[]
 }
+
 interface DisplayStakesProps {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	maybeAccountAddress: OptionalSignal<AccountAddress>
 	marketData: OptionalSignal<MarketData>
 }
+
 export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData }: DisplayStakesProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
-	const report = async (outcomeStake: OutcomeStake) => {
+	const selectedOutcome = useSignal<string | null>(null)
+	const reason = useSignal<string>('')
+	const amountInput = useSignal<string>('')
+
+	const report = async (outcomeStake: OutcomeStake, reportReason: string, amount: bigint) => {
 		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('market missing')
-		const reason = 'I feel this is the right option!'
-		const amount = 10n
 		const market = marketData.deepValue.marketAddress
 		if (outcomeStake.status === 'Winning') {
-			return await contributeToMarketDisputeOnTentativeOutcome(maybeAccountAddress.deepValue, market, outcomeStake.payoutNumerators, amount, reason)
+			return await contributeToMarketDisputeOnTentativeOutcome(
+				maybeAccountAddress.deepValue,
+				market,
+				outcomeStake.payoutNumerators,
+				amount,
+				reportReason
+			)
 		}
-		return await contributeToMarketDispute(maybeAccountAddress.deepValue, market, outcomeStake.payoutNumerators, amount, reason)
+		return await contributeToMarketDispute(
+			maybeAccountAddress.deepValue,
+			market,
+			outcomeStake.payoutNumerators,
+			amount,
+			reportReason
+		)
 	}
-	return <div class = 'panel'>
-		<div style = 'display: grid'>
-			<span><b>Market REP Stakes:</b></span>
-			{ outcomeStakes.deepValue.map((outcomeStake) => (
-				<span>{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP <button class = 'button is-primary' onClick = { () => report(outcomeStake) }>Report</button></span>
-			)) }
+
+	// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
+	const requiredState = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
+
+	const handleReport = async () => {
+		if (outcomeStakes.deepValue === undefined) return
+		if (amountInput.value.trim() === '') throw new Error ('Input missing')
+		const amountBigInt = decimalStringToBigint(amountInput.value, 18n)
+		if (selectedOutcome.value === null) throw new Error('Invalid input')
+		const outcomeStake = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)
+		if (!outcomeStake) throw new Error('Selected outcome not found')
+		try {
+			await report(outcomeStake, reason.value, amountBigInt)
+		} catch (error) {
+			console.error('Error reporting for outcome:', outcomeStake.outcomeName, error)
+		}
+	}
+
+	const Options = () => {
+		if (outcomeStakes.deepValue === undefined) return <></>
+		const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
+		return outcomeStakes.deepValue.map((outcomeStake) => (
+			<span key = { outcomeStake.outcomeName }>
+				<label>
+					<input
+						type = 'radio'
+						name = 'selectedOutcome'
+						checked = { selectedOutcome.value === outcomeStake.outcomeName }
+						onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+					/>
+					{' '}
+					{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? '' : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) }` }
+				</label>
+			</span>
+		))
+	}
+
+	return (
+		<div class = 'panel'>
+			<div style = 'display: grid'>
+				<span><b>Market REP Stakes:</b></span>
+				<Options/>
+				<div style = 'margin-top: 1rem'>
+					<label>
+						Reason:{' '}
+						<input
+							type = 'text'
+							value = { reason.value }
+							style = { 'width: 100%' }
+							placeholder = 'Optional: Explain why you believe this outcome is correct'
+							onChange = { (event) => {
+								const target = event.target as HTMLInputElement
+								reason.value = target.value
+							} }
+						/>
+					</label>
+				</div>
+				<div style = 'margin-top: 0.5rem'>
+					<label>
+						Amount:{' '}
+						<input
+							type = 'text'
+							placeholder = 'Enter amount as integer'
+							value = { amountInput.value }
+							onChange = { (event) => {
+								const target = event.target as HTMLInputElement
+								amountInput.value = target.value
+							} }
+						/>
+					</label>
+				</div>
+				<div style = 'margin-top: 1rem'>
+					<button class = 'button is-primary' onClick = { handleReport }>Report</button>
+				</div>
+			</div>
 		</div>
-	</div>
+	)
 }
 
 interface DisplayDisputeWindowProps {
 	disputeWindowAddress: OptionalSignal<AccountAddress>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 }
+
 export const DisplayDisputeWindow = ({ disputeWindowAddress, disputeWindowInfo }: DisplayDisputeWindowProps) => {
 	if (disputeWindowAddress.deepValue === undefined) return <></>
 	if (disputeWindowInfo.deepValue === undefined) return <></>
