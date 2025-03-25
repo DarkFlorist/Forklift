@@ -5,7 +5,7 @@ import { mainnet } from 'viem/chains'
 import { augurConstantProductMarketContractArtifact } from '../VendoredAugurConstantProductMarket.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS } from './constants.js'
+import { AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, PROXY_DEPLOYER_ADDRESS, REPV2_TOKEN_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
@@ -13,6 +13,7 @@ import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { bytes32String } from './ethereumUtils.js'
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
 import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
+import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
 
 export const requestAccounts = async () => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
@@ -305,4 +306,45 @@ export const getStakeOfReportingParticipant = async (reader: AccountAddress, mar
 		address: market,
 		args: []
 	})
+}
+
+// false if we are in fast reporting
+export const getDisputePacingOn = async (reader: AccountAddress, market: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: MARKET_ABI,
+		functionName: 'getDisputePacingOn',
+		address: market,
+		args: []
+	})
+}
+
+export const getReputationTotalTheoreticalSupply = async (reader: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: REPUTATION_TOKEN_ABI,
+		functionName: 'getTotalTheoreticalSupply',
+		address: REPV2_TOKEN_ADDRESS, // TODO, this can change
+		args: []
+	})
+}
+
+// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Universe.sol#L109
+export const getForkValues = async (reader: AccountAddress) => {
+	const FORK_THRESHOLD_DIVISOR = 40n // 2.5% of the total REP supply being filled in a single dispute bond will trigger a fork
+	const MAXIMUM_DISPUTE_ROUNDS = 20n // We ensure that after 20 rounds of disputes a fork will occur
+	const MINIMUM_SLOW_ROUNDS = 8n // We ensure that at least 8 dispute rounds take DISPUTE_ROUND_DURATION_SECONDS+ seconds to complete until the next round begins
+
+	const totalRepSupply = await getReputationTotalTheoreticalSupply(reader)
+	const forkReputationGoal = totalRepSupply / 2n // 50% of REP migrating results in a victory in a fork
+	const disputeThresholdForFork = totalRepSupply / FORK_THRESHOLD_DIVISOR // 2.5% of the total rep supply
+	const initialReportMinValue = (disputeThresholdForFork / 3n) / (2n ** (MAXIMUM_DISPUTE_ROUNDS - 2n)) + 1n // This value will result in a maximum 20 round dispute sequence
+	const disputeThresholdForDisputePacing = disputeThresholdForFork / (2n ** (MINIMUM_SLOW_ROUNDS + 1n)) // Disputes begin normal pacing once there are 8 rounds remaining in the fastest case to fork. The "last" round is the one that causes a fork and requires no time so the exponent here is 9 to provide for that many rounds actually occurring.
+
+	return {
+		forkReputationGoal,
+		disputeThresholdForFork,
+		initialReportMinValue,
+		disputeThresholdForDisputePacing
+	}
 }
