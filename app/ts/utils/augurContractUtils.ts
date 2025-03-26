@@ -1,14 +1,12 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
-import { mainnet } from 'viem/chains'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
-import { ERC20_ABI } from '../ABI/Erc20Abi.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPV2_TOKEN_ADDRESS, YES_NO_OPTIONS } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPV2_TOKEN_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
-import { bytes32String, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
+import { bytes32String } from './ethereumUtils.js'
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
 import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
 import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
@@ -16,6 +14,7 @@ import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { createReadClient, createWriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI } from '../ABI/Universe.js'
+import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 
 export const createYesNoMarket = async (marketCreator: AccountAddress, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	const client = createWriteClient(marketCreator)
@@ -27,17 +26,6 @@ export const createYesNoMarket = async (marketCreator: AccountAddress, endTime: 
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
 	await client.writeContract(request)
-}
-
-export const approveErc20Token = async (approver: AccountAddress, tokenAddress: AccountAddress, approvedAdress: AccountAddress, amount: EthereumQuantity) => {
-	const client = createWriteClient(approver)
-	return await client.writeContract({
-		chain: mainnet,
-		abi: ERC20_ABI,
-		functionName: 'approve',
-		address: tokenAddress,
-		args: [approvedAdress, amount]
-	})
 }
 
 export const fetchMarket = async (reader: AccountAddress, marketAddress: AccountAddress) => {
@@ -130,8 +118,6 @@ export const getStakeInOutcome = async (reader: AccountAddress, market: AccountA
 		args: [bytes32String(payoutDistributionHash)]
 	})
 }
-
-export const getAllPayoutNumeratorCombinations = (numOutcomes: number, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: numOutcomes }, (_, outcome) => Array.from({ length: numOutcomes }, (_, index) => index === outcome ? numTicks : 0n))
 
 export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (reader: AccountAddress, market: AccountAddress, numOutcomes: number, numTicks: EthereumQuantity) => {
 	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
@@ -325,15 +311,6 @@ export const getReportingHistory = async(reader: AccountAddress, market: Account
 	return result
 }
 
-type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
-export const getOutcomeName = (index: number, marketType: MarketType, outcomes: readonly `0x${ string }`[]) => {
-	if (index === 0) return 'Invalid'
-	if (marketType === 'Yes/No') return YES_NO_OPTIONS[index]
-	const outcomeName = outcomes[index - 1]
-	if (outcomeName === undefined) return undefined
-	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
-}
-
 export const redeemStake = async (reader: AccountAddress, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
 	const client = createWriteClient(reader)
 	return await client.writeContract({
@@ -455,4 +432,34 @@ export const getUniverseForkingInformation = async (reader: AccountAddress, univ
 		forkingMarket: await forkingMarketPromise,
 		payoutNumerators: await payoutNumeratorsPromise
 	}
+}
+
+export const migrateReputationToChildUniverseByPayout = async (reader: AccountAddress, reputationTokenAddress: AccountAddress, payoutNumerators: readonly bigint[], attotokens: bigint) => {
+	const client = createWriteClient(reader)
+	return await client.writeContract({
+		abi: REPUTATION_TOKEN_ABI,
+		functionName: 'migrateOutByPayout',
+		address: reputationTokenAddress,
+		args: [payoutNumerators, attotokens]
+	})
+}
+
+export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress) => {
+	const client = createWriteClient(reader)
+	return await client.writeContract({
+		abi: REPUTATION_TOKEN_ABI,
+		functionName: 'migrateFromLegacyReputationToken',
+		address: REPV2_TOKEN_ADDRESS,
+		args: []
+	})
+}
+
+export const getReputationTokenForUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'getReputationToken',
+		address: universe,
+		args: []
+	})
 }
