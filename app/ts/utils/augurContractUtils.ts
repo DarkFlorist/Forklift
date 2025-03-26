@@ -2,7 +2,7 @@ import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS } from './constants.js'
-import { AUGUR_ABI } from '../ABI/AugurAbi.js'
+import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
@@ -460,6 +460,16 @@ export const getReputationTokenForUniverse = async (reader: AccountAddress, univ
 		abi: UNIVERSE_ABI,
 		functionName: 'getReputationToken',
 		address: universe,
+		args: []
+	})
+}
+
+export const getMaximumMarketEndDate = async (reader: AccountAddress): Promise<bigint> => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE,
+		functionName: 'getMaximumMarketEndDate',
+		address: AUGUR_CONTRACT,
 		args: []
 	})
 }

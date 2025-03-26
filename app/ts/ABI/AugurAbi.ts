@@ -1,3 +1,20 @@
+// Augur ABI is too long for viem to get the types. This function has been split into separate variable
+export const AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE = [{
+	"constant": false,
+	"inputs": [],
+	"name": "getMaximumMarketEndDate",
+	"outputs": [
+		{
+			"internalType": "uint256",
+			"name": "",
+			"type": "uint256"
+		}
+	],
+	"payable": false,
+	"stateMutability": "nonpayable",
+	"type": "function"
+}] as const
+
 export const AUGUR_ABI = [
 	{
 		"inputs": [],
