@@ -46,7 +46,7 @@ const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNo
 							Please use some other universe.
 						</>
 						return <>
-							Universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is forking.
+							The Universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is forking.
 							The fork ends in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }).
 							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
 						</>
