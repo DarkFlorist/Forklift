@@ -8,6 +8,7 @@ import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
+import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 
 interface WalletComponentProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
@@ -29,6 +30,60 @@ const WalletComponent = ({ maybeAccountAddress, loadingAccount, isWindowEthereum
 		</button>
 	)
 }
+
+interface TabsProps {
+	maybeAccountAddress: OptionalSignal<AccountAddress>
+	areContractsDeployed: Signal<boolean | undefined>
+}
+const Tabs = ({ maybeAccountAddress, areContractsDeployed }: TabsProps) => {
+	const activeTab = useSignal(0)
+	const tabs = [
+		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> }
+	]
+
+	useEffect(() => {
+		const path = window.location.hash.replace('#/', '')
+		const tabIndex = tabs.findIndex(tab => tab.path === path)
+		if (tabIndex !== -1) {
+			activeTab.value = tabIndex
+		}
+	}, [])
+
+	const handleTabClick = (index: number) => {
+		if (tabs[index] === undefined) throw new Error(`invalid Tab index: ${ index }`)
+		activeTab.value = index
+		window.location.hash = `#/${ tabs[index].path }`
+	}
+
+	return (
+		<div>
+			<div style = { { display: 'flex', gap: '10px', borderBottom: '2px solid #ccc' } }>
+				{ tabs.map((tab, index) => (
+					<button
+						key = { index }
+						onClick = { () => handleTabClick(index) }
+						style = { {
+							padding: '10px',
+							border: 'none',
+							background: activeTab.value === index ? '#ddd' : 'transparent',
+							cursor: 'pointer',
+							borderBottom: activeTab.value === index ? '2px solid black' : 'none'
+						}}
+					>
+						{ tab.title }
+					</button>
+				)) }
+			</div>
+			<div style = { { padding: '10px' } }>
+				{ tabs[activeTab.value]?.component ?? null }
+			</div>
+		</div>
+	)
+}
+
 export function App() {
 	const errorString = useOptionalSignal<string>(undefined)
 	const loadingAccount = useSignal<boolean>(false)
@@ -84,7 +139,7 @@ export function App() {
 
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
-			<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress } />
+			<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress }/>
 			<div style = 'display: block'>
 				<div class = 'augur-constant-product-market'>
 					<img src = 'favicon.svg' alt = 'Icon' style ='width: 60px;'/> Augur Constant Product Market
@@ -92,10 +147,7 @@ export function App() {
 				<p class = 'sub-title'>Swap Augur tokens!</p>
 			</div>
 		</div>
-		<DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed } />
-		<CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress } />
-		<Reporting maybeAccountAddress = { maybeAccountAddress } />
-		<ClaimFunds maybeAccountAddress = { maybeAccountAddress } />
+		<Tabs maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/>
 		<div class = 'text-white/50 text-center'>
 			<div class = 'mt-8'>
 				Augur Constant Product Market by&nbsp;
