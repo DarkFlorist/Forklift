@@ -219,12 +219,12 @@ export const approveDai = async (client: WriteClient) => {
 	})
 }
 
-export const getDaiBalance = async (client: WriteClient) => {
+export const getDaiBalance = async (client: WriteClient, address?: Address) => {
 	return await client.readContract({
 		abi: ABIS.mainnet.erc20,
 		functionName: 'balanceOf',
 		address: addressString(DAI_ADDRESS),
-		args: [client.account.address]
+		args: [address ? address: client.account.address]
 	})
 }
 
@@ -236,6 +236,17 @@ export const getDaiAllowance = async (client: WriteClient) => {
 		address: addressString(DAI_ADDRESS),
 		args: [client.account.address, acpmAddress]
 	})
+}
+
+export const getPoolSupply = async (client: WriteClient) : Promise<bigint> => {
+	const acpmAddress = getAugurConstantProductMarketAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'totalSupply',
+		address: acpmAddress,
+		args: []
+	}) as bigint
 }
 
 export const getPoolLiquidityBalance = async (client: WriteClient) : Promise<bigint> => {
@@ -337,6 +348,18 @@ export const exitPosition = async (client: WriteClient, daiToBuy: bigint) => {
 		functionName: 'exitPosition',
 		address: acpmAddress,
 		args: [daiToBuy]
+	})
+}
+
+export const swap = async (client: WriteClient, inputShares: bigint, inputYes: boolean) => {
+	const acpmAddress = getAugurConstantProductMarketAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'swap',
+		address: acpmAddress,
+		args: [inputShares, inputYes]
 	})
 }
 

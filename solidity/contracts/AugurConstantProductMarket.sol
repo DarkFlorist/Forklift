@@ -112,13 +112,13 @@ contract AugurConstantProduct is ERC20 {
 
 	function exitPosition(uint256 daiToBuy) external {
 		(uint256 userInvalid, uint256 userNo, uint256 userYes) = shareBalances(msg.sender);
-		// TODO: gas golf this down by creating another function that only fetches YES/NO
-		(, uint256 poolNo, uint256 poolYes) = shareBalances(address(this));
+		(uint256 poolNo, uint256 poolYes) = noYesShareBalances(address(this));
 		uint256 setsToSell = daiToBuy / numTicks;
 
 		// short circuit if user is closing out their own complete sets
 		if (userInvalid >= setsToSell && userNo >= setsToSell && userYes >= setsToSell) {
 			shareTransfer(msg.sender, address(this), setsToSell, setsToSell, setsToSell);
+			shareToken.publicSellCompleteSets(augurMarketAddress, setsToSell);
 			dai.transfer(msg.sender, daiToBuy);
 			return;
 		}
@@ -153,16 +153,15 @@ contract AugurConstantProduct is ERC20 {
 
 		// materialize the complete set sale for dai
 		shareTransfer(msg.sender, address(this), invalidFromUser, noFromUser, yesFromUser);
+		shareToken.publicSellCompleteSets(augurMarketAddress, setsToSell);
 		dai.transfer(msg.sender, daiToBuy);
 	}
 
 	function swap(uint256 inputShares, bool inputYes) external returns (uint256) {
-		// TODO: gas golf this down by creating another function that only fetches YES/NO
-		(, uint256 poolNo, uint256 poolYes) = shareBalances(address(this));
+		(uint256 poolNo, uint256 poolYes) = noYesShareBalances(address(this));
 		uint256 currentPoolConstant = poolYes * poolNo;
 		if (inputYes) {
 			uint256 yesFromUser = inputShares;
-			// noToUser = poolNo - poolConstant / (poolYes + yesFromUser)
 			uint256 noToUser = poolNo - currentPoolConstant / (poolYes + yesFromUser);
 			shareToken.unsafeTransferFrom(msg.sender, address(this), YES, yesFromUser);
 			shareToken.unsafeTransferFrom(address(this), msg.sender, NO, noToUser);
@@ -177,7 +176,8 @@ contract AugurConstantProduct is ERC20 {
 	}
 
 	function poolConstant() public view returns (uint256) {
-		return shareToken.balanceOf(address(this), YES) * shareToken.balanceOf(address(this), NO);
+		(uint256 poolNo, uint256 poolYes) = noYesShareBalances(address(this));
+		return poolNo * poolYes;
 	}
 
 	function shareBalances(address owner) public view returns (uint256 invalid, uint256 no, uint256 yes) {
@@ -194,6 +194,19 @@ contract AugurConstantProduct is ERC20 {
 		no = balances[1];
 		yes = balances[2];
 		return (invalid, no, yes);
+	}
+
+	function noYesShareBalances(address owner) public view returns (uint256 no, uint256 yes) {
+		uint256[] memory tokenIds = new uint256[](2);
+		tokenIds[0] = NO;
+		tokenIds[1] = YES;
+		address[] memory owners = new address[](2);
+		owners[0] = owner;
+		owners[1] = owner;
+		uint256[] memory balances = shareToken.balanceOfBatch(owners, tokenIds);
+		no = balances[0];
+		yes = balances[1];
+		return (no, yes);
 	}
 
 	function shareTransfer(address from, address to, uint256 invalidAmount, uint256 noAmount, uint256 yesAmount) private {
