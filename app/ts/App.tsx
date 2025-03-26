@@ -1,6 +1,6 @@
 import { Signal, useSignal } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
-import { AccountAddress, EthereumAddress } from './types/types.js'
+import { AccountAddress, EthereumAddress, EthereumQuantity } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
 import { getAccounts, getChainId, requestAccounts } from './utils/ethereumWallet.js'
 import { DeployContract } from './ConstantProductUI/components/DeployContract.js'
@@ -10,12 +10,13 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 import { JSX } from 'preact'
-import { DEFAULT_UNIVERSE } from './utils/constants.js'
-import { addressString, formatUnixTimestampISO } from './utils/ethereumUtils.js'
+import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampISO, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
 import { getReputationTokenForUniverse, getUniverseForkingInformation } from './utils/augurContractUtils.js'
 import { humanReadableDateDelta, SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
+import { getErc20TokenBalance } from './utils/erc20.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -26,7 +27,6 @@ const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 	const universeName = getUniverseName(universe.deepValue)
 	return <p style = 'color: gray; justify-self: left;'>Universe:<b>{ ` ${ universeName }` }</b></p>
 }
-
 
 interface UniverseForkingNoticeProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
@@ -80,6 +80,20 @@ const WalletComponent = ({ maybeAccountAddress, loadingAccount, isWindowEthereum
 	)
 }
 
+interface WalletBalancesProps {
+	daiBalance: OptionalSignal<EthereumQuantity>
+	repBalance: OptionalSignal<EthereumQuantity>
+	ethBalance: OptionalSignal<EthereumQuantity>
+}
+
+const WalletBalances = ({ daiBalance, repBalance, ethBalance }: WalletBalancesProps) => {
+	const balances = []
+	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n) } ETH`)
+	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n) } REP`)
+	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n) } DAI`)
+	return <div>{ balances.join(' - ') }</div>
+}
+
 interface TabsProps {
 	tabs: readonly { title: string, path: string, component: JSX.Element }[]
 	activeTab: Signal<number>
@@ -130,6 +144,10 @@ export function App() {
 	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
 	const reputationTokenAddress = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
+
+	const ethBalance = useOptionalSignal<EthereumQuantity>(undefined)
+	const repBalance = useOptionalSignal<EthereumQuantity>(undefined)
+	const daiBalance = useOptionalSignal<EthereumQuantity>(undefined)
 
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
@@ -207,6 +225,10 @@ export function App() {
 			if (universe.deepValue === undefined) return
 			universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeAccountAddress.deepValue, universe.deepValue)
 			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(maybeAccountAddress.deepValue, universe.deepValue)
+
+			repBalance.deepValue = await getErc20TokenBalance(maybeAccountAddress.deepValue, reputationTokenAddress.deepValue, maybeAccountAddress.deepValue)
+			daiBalance.deepValue = await getErc20TokenBalance(maybeAccountAddress.deepValue, DAI_TOKEN_ADDRESS, maybeAccountAddress.deepValue)
+			ethBalance.deepValue = await getEthereumBalance(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 		}
 		universeInfo()
 	}, [maybeAccountAddress.value, universe.value])
@@ -218,6 +240,9 @@ export function App() {
 			<div style = 'display: flex; justify-content: space-between;'>
 				<UniverseComponent universe = { universe}/>
 				<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress }/>
+			</div>
+			<div style = 'display: flex; justify-content: right;'>
+				<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>
 			</div>
 			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation }/>
 			<div style = 'display: block'>
