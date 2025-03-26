@@ -97,7 +97,7 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 				<Market marketData = { forkingMarketData }/>
 				<MarketReportingWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
 			</div>
-			<button class = 'button is-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Rep</button>
+			<button class = 'button is-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
 		</> : <></> }
 		{ isGenesisUniverseField ? <>
 			<div class = 'panel'>
