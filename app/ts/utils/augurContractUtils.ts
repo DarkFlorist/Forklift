@@ -464,7 +464,7 @@ export const getReputationTokenForUniverse = async (reader: AccountAddress, univ
 	})
 }
 
-export const getMaximumMarketEndDate = async (reader: AccountAddress): Promise<bigint> => {
+export const getMaximumMarketEndDate = async (reader: AccountAddress) => {
 	const client = createReadClient(reader)
 	return await client.readContract({
 		abi: AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE,
