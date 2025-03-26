@@ -1,9 +1,10 @@
 import { useSignal } from '@preact/signals'
-import { approveErc20Token, createYesNoMarket } from '../../utils/augurContractUtils.js'
+import { createYesNoMarket } from '../../utils/augurContractUtils.js'
 import { OptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, NonHexBigInt } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS, GENESIS_UNIVERSE, REPV2_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { addressString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
+import { approveErc20Token } from '../../utils/erc20.js'
 
 interface CreateYesNoMarketProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>

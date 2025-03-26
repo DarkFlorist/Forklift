@@ -1,18 +1,14 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getForkValues, getOutcomeName, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement } from '../../utils/augurContractUtils.js'
+import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement } from '../../utils/augurContractUtils.js'
 import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
-import { assertNever } from '../../utils/errorHandling.js'
-import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
-import { Signal, useSignal } from '@preact/signals'
-import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
+import { MARKET_TYPES } from '../../utils/constants.js'
+import { useSignal } from '@preact/signals'
+import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { humanReadableDateDelta, SomeTimeAgo } from './SomeTimeAgo.js'
-
-type MarketData = {
-	marketAddress: `0x${ string }`
-	parsedExtraInfo: ExtraInfo | undefined
-	hotLoadingMarketData: Awaited<ReturnType<typeof fetchHotLoadingMarketData>>
-}
+import { MarketReportingOptions, MarketReportingWithoutStake, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
+import { Market, MarketData } from '../../SharedUI/Market.js'
+import { getAllPayoutNumeratorCombinations, getOutcomeName } from '../../utils/augurUtils.js'
 
 type DisputeWindowData = {
     disputeWindow: `0x${ string }`
@@ -20,76 +16,6 @@ type DisputeWindowData = {
     endTime: bigint
     purchased: bigint
     fees: bigint
-}
-
-interface MarketProps {
-	marketData: OptionalSignal<MarketData>
-}
-
-export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
-	if (marketData.deepValue === undefined) return <></>
-	if (marketData.deepValue.parsedExtraInfo === undefined) {
-		return <>
-			<span>Failed to parse Extra data, unparsed extra data:</span>
-			<textarea
-				style = 'height: fit-content; width: 100%'
-				placeholder = 'This market resolves...'
-				value = { marketData.deepValue.hotLoadingMarketData.extraInfo }
-				readOnly = { true }
-			/>
-		</>
-	}
-	return <>
-		<span><b>Description:</b>{ marketData.deepValue.parsedExtraInfo.description }</span>
-		<span><b>Long Description:</b>{ marketData.deepValue.parsedExtraInfo.longDescription }</span>
-		<span><b>Categories:</b>{ (marketData.deepValue.parsedExtraInfo.categories || []).join(', ') }</span>
-		<span><b>Tags:</b>{ (marketData.deepValue.parsedExtraInfo.tags || []).join(', ') }</span>
-	</>
-}
-
-export const Market = ({ marketData }: MarketProps) => {
-	if (marketData.deepValue === undefined) return <></>
-	const formatWinningOption = () => {
-		if (marketData.deepValue === undefined) return ''
-		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
-		const payouts = marketData.deepValue.hotLoadingMarketData.winningPayout
-		switch(marketType) {
-			case 'Categorical':
-			case 'Scalar': {
-				return payouts.join(', ')
-			}
-			case 'Yes/No': {
-				const winningIndex = payouts.findIndex((payout) => payout > 0)
-				return YES_NO_OPTIONS[winningIndex]
-			}
-			case undefined: throw new Error(`invalid marketType: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
-			default: assertNever(marketType)
-		}
-	}
-
-	return <div class = 'panel'>
-		<div style = 'display: grid'>
-			<span><b>Market Address:</b>{ marketData.deepValue.marketAddress }</span>
-			<span><b>Market Creator:</b>{ marketData.deepValue.hotLoadingMarketData.marketCreator }</span>
-			<span><b>Owner:</b>{ marketData.deepValue.hotLoadingMarketData.owner }</span>
-			<span><b>Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
-			<span><b>Market Type:</b>{ MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
-			<span><b>Designated Reporter:</b>{ marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
-			<span><b>Reporting State:</b>{ REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
-			<span><b>Dispute Round:</b>{ marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
-			<span><b>Winning Outcome:</b>{ formatWinningOption() }</span>
-			<span><b>Open Interest:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n) } DAI</span>
-			<span><b>Universe:</b>{ marketData.deepValue.hotLoadingMarketData.universe }</span>
-			<span><b>Num Ticks:</b>{ marketData.deepValue.hotLoadingMarketData.numTicks }</span>
-			<span><b>Fee:</b>{ marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` }</span>
-			<span><b>Affiliate Fee:</b>{ marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` }</span>
-			<span><b>End Time:</b>{ formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }</span>
-			<span><b>Num Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.numOutcomes }</span>
-			<span><b>Validity Bond:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n) } REP</span>
-			<span><b>Reporting Fee:</b>{ marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? "0.00%" : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` }</span>
-			<DisplayExtraInfo marketData = { marketData } />
-		</div>
-	</div>
 }
 
 interface DisputeWindowProps {
@@ -124,10 +50,9 @@ interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
 	maybeAccountAddress: OptionalSignal<AccountAddress>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
-	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 }
 
-export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes, preemptiveDisputeCrowdsourcerStake }: ForkMigrationProps) => {
+export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	const initialReportReason = useSignal<string>('')
 	const selectedOutcome = useSignal<string | null>(null)
@@ -147,7 +72,7 @@ export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes, 
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
 			<span><b>Market Fork Migration:</b></span>
-			<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
+			<MarketReportingWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input
@@ -167,42 +92,6 @@ export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes, 
 			<button class = 'button is-primary' onClick = { migrateThroughOneForkButton }>Migrate Through One Fork</button>
 		</div>
 	</div>
-}
-
-type OutcomeStake = {
-	outcomeName: string
-	repStake: bigint
-	status: 'Winning' | 'Losing'
-	payoutNumerators: EthereumQuantity[]
-}
-
-type MarketReportingOptionsProps = {
-	selectedOutcome: Signal<string | null>
-	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
-	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-}
-
-export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake }: MarketReportingOptionsProps) => {
-	if (outcomeStakes.deepValue === undefined) return <></>
-
-	// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
-	const requiredState = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
-
-	const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
-	return outcomeStakes.deepValue.map((outcomeStake) => (
-		<span key = { outcomeStake.outcomeName }>
-			<label>
-				<input
-					type = 'radio'
-					name = 'selectedOutcome'
-					checked = { selectedOutcome.value === outcomeStake.outcomeName }
-					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-				/>
-				{' '}
-				{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n) } REP` : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) } REP` }
-			</label>
-		</span>
-	))
 }
 
 interface DisplayStakesProps {
@@ -518,7 +407,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			<DisplayForkValues forkValues = { forkValues }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
-			<ForkMigration marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
+			<ForkMigration marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } outcomeStakes = { outcomeStakes }/>
 		</div>
 	</div>
 }

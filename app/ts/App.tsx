@@ -13,8 +13,9 @@ import { JSX } from 'preact'
 import { GENESIS_UNIVERSE } from './utils/constants.js'
 import { addressString, formatUnixTimestampISO } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
-import { getUniverseForkingInformation } from './utils/augurContractUtils.js'
+import { getReputationTokenForUniverse, getUniverseForkingInformation } from './utils/augurContractUtils.js'
 import { humanReadableDateDelta, SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
+import { Migration } from './MigrationUI/components/Migration.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -55,7 +56,7 @@ const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNo
 			</p>
 		</div>
 	}
-	return <p>{ JSON.stringify(universeForkingInformation.deepValue) }</p>
+	return <></>
 }
 
 interface WalletComponentProps {
@@ -80,7 +81,7 @@ const WalletComponent = ({ maybeAccountAddress, loadingAccount, isWindowEthereum
 }
 
 interface TabsProps {
-	tabs: readonly {title: string, path: string, component: JSX.Element }[]
+	tabs: readonly { title: string, path: string, component: JSX.Element }[]
 	activeTab: Signal<number>
 }
 
@@ -127,13 +128,15 @@ export function App() {
 	const inputTimeoutRef = useRef<number | null>(null)
 	const universe = useOptionalSignal<AccountAddress>(undefined)
 	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
+	const reputationTokenAddress = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
 
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress }/> },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress }/> },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> }
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Migration', path: 'migration', component: <Migration maybeAccountAddress = { maybeAccountAddress } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } /> }
 	] as const
 
 	useEffect(() => {
@@ -197,39 +200,13 @@ export function App() {
 			}
 		}
 	}, [])
-	useEffect(() => {
-		if (window.ethereum === undefined) {
-			isWindowEthereum.value = false
-			return
-		}
-		isWindowEthereum.value = true
-		window.ethereum.on('accountsChanged', function (accounts) { maybeAccountAddress.deepValue = accounts[0] })
-		window.ethereum.on('chainChanged', async () => { updateChainId() })
-		const fetchAccount = async () => {
-			try {
-				loadingAccount.value = true
-				const fetchedAccount = await getAccounts()
-				if (fetchedAccount) maybeAccountAddress.deepValue = fetchedAccount
-				updateChainId()
-			} catch(e) {
-				setError(e)
-			} finally {
-				loadingAccount.value = false
-				areContractsDeployed.value = await isAugurConstantProductMarketDeployed(maybeAccountAddress.deepValue)
-			}
-		}
-		fetchAccount()
-		return () => {
-			if (inputTimeoutRef.current !== null) {
-				clearTimeout(inputTimeoutRef.current)
-			}
-		}
-	}, [])
+
 	useEffect(() => {
 		const universeInfo = async () => {
 			if (maybeAccountAddress.deepValue === undefined) return
 			if (universe.deepValue === undefined) return
 			universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeAccountAddress.deepValue, universe.deepValue)
+			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(maybeAccountAddress.deepValue, universe.deepValue)
 		}
 		universeInfo()
 	}, [maybeAccountAddress.value, universe.value])
