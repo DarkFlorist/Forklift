@@ -10,7 +10,7 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 import { JSX } from 'preact'
-import { GENESIS_UNIVERSE } from './utils/constants.js'
+import { DEFAULT_UNIVERSE } from './utils/constants.js'
 import { addressString, formatUnixTimestampISO } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
 import { getReputationTokenForUniverse, getUniverseForkingInformation } from './utils/augurContractUtils.js'
@@ -133,8 +133,8 @@ export function App() {
 
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress }/> },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> },
 		{ title: 'Migration', path: 'migration', component: <Migration maybeAccountAddress = { maybeAccountAddress } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } /> }
 	] as const
@@ -153,7 +153,7 @@ export function App() {
 		if (universeParam && parsed.success) {
 			universe.deepValue = addressString(parsed.value)
 		} else {
-			universe.deepValue = addressString(BigInt(GENESIS_UNIVERSE))
+			universe.deepValue = addressString(BigInt(DEFAULT_UNIVERSE))
 		}
 	}, [])
 

@@ -1,4 +1,5 @@
 import { ExtraInfo } from '../CreateMarketUI/types/createMarketTypes.js'
+import { AccountAddress } from '../types/types.js'
 import { fetchHotLoadingMarketData } from '../utils/augurContractUtils.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../utils/constants.js'
 import { assertNever } from '../utils/errorHandling.js'
@@ -11,11 +12,11 @@ export type MarketData = {
 	hotLoadingMarketData: Awaited<ReturnType<typeof fetchHotLoadingMarketData>>
 }
 
-interface MarketProps {
+interface DisplayExtraInfoProps {
 	marketData: OptionalSignal<MarketData>
 }
 
-export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
+export const DisplayExtraInfo = ({ marketData }: DisplayExtraInfoProps) => {
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.parsedExtraInfo === undefined) {
 		return <>
@@ -36,7 +37,12 @@ export const DisplayExtraInfo = ({ marketData }: MarketProps) => {
 	</>
 }
 
-export const Market = ({ marketData }: MarketProps) => {
+interface MarketProps {
+	marketData: OptionalSignal<MarketData>
+	universe: OptionalSignal<AccountAddress>
+}
+
+export const Market = ({ marketData, universe }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <></>
 	const formatWinningOption = () => {
 		if (marketData.deepValue === undefined) return ''
@@ -57,6 +63,11 @@ export const Market = ({ marketData }: MarketProps) => {
 	}
 
 	return <div class = 'panel'>
+		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.hotLoadingMarketData.universe) ? <>
+			<div style = 'padding: 10px; background-color: red;'>
+				<p> This Market is for an different universe than the selected one!</p>
+			</div>
+		</> : <></> }
 		<div style = 'display: grid'>
 			<span><b>Market Address:</b>{ marketData.deepValue.marketAddress }</span>
 			<span><b>Market Creator:</b>{ marketData.deepValue.hotLoadingMarketData.marketCreator }</span>

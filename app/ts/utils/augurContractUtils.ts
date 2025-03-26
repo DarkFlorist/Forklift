@@ -1,7 +1,7 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPV2_TOKEN_ADDRESS } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
@@ -16,11 +16,11 @@ import { createReadClient, createWriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 
-export const createYesNoMarket = async (marketCreator: AccountAddress, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
+export const createYesNoMarket = async (universe: AccountAddress, marketCreator: AccountAddress, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	const client = createWriteClient(marketCreator)
 	const { request } = await client.simulateContract({
 		account: marketCreator,
-		address: GENESIS_UNIVERSE,
+		address: universe,
 		abi: AUGUR_UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
@@ -48,13 +48,13 @@ export const fetchHotLoadingMarketData = async (reader: AccountAddress, marketAd
 	})
 }
 
-export const fetchHotLoadingCurrentDisputeWindowData = async (reader: AccountAddress) => {
+export const fetchHotLoadingCurrentDisputeWindowData = async (reader: AccountAddress, universe: AccountAddress) => {
 	const client = createWriteClient(reader)
 	return await client.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getCurrentDisputeWindowData',
 		address: HOT_LOADING_ADDRESS,
-		args: [AUGUR_CONTRACT, GENESIS_UNIVERSE]
+		args: [AUGUR_CONTRACT, universe]
 	})
 }
 
@@ -68,13 +68,13 @@ export const fetchHotLoadingTotalValidityBonds = async (reader: AccountAddress, 
 	})
 }
 
-export const buyParticipationTokens = async (writer: AccountAddress, attotokens: EthereumQuantity) => {
+export const buyParticipationTokens = async (writer: AccountAddress, universe: AccountAddress, attotokens: EthereumQuantity) => {
 	const client = createWriteClient(writer)
 	return await client.writeContract({
 		abi: BUY_PARTICIPATION_TOKENS_ABI,
 		functionName: 'buyParticipationTokens',
 		address: BUY_PARTICIPATION_TOKENS_CONTRACT,
-		args: [GENESIS_UNIVERSE, attotokens]
+		args: [universe, attotokens]
 	})
 }
 
@@ -239,23 +239,23 @@ export const getDisputePacingOn = async (reader: AccountAddress, market: Account
 	})
 }
 
-export const getReputationTotalTheoreticalSupply = async (reader: AccountAddress) => {
+export const getReputationTotalTheoreticalSupply = async (reader: AccountAddress, reputationTokenAddress: AccountAddress) => {
 	const client = createReadClient(reader)
 	return await client.readContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'getTotalTheoreticalSupply',
-		address: REPV2_TOKEN_ADDRESS, // TODO, this can change
+		address: reputationTokenAddress,
 		args: []
 	})
 }
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Universe.sol#L109
-export const getForkValues = async (reader: AccountAddress) => {
+export const getForkValues = async (reader: AccountAddress, reputationTokenAddress: AccountAddress) => {
 	const FORK_THRESHOLD_DIVISOR = 40n // 2.5% of the total REP supply being filled in a single dispute bond will trigger a fork
 	const MAXIMUM_DISPUTE_ROUNDS = 20n // We ensure that after 20 rounds of disputes a fork will occur
 	const MINIMUM_SLOW_ROUNDS = 8n // We ensure that at least 8 dispute rounds take DISPUTE_ROUND_DURATION_SECONDS+ seconds to complete until the next round begins
 
-	const totalRepSupply = await getReputationTotalTheoreticalSupply(reader)
+	const totalRepSupply = await getReputationTotalTheoreticalSupply(reader, reputationTokenAddress)
 	const forkReputationGoal = totalRepSupply / 2n // 50% of REP migrating results in a victory in a fork
 	const disputeThresholdForFork = totalRepSupply / FORK_THRESHOLD_DIVISOR // 2.5% of the total rep supply
 	const initialReportMinValue = (disputeThresholdForFork / 3n) / (2n ** (MAXIMUM_DISPUTE_ROUNDS - 2n)) + 1n // This value will result in a maximum 20 round dispute sequence
@@ -444,12 +444,12 @@ export const migrateReputationToChildUniverseByPayout = async (reader: AccountAd
 	})
 }
 
-export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress) => {
+export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress, genesisReputationV2TokenAddress: AccountAddress) => {
 	const client = createWriteClient(reader)
 	return await client.writeContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateFromLegacyReputationToken',
-		address: REPV2_TOKEN_ADDRESS,
+		address: genesisReputationV2TokenAddress,
 		args: []
 	})
 }

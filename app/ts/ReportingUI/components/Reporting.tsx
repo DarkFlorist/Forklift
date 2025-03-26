@@ -276,9 +276,11 @@ export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHist
 
 interface ReportingProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
+	universe: OptionalSignal<AccountAddress>
+	reputationTokenAddress: OptionalSignal<AccountAddress>
 }
 
-export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
+export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddress }: ReportingProps) => {
 	const marketAddressString = useSignal<string>('')
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const disputeWindowData = useOptionalSignal<DisputeWindowData>(undefined)
@@ -302,6 +304,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 	const fetchMarketData = async () => {
 		const account = maybeAccountAddress.peek()
 		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		marketData.deepValue = undefined
 		disputeWindowData.deepValue = undefined
 		totalValidityBondsForAMarket.deepValue = undefined
@@ -320,7 +323,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 		const currentMarketData = marketData.deepValue
-		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(account.value)
+		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(account.value, currentMarketData.hotLoadingMarketData.universe)
 		totalValidityBondsForAMarket.deepValue = await fetchHotLoadingTotalValidityBonds(account.value, [parsedMarketAddressString])
 		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
 			const allPayoutNumerators = getAllPayoutNumeratorCombinations(Number(marketData.deepValue.hotLoadingMarketData.numOutcomes), marketData.deepValue.hotLoadingMarketData.numTicks)
@@ -350,14 +353,15 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(account.value, preemptiveDisputeCrowdsourcerAddress.deepValue)
 		}
 
-		forkValues.deepValue = await getForkValues(account.value)
+		forkValues.deepValue = await getForkValues(account.value, reputationTokenAddress.deepValue)
 		reportingHistory.deepValue = await getReportingHistory(account.value, parsedMarketAddressString, newMarketData.disputeRound)
 	}
 
 	const buyParticipationTokensButton = async () => {
 		const account = maybeAccountAddress.peek()
 		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		await buyParticipationTokens(account.value, 10n)
+		if (universe.deepValue === undefined) throw new Error('missing universe')
+		await buyParticipationTokens(account.value, universe.deepValue, 10n)
 	}
 
 	const doInitialReportButton = async () => {
@@ -395,9 +399,8 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 				value = { marketAddressString.value }
 				onInput = { e => handleMarketAddress(e.currentTarget.value) }
 			/>
-
 			<button class = 'button is-primary' onClick = { fetchMarketData }>Fetch Market Information</button>
-			<Market marketData = { marketData }/>
+			<Market marketData = { marketData } universe = { universe }/>
 			<DisputeWindow disputeWindowData = { disputeWindowData }/>
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
