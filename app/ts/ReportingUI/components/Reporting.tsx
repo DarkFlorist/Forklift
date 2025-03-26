@@ -1,10 +1,10 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getForkValues, getOutcomeName, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, ReportingHistoryElement } from '../../utils/utilities.js'
+import { buyParticipationTokens, contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingCurrentDisputeWindowData, fetchHotLoadingMarketData, fetchHotLoadingTotalValidityBonds, finalizeMarket, getAllPayoutNumeratorCombinations, getDisputeWindow, getDisputeWindowInfo, getForkValues, getOutcomeName, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement } from '../../utils/utilities.js'
 import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../../utils/constants.js'
-import { useSignal } from '@preact/signals'
+import { Signal, useSignal } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { humanReadableDateDelta, SomeTimeAgo } from './SomeTimeAgo.js'
 
@@ -145,11 +145,89 @@ export const ValidityBond = ({ totalValidityBondsForAMarket }: ValidityBondProps
 	</div>
 }
 
+interface ForkMigrationProps {
+	marketData: OptionalSignal<MarketData>
+	maybeAccountAddress: OptionalSignal<AccountAddress>
+	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
+}
+
+export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes, preemptiveDisputeCrowdsourcerStake }: ForkMigrationProps) => {
+	if (outcomeStakes.deepValue === undefined) return <></>
+	const initialReportReason = useSignal<string>('')
+	const selectedOutcome = useSignal<string | null>(null)
+	const disavowCrowdsourcersButton = async () => {
+		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		if (marketData.deepValue === undefined) throw new Error('marketData missing')
+		await disavowCrowdsourcers(maybeAccountAddress.deepValue, marketData.deepValue.marketAddress)
+	}
+	const migrateThroughOneForkButton = async () => {
+		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		if (marketData.deepValue === undefined) throw new Error('marketData missing')
+		if (outcomeStakes.deepValue === undefined) throw new Error('outcomeStakes missing')
+		const initialReportPayoutNumerators = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
+		if (!initialReportPayoutNumerators) throw new Error('Selected outcome not found')
+		await migrateThroughOneFork(maybeAccountAddress.deepValue, marketData.deepValue.marketAddress, initialReportPayoutNumerators, initialReportReason.peek())
+	}
+	return <div class = 'panel'>
+		<div style = 'display: grid'>
+			<span><b>Market Fork Migration:</b></span>
+			<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
+			<label>
+				Initial Report Reason:{' '}
+				<input
+					type = 'text'
+					value = { initialReportReason.value }
+					onChange = { (event) => {
+						const target = event.target as HTMLInputElement
+						initialReportReason.value = target.value
+					} }
+				/>
+			</label>
+		</div>
+		<div style = 'margin-top: 1rem'>
+			<button class = 'button is-primary' onClick = { disavowCrowdsourcersButton }>Disavow Crowdsourcers</button>
+		</div>
+		<div style = 'margin-top: 1rem'>
+			<button class = 'button is-primary' onClick = { migrateThroughOneForkButton }>Migrate Through One Fork</button>
+		</div>
+	</div>
+}
+
 type OutcomeStake = {
 	outcomeName: string
 	repStake: bigint
 	status: 'Winning' | 'Losing'
 	payoutNumerators: EthereumQuantity[]
+}
+
+type MarketReportingOptionsProps = {
+	selectedOutcome: Signal<string | null>
+	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
+}
+
+export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake }: MarketReportingOptionsProps) => {
+	if (outcomeStakes.deepValue === undefined) return <></>
+
+	// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
+	const requiredState = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
+
+	const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
+	return outcomeStakes.deepValue.map((outcomeStake) => (
+		<span key = { outcomeStake.outcomeName }>
+			<label>
+				<input
+					type = 'radio'
+					name = 'selectedOutcome'
+					checked = { selectedOutcome.value === outcomeStake.outcomeName }
+					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+				/>
+				{' '}
+				{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n) } REP` : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) } REP` }
+			</label>
+		</span>
+	))
 }
 
 interface DisplayStakesProps {
@@ -190,9 +268,6 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 		)
 	}
 
-	// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
-	const requiredState = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
-
 	const handleReport = async () => {
 		if (outcomeStakes.deepValue === undefined) return
 		if (amountInput.value.trim() === '') throw new Error ('Input missing')
@@ -205,25 +280,6 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 		} catch (error) {
 			console.error('Error reporting for outcome:', outcomeStake.outcomeName, error)
 		}
-	}
-
-	const Options = () => {
-		if (outcomeStakes.deepValue === undefined) return <></>
-		const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
-		return outcomeStakes.deepValue.map((outcomeStake) => (
-			<span key = { outcomeStake.outcomeName }>
-				<label>
-					<input
-						type = 'radio'
-						name = 'selectedOutcome'
-						checked = { selectedOutcome.value === outcomeStake.outcomeName }
-						onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-					/>
-					{' '}
-					{ outcomeStake.outcomeName } ({ outcomeStake.status }): { bigintToDecimalString(outcomeStake.repStake, 18n) } REP. { outcomeStake.status === 'Winning' ? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n) } REP` : `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake, outcomeStake.repStake), 18n) } REP` }
-				</label>
-			</span>
-		))
 	}
 
 	const ResolvingTo = () => {
@@ -256,7 +312,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 		<div class = 'panel'>
 			<div style = 'display: grid'>
 				<span><b>Market REP Stakes:</b></span>
-				<Options/>
+				<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
 				<TotalRepStaked/>
 				<ResolvingTo/>
 				<div style = 'margin-top: 1rem'>
@@ -477,7 +533,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			/>
 
 			<button class = 'button is-primary' onClick = { fetchMarketData }>Fetch Market Information</button>
-			<Market marketData = { marketData } />
+			<Market marketData = { marketData }/>
 			<DisputeWindow disputeWindowData = { disputeWindowData }/>
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
@@ -487,6 +543,7 @@ export const Reporting = ({ maybeAccountAddress }: ReportingProps) => {
 			<DisplayForkValues forkValues = { forkValues }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
+			<ForkMigration marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
 		</div>
 	</div>
 }

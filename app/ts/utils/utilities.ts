@@ -467,3 +467,23 @@ export const getAvailableDisputes = async (reader: AccountAddress, account: Acco
 	} while(true)
 	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
 }
+
+export const migrateThroughOneFork = async (reader: AccountAddress, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {
+	const client = createWriteClient(reader)
+	return await client.writeContract({
+		abi: MARKET_ABI,
+		functionName: 'migrateThroughOneFork',
+		address: market,
+		args: [initialReportPayoutNumerators, initialReportReason]
+	})
+}
+
+export const disavowCrowdsourcers = async (reader: AccountAddress, market: AccountAddress) => {
+	const client = createWriteClient(reader)
+	return await client.writeContract({
+		abi: MARKET_ABI,
+		functionName: 'disavowCrowdsourcers',
+		address: market,
+		args: []
+	})
+}
