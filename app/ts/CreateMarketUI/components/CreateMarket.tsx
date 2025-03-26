@@ -2,12 +2,14 @@ import { useSignal } from '@preact/signals'
 import { createYesNoMarket } from '../../utils/augurContractUtils.js'
 import { OptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, NonHexBigInt } from '../../types/types.js'
-import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS, GENESIS_UNIVERSE, REPV2_TOKEN_ADDRESS } from '../../utils/constants.js'
+import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { addressString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token } from '../../utils/erc20.js'
 
 interface CreateYesNoMarketProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
+	universe: OptionalSignal<AccountAddress>
+	reputationTokenAddress: OptionalSignal<AccountAddress>
 }
 
 const isValidDate = (dateStr: string): boolean => {
@@ -29,7 +31,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTokenAddress }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const marketCreatorFee = useSignal<string>('')
 	const affiliateValidator = useSignal<string>('0x0000000000000000000000000000000000000000')
@@ -41,6 +43,7 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 	const tags = useSignal<string>('')
 
 	const createMarket = async () => {
+		if (universe.deepValue === undefined) throw new Error('missing universe')
 		const account = maybeAccountAddress.peek()
 		if (account === undefined) throw new Error('missing maybeAccountAddress')
 		console.log(endTime.value)
@@ -61,13 +64,15 @@ export const CreateYesNoMarket = ({ maybeAccountAddress }: CreateYesNoMarketProp
 			categories: categories.value.split(',').map((category) => category.trim()).filter((category) => category.length > 0),
 			tags: categories.value.split(',').map((tag) => tag.trim()).filter((tag) => tag.length > 0)
 		})
-		await createYesNoMarket(account.value, marketEndTimeUnixTimeStamp, parsedFeePerCashInAttoCash, addressString(parsedAffiliateValidator.value), parsedAffiliateFeeDivisor.value, addressString(parsedDesignatedReporterAddress.value), extraInfoString)
+		await createYesNoMarket(universe.deepValue, account.value, marketEndTimeUnixTimeStamp, parsedFeePerCashInAttoCash, addressString(parsedAffiliateValidator.value), parsedAffiliateFeeDivisor.value, addressString(parsedDesignatedReporterAddress.value), extraInfoString)
 	}
 
 	const approveRep = async () => {
 		const account = maybeAccountAddress.peek()
 		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		return await approveErc20Token(account.value, REPV2_TOKEN_ADDRESS, GENESIS_UNIVERSE, 10000n * 10n ** 18n)
+		if (universe.deepValue === undefined) throw new Error('missing universe')
+		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
+		return await approveErc20Token(account.value, reputationTokenAddress.deepValue, universe.deepValue, 10000n * 10n ** 18n)
 	}
 
 	const approveDai = async () => {
