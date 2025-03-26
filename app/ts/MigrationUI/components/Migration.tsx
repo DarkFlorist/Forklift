@@ -85,10 +85,10 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 				<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
 				<span><b>Universe Address:</b>{ universe.deepValue }</span>
 				<span><b>Reputation V2 Address For The Universe:</b>{ universe.deepValue }</span>
-				<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking }</span>
-				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? '' : formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }</span>
+				<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
+				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }</span>
 				<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < new Date().getUTCSeconds() ? 'Yes' : 'No' }</span>
-				<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket }</span>
+				<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket }</span>
 				<span><b>Your Reputation V2 Balance:</b>{ v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n) } REP` : '' }</span>
 			</div>
 		</div>
