@@ -1,7 +1,7 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS } from './constants.js'
 import { AUGUR_ABI } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
@@ -444,12 +444,12 @@ export const migrateReputationToChildUniverseByPayout = async (reader: AccountAd
 	})
 }
 
-export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress) => {
+export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress, genesisReputationV2TokenAddress: AccountAddress) => {
 	const client = createWriteClient(reader)
 	return await client.writeContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateFromLegacyReputationToken',
-		address: GENESIS_REPUTATION_V2_TOKEN_ADDRESS,
+		address: genesisReputationV2TokenAddress,
 		args: []
 	})
 }

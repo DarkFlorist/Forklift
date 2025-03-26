@@ -10,7 +10,7 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 import { JSX } from 'preact'
-import { GENESIS_UNIVERSE } from './utils/constants.js'
+import { DEFAULT_UNIVERSE } from './utils/constants.js'
 import { addressString, formatUnixTimestampISO } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
 import { getReputationTokenForUniverse, getUniverseForkingInformation } from './utils/augurContractUtils.js'
@@ -153,7 +153,7 @@ export function App() {
 		if (universeParam && parsed.success) {
 			universe.deepValue = addressString(parsed.value)
 		} else {
-			universe.deepValue = addressString(BigInt(GENESIS_UNIVERSE))
+			universe.deepValue = addressString(BigInt(DEFAULT_UNIVERSE))
 		}
 	}, [])
 

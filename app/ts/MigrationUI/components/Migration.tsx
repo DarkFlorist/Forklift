@@ -2,7 +2,7 @@ import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js
 import { AccountAddress, EthereumQuantity } from '../../types/types.js'
 import { fetchHotLoadingMarketData, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
-import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS } from '../../utils/constants.js'
+import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { useComputed, useSignal } from '@preact/signals'
 import { bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
@@ -16,6 +16,8 @@ interface MigrationProps {
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
+
+const GENESIS_REPUTATION_V2_TOKEN_ADDRESS = '0x221657776846890989a759BA2973e427DfF5C9bB'
 
 export const Migration = ({ maybeAccountAddress, reputationTokenAddress, universe, universeForkingInformation }: MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
@@ -67,7 +69,7 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
 		const account = maybeAccountAddress.peek()
 		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		await migrateFromRepV1toRepV2GenesisToken(account.value)
+		await migrateFromRepV1toRepV2GenesisToken(account.value, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
 	}
 
 	const approveRepV1ForMigration = async () => {
