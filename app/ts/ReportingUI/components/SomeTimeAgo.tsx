@@ -1,10 +1,11 @@
 import { useEffect } from 'preact/hooks'
 import { useComputed, useSignal } from '@preact/signals'
+import { JSX } from 'preact'
 
 interface SomeTimeAgoProps {
 	priorTimestamp: Date,
 	countBackwards?: boolean,
-	diffToText?: (secondsDiff: number) => string
+	diffToText?: (secondsDiff: number) => JSX.Element
 }
 
 export function SomeTimeAgo(props: SomeTimeAgoProps) {

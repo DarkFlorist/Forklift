@@ -15,6 +15,7 @@ import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
 import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { createReadClient, createWriteClient } from './ethereumWallet.js'
+import { UNIVERSE_ABI } from '../ABI/Universe.js'
 
 export const createYesNoMarket = async (marketCreator: AccountAddress, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	const client = createWriteClient(marketCreator)
@@ -418,4 +419,40 @@ export const disavowCrowdsourcers = async (reader: AccountAddress, market: Accou
 		address: market,
 		args: []
 	})
+}
+
+export const getUniverseForkingInformation = async (reader: AccountAddress, universe: AccountAddress) => {
+	const client = createReadClient(reader)
+	const isForking = await client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'isForking',
+		address: universe,
+		args: []
+	})
+	if (isForking === false) return { universe, isForking } as const
+	const forkEndTimePromise = client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'getForkEndTime',
+		address: universe,
+		args: []
+	})
+	const forkingMarketPromise = client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'getForkingMarket',
+		address: universe,
+		args: []
+	})
+	const payoutNumeratorsPromise = client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'getPayoutNumerators',
+		address: universe,
+		args: []
+	})
+	return {
+		isForking,
+		universe,
+		forkEndTime: await forkEndTimePromise,
+		forkingMarket: await forkingMarketPromise,
+		payoutNumerators: await payoutNumeratorsPromise
+	}
 }

@@ -1,6 +1,6 @@
 import { Signal, useSignal } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
-import { AccountAddress } from './types/types.js'
+import { AccountAddress, EthereumAddress } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
 import { getAccounts, getChainId, requestAccounts } from './utils/ethereumWallet.js'
 import { DeployContract } from './ConstantProductUI/components/DeployContract.js'
@@ -9,6 +9,54 @@ import { ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
+import { JSX } from 'preact'
+import { GENESIS_UNIVERSE } from './utils/constants.js'
+import { addressString, formatUnixTimestampISO } from './utils/ethereumUtils.js'
+import { getUniverseName } from './utils/augurUtils.js'
+import { getUniverseForkingInformation } from './utils/augurContractUtils.js'
+import { humanReadableDateDelta, SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
+
+interface UniverseComponentProps {
+	universe: OptionalSignal<AccountAddress>
+}
+
+const UniverseComponent = ({ universe }: UniverseComponentProps) => {
+	if (universe.deepValue === undefined) return <p> No universe selected</p>
+	const universeName = getUniverseName(universe.deepValue)
+	return <p style = 'color: gray; justify-self: left;'>Universe:<b>{ ` ${ universeName }` }</b></p>
+}
+
+
+interface UniverseForkingNoticeProps {
+	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
+}
+
+const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNoticeProps) => {
+	if (universeForkingInformation.deepValue !== undefined && universeForkingInformation.deepValue.isForking) {
+		const forkingEndTime = new Date(Number(universeForkingInformation.deepValue.forkEndTime) * 1000)
+		return <div style = 'padding: 10px; background-color: red;'>
+			<p>
+				<SomeTimeAgo priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
+					(time: number) => {
+						if (universeForkingInformation.deepValue === undefined) return <></>
+						if (universeForkingInformation.deepValue.isForking === false) return <></>
+						if (time <= 0) return <>
+							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) } </b> has forked off.
+							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
+							Please use some other universe.
+						</>
+						return <>
+							Universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is forking.
+							The fork ends in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }).
+							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
+						</>
+					}
+				}/>
+			</p>
+		</div>
+	}
+	return <p>{ JSON.stringify(universeForkingInformation.deepValue) }</p>
+}
 
 interface WalletComponentProps {
 	maybeAccountAddress: OptionalSignal<AccountAddress>
@@ -32,26 +80,11 @@ const WalletComponent = ({ maybeAccountAddress, loadingAccount, isWindowEthereum
 }
 
 interface TabsProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
-	areContractsDeployed: Signal<boolean | undefined>
+	tabs: readonly {title: string, path: string, component: JSX.Element }[]
+	activeTab: Signal<number>
 }
-const Tabs = ({ maybeAccountAddress, areContractsDeployed }: TabsProps) => {
-	const activeTab = useSignal(0)
-	const tabs = [
-		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress }/> },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress }/> },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> }
-	]
 
-	useEffect(() => {
-		const path = window.location.hash.replace('#/', '')
-		const tabIndex = tabs.findIndex(tab => tab.path === path)
-		if (tabIndex !== -1) {
-			activeTab.value = tabIndex
-		}
-	}, [])
-
+const Tabs = ({ tabs, activeTab }: TabsProps) => {
 	const handleTabClick = (index: number) => {
 		if (tabs[index] === undefined) throw new Error(`invalid Tab index: ${ index }`)
 		activeTab.value = index
@@ -92,6 +125,34 @@ export function App() {
 	const maybeAccountAddress = useOptionalSignal<AccountAddress>(undefined)
 	const chainId = useSignal<number | undefined>(undefined)
 	const inputTimeoutRef = useRef<number | null>(null)
+	const universe = useOptionalSignal<AccountAddress>(undefined)
+	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
+	const activeTab = useSignal(0)
+
+	const tabs = [
+		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress }/> },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> }
+	] as const
+
+	useEffect(() => {
+		const hash = window.location.hash.replace('#/', '')
+		const [path, params] = hash.split('?')
+		const tabIndex = tabs.findIndex(tab => tab.path === path)
+		if (tabIndex !== -1) {
+			activeTab.value = tabIndex
+		}
+
+		const searchParams = new URLSearchParams(params)
+		const universeParam = searchParams.get('universe')
+		const parsed = EthereumAddress.safeParse(universeParam)
+		if (universeParam && parsed.success) {
+			universe.deepValue = addressString(parsed.value)
+		} else {
+			universe.deepValue = addressString(BigInt(GENESIS_UNIVERSE))
+		}
+	}, [])
 
 	const setError = (error: unknown) => {
 		if (error === undefined) {
@@ -136,10 +197,52 @@ export function App() {
 			}
 		}
 	}, [])
+	useEffect(() => {
+		if (window.ethereum === undefined) {
+			isWindowEthereum.value = false
+			return
+		}
+		isWindowEthereum.value = true
+		window.ethereum.on('accountsChanged', function (accounts) { maybeAccountAddress.deepValue = accounts[0] })
+		window.ethereum.on('chainChanged', async () => { updateChainId() })
+		const fetchAccount = async () => {
+			try {
+				loadingAccount.value = true
+				const fetchedAccount = await getAccounts()
+				if (fetchedAccount) maybeAccountAddress.deepValue = fetchedAccount
+				updateChainId()
+			} catch(e) {
+				setError(e)
+			} finally {
+				loadingAccount.value = false
+				areContractsDeployed.value = await isAugurConstantProductMarketDeployed(maybeAccountAddress.deepValue)
+			}
+		}
+		fetchAccount()
+		return () => {
+			if (inputTimeoutRef.current !== null) {
+				clearTimeout(inputTimeoutRef.current)
+			}
+		}
+	}, [])
+	useEffect(() => {
+		const universeInfo = async () => {
+			if (maybeAccountAddress.deepValue === undefined) return
+			if (universe.deepValue === undefined) return
+			universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeAccountAddress.deepValue, universe.deepValue)
+		}
+		universeInfo()
+	}, [maybeAccountAddress.value, universe.value])
+
+	if (universe.deepValue === undefined) return <main><p> loading... </p></main>
 
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
-			<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress }/>
+			<div style = 'display: flex; justify-content: space-between;'>
+				<UniverseComponent universe = { universe}/>
+				<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress }/>
+			</div>
+			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation }/>
 			<div style = 'display: block'>
 				<div class = 'augur-constant-product-market'>
 					<img src = 'favicon.svg' alt = 'Icon' style ='width: 60px;'/> Augur Constant Product Market
@@ -147,7 +250,7 @@ export function App() {
 				<p class = 'sub-title'>Swap Augur tokens!</p>
 			</div>
 		</div>
-		<Tabs maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/>
+		<Tabs tabs = { tabs } activeTab = { activeTab }/>
 		<div class = 'text-white/50 text-center'>
 			<div class = 'mt-8'>
 				Augur Constant Product Market by&nbsp;

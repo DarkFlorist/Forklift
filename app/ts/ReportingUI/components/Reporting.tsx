@@ -266,9 +266,9 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 		return <div style = 'margin-top: 1rem'>
 			<SomeTimeAgo priorTimestamp = { endDate } countBackwards = { true } diffToText = {
 				(time: number) => {
-					if (disputeWindowInfo.deepValue === undefined) return ''
-					if (time <= 0) return `The market has resolved to "${ winningOption.outcomeName }."`
-					return `Resolving To "${ winningOption.outcomeName }" if not disputed in ${ humanReadableDateDelta(time) } (${ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) }).`
+					if (disputeWindowInfo.deepValue === undefined) return <></>
+					if (time <= 0) return <>`The market has resolved to "${ winningOption.outcomeName }."`</>
+					return <>`Resolving To "${ winningOption.outcomeName }" if not disputed in ${ humanReadableDateDelta(time) } (${ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) }).`</>
 				}
 			}/>
 		</div>
