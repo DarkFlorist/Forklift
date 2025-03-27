@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import { getMockedEthSimulateWindowEthereum } from '../testsuite/simulator/MockWindowEthereum.js'
 import { createWriteClient } from '../testsuite/simulator/utils/viem.js'
 import { RICH_ADDRESS_1, RICH_ADDRESS_2, RICH_ADDRESS_3, RICH_ADDRESS_4 } from '../testsuite/simulator/utils/constants.js'
-import { deployAugurConstantProductMarketContract, isAugurConstantProductMarketDeployed, approveDai, getDaiAllowance, addLiquidity, getPoolLiquidityBalance, removeLiquidity, getDaiBalance, getReportingFee, getShareBalances, enterPosition, getAugurConstantProductMarketAddress, expectedSharesAfterSwap, exitPosition, getShareToken, setERC1155Approval, swap, getPoolSupply } from '../testsuite/simulator/utils/utilities.js'
+import { deployAugurConstantProductMarketContract, isAugurConstantProductMarketDeployed, approveDai, getDaiAllowance, addLiquidity, getPoolLiquidityBalance, removeLiquidity, getDaiBalance, getReportingFee, getShareBalances, enterPosition, getAugurConstantProductMarketAddress, expectedSharesAfterSwap, exitPosition, getShareToken, setERC1155Approval, swap, getPoolSupply, getPoolConstant, getNoYesShareBalances } from '../testsuite/simulator/utils/utilities.js'
 import assert from 'node:assert'
 
 const numTicks = 1000n;
@@ -392,6 +392,57 @@ test('canSupportMultipleParties', async () => {
 	assert.strictEqual(finalShareBalances[2], 15n, `User did not receive excess Yes shares`)
 })
 
-// TODO
-// market resolution with above
-// view functions with no balances
+test('canOnlyWithdrawProfitUpToInitialEntry', async () => {
+	const mockWindow = getMockedEthSimulateWindowEthereum()
+	
+	const liquidityProviderClient = createWriteClient(mockWindow, RICH_ADDRESS_1, 0)
+	const participantClient1 = createWriteClient(mockWindow, RICH_ADDRESS_3, 0)
+	const participantClient2 = createWriteClient(mockWindow, RICH_ADDRESS_4, 0)
+
+	await deployAugurConstantProductMarketContract(liquidityProviderClient)
+
+	await approveDai(liquidityProviderClient)
+	await approveDai(participantClient1)
+	await approveDai(participantClient2)
+
+	const shareTokenAddress = await getShareToken(participantClient1)
+	const acpmAddress = getAugurConstantProductMarketAddress()
+	await setERC1155Approval(liquidityProviderClient, shareTokenAddress, acpmAddress, true)
+	await setERC1155Approval(participantClient1, shareTokenAddress, acpmAddress, true)
+	await setERC1155Approval(participantClient2, shareTokenAddress, acpmAddress, true)
+
+	// Provide Liquidity
+	const lpToBuy = 10000000n
+	await addLiquidity(liquidityProviderClient, lpToBuy)
+
+    // participant 1 enters Yes
+	const amountInDai = 10000n
+	await enterPosition(participantClient1, amountInDai, true)
+
+	// participant 2 enters Yes with much higher amount
+	await enterPosition(participantClient2, amountInDai * 10n, true)
+	
+	// Participant 1 can only exit up to amountInDai
+	const amountInDaiForExit = amountInDai + 1000n;
+	assert.rejects(exitPosition(participantClient1, amountInDaiForExit))
+
+	await exitPosition(participantClient1, amountInDai)
+})
+
+test('canUseViewFunctionsWithNoData', async () => {
+	const mockWindow = getMockedEthSimulateWindowEthereum()
+	const client = createWriteClient(mockWindow, RICH_ADDRESS_1, 0)
+	await deployAugurConstantProductMarketContract(client)
+
+	// poolConstant
+	const poolConstant = await getPoolConstant(client)
+	assert.strictEqual(poolConstant, 0n)
+	
+	// shareBalances
+	const shareBalances = await getShareBalances(client, client.account.address)
+	assert.strictEqual(shareBalances[0], 0n)
+
+	// noYoShareBalances
+	const noYesShareBalances = await getNoYesShareBalances(client, client.account.address)
+	assert.strictEqual(noYesShareBalances[0], 0n)
+})

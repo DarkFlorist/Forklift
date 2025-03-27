@@ -282,6 +282,29 @@ export const getShareBalances = async (client: ReadClient, account: Address) : P
 	}) as bigint[]
 }
 
+export const getNoYesShareBalances = async (client: ReadClient, account: Address) : Promise<bigint[]> => {
+	const acpmAddress = getAugurConstantProductMarketAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'noYesShareBalances',
+		address: acpmAddress,
+		args: [account]
+	}) as bigint[]
+}
+
+export const getPoolConstant = async (client: ReadClient) : Promise<bigint> => {
+	const acpmAddress = getAugurConstantProductMarketAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'poolConstant',
+		address: acpmAddress,
+		args: []
+	}) as bigint
+}
+
+
 export const addLiquidity = async (client: WriteClient, sharesToBuy: bigint) => {
 	const acpmAddress = getAugurConstantProductMarketAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
