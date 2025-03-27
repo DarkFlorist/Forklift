@@ -473,3 +473,13 @@ export const getMaximumMarketEndDate = async (reader: AccountAddress) => {
 		args: []
 	})
 }
+
+export const isKnownUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: AUGUR_ABI,
+		functionName: 'isKnownUniverse',
+		address: AUGUR_CONTRACT,
+		args: [universe]
+	})
+}

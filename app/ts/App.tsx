@@ -13,7 +13,7 @@ import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
 import { addressString, bigintToDecimalString, formatUnixTimestampISO, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
-import { getReputationTokenForUniverse, getUniverseForkingInformation } from './utils/augurContractUtils.js'
+import { getReputationTokenForUniverse, getUniverseForkingInformation, isKnownUniverse } from './utils/augurContractUtils.js'
 import { humanReadableDateDelta, SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
 import { getErc20TokenBalance } from './utils/erc20.js'
@@ -169,7 +169,14 @@ export function App() {
 		const universeParam = searchParams.get('universe')
 		const parsed = EthereumAddress.safeParse(universeParam)
 		if (universeParam && parsed.success) {
-			universe.deepValue = addressString(parsed.value)
+			const universeProposal = addressString(parsed.value)
+			universe.deepValue = undefined
+			const setUniverseIfValid = async () => {
+				if (maybeAccountAddress.deepValue === undefined) return
+				if (!(await isKnownUniverse(maybeAccountAddress.deepValue, universeProposal))) throw new Error(`${ universeProposal } is not an universe recognized by Augur.`)
+				universe.deepValue = universeProposal
+			}
+			setUniverseIfValid()
 		} else {
 			universe.deepValue = addressString(BigInt(DEFAULT_UNIVERSE))
 		}
