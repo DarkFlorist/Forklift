@@ -1,11 +1,11 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumQuantity } from '../../types/types.js'
-import { fetchHotLoadingMarketData, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
+import { fetchHotLoadingMarketData, getParentUniverse, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { useComputed, useSignal } from '@preact/signals'
-import { bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption, MarketReportingWithoutStake } from '../../SharedUI/MarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
@@ -27,6 +27,7 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 	const selectedOutcome = useSignal<string | null>(null)
 	const repV2ToMigrate = useSignal<bigint>(0n)
+	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -44,6 +45,9 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 		if (isGenesisUniverse(universe.deepValue)) {
 			// retrieve v1 balance only for genesis universe as its only relevant there
 			v1ReputationBalance.deepValue = await getErc20TokenBalance(account.value, REPUTATION_V1_TOKEN_ADDRESS, account.value)
+			parentUniverse.deepValue = addressString(0n) // we know that genesis doesn't have parent universe
+		} else if (universe.deepValue !== undefined) {
+			parentUniverse.deepValue = await getParentUniverse(account.value, universe.deepValue)
 		}
 		if (universeForkingInformation.deepValue?.isForking) {
 			const newMarketData = await fetchHotLoadingMarketData(account.value, universeForkingInformation.deepValue.forkingMarket)
@@ -86,6 +90,8 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 			<div style = 'display: grid'>
 				<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
 				<span><b>Universe Address:</b>{ universe.deepValue }</span>
+				<span><b>Parent Universe Name:</b>{ parentUniverse.deepValue === undefined ? '' : getUniverseName(parentUniverse.deepValue) }</span>
+				<span><b>Parent Universe Address:</b>{ parentUniverse.deepValue }</span>
 				<span><b>Reputation V2 Address For The Universe:</b>{ universe.deepValue }</span>
 				<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
 				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }</span>

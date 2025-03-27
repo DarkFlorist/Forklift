@@ -483,3 +483,13 @@ export const isKnownUniverse = async (reader: AccountAddress, universe: AccountA
 		args: [universe]
 	})
 }
+
+export const getParentUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
+	const client = createReadClient(reader)
+	return await client.readContract({
+		abi: UNIVERSE_ABI,
+		functionName: 'getParentUniverse',
+		address: universe,
+		args: []
+	})
+}
