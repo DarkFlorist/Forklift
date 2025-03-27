@@ -1,9 +1,9 @@
 import { useSignal } from '@preact/signals'
-import { createYesNoMarket } from '../../utils/augurContractUtils.js'
-import { OptionalSignal } from '../../utils/OptionalSignal.js'
+import { createYesNoMarket, getMaximumMarketEndDate } from '../../utils/augurContractUtils.js'
+import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, NonHexBigInt } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { addressString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
+import { addressString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token } from '../../utils/erc20.js'
 
 interface CreateYesNoMarketProps {
@@ -41,6 +41,13 @@ export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTok
 	const longDescription = useSignal<string>('')
 	const categories = useSignal<string>('')
 	const tags = useSignal<string>('')
+	const maxiumMarketEndData = useOptionalSignal<bigint>(undefined)
+
+	const fetchMarketCreationInformation = async () => {
+		const account = maybeAccountAddress.peek()
+		if (account === undefined) throw new Error('missing account')
+		maxiumMarketEndData.deepValue = await getMaximumMarketEndDate(account.value)
+	}
 
 	const createMarket = async () => {
 		if (universe.deepValue === undefined) throw new Error('missing universe')
@@ -110,9 +117,10 @@ export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTok
 	}
 
 	return <div class = 'subApplication'>
+		<button class = 'button is-primary' onClick = { fetchMarketCreationInformation }>Refresh market creation data</button>
 		<p style = 'margin: 0;'>Create Market:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'>End Time (UTC):</p>
+			<p style = 'margin: 0;'>End Time (UTC): { maxiumMarketEndData.deepValue !== undefined ? <>(Latest allowed date { formatUnixTimestampISO(maxiumMarketEndData.deepValue) })</> : <></> }</p>
 			<input
 				style = 'height: fit-content;'
 				class = 'input'
