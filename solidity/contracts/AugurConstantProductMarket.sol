@@ -29,7 +29,7 @@ contract AugurConstantProduct is ERC20 {
 	}
 
 	function addLiquidity(uint256 sharesToBuy) external {
-		//TODO: gas golf this function a bit, though it doesn't really matter
+		// TODO: gas golf this function a bit, though it doesn't really matter
 		uint256 poolConstantBefore = sqrt(poolConstant());
 
 		dai.transferFrom(msg.sender, address(this), sharesToBuy * numTicks);
