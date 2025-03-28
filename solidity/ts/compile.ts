@@ -59,8 +59,8 @@ const compileAugurConstantProductMarket = async () => {
 	let errors = (result!.errors || []).filter((x: any) => (x.severity === "error")).map((x: any) => x.formattedMessage);
 	if (errors.length) {
         let error = new Error("compilation error");
-        (<any>error).errors = errors;
-        throw error;
+        (<any>error).errors = errors
+        throw error
     }
 	const artifactsDir = path.join(process.cwd(), 'artifacts')
 	if (!await exists(artifactsDir)) await fs.mkdir(artifactsDir, { recursive: false })

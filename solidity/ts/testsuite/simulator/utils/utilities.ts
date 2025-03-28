@@ -1,14 +1,15 @@
 import 'viem/window'
 import { AccountAddress } from '../types/types.js'
-import { createWalletClient, custom, getContractAddress, numberToBytes, publicActions } from 'viem'
+import { createWalletClient, custom, getContractAddress, numberToBytes, publicActions, encodeAbiParameters, keccak256 } from 'viem'
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { ReadClient, WriteClient } from './viem.js'
-import { AUGUR_UNIVERSE_ADDRESS, DAI_ADDRESS, PROXY_DEPLOYER_ADDRESS } from './constants.js'
+import { AUGUR_UNIVERSE_ADDRESS, DAI_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address } from 'abitype'
 import { ABIS } from '../../../abi/abis.js'
 import * as funtypes from 'funtypes'
+import { MockWindowEthereum } from '../MockWindowEthereum.js'
 
 type ContractArtifact = funtypes.Static<typeof ContractArtifact>
 const ContractArtifact = funtypes.ReadonlyObject({
@@ -145,13 +146,6 @@ export const getAccounts = async () => {
 	return reply[0]
 }
 
-// const createReadClient = (accountAddress: AccountAddress | undefined) => {
-// 	if (window.ethereum === undefined || accountAddress === undefined) {
-// 		return createPublicClient({ chain: mainnet, transport: http('https://ethereum.dark.florist', { batch: { wait: 100 } }) })
-// 	}
-// 	return createWalletClient({ chain: mainnet, transport: custom(window.ethereum) }).extend(publicActions)
-// }
-
 const createWriteClient = (accountAddress: AccountAddress) => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
 	if (accountAddress === undefined) throw new Error('no accountAddress!')
@@ -160,6 +154,34 @@ const createWriteClient = (accountAddress: AccountAddress) => {
 
 export const getChainId = async (accountAddress: AccountAddress) => {
 	return await createWriteClient(accountAddress).getChainId()
+}
+
+export const mintETH = async (mockWindowEthereum: MockWindowEthereum, mintAmounts: { address: Address, amount: bigint }[]) => {
+	const stateOverrides = mintAmounts.reduce((acc, current) => {
+		acc[current.address] = { balance: current.amount }
+		return acc
+	}, {} as { [key: string]: {[key: string]: bigint }} )
+	await mockWindowEthereum.addStateOverrides(stateOverrides)
+}
+
+export const mintDai = async (mockWindowEthereum: MockWindowEthereum, mintAmounts: { address: Address, amount: bigint }[]) => {
+	const overrides = mintAmounts.map((mintAmount) => {
+		const encodedKeySlotHash = keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'uint256' }], [mintAmount.address, 2n]))
+		return { key: encodedKeySlotHash, value: mintAmount.amount }
+	})
+	const stateSets = overrides.reduce((acc, current) => {
+		acc[current.key] = current.value
+		return acc
+	}, {} as { [key: string]: bigint } )
+	await mockWindowEthereum.addStateOverrides({ [addressString(DAI_ADDRESS)]: { stateDiff: stateSets }})
+}
+
+export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) => {
+	const accountValues = TEST_ADDRESSES.map((address) => {
+		return { address: addressString(address), amount: 1000000n * 10n**18n}
+	})
+	await mintETH(mockWindowEthereum, accountValues)
+	await mintDai(mockWindowEthereum, accountValues)
 }
 
 export function getAugurConstantProductMarketAddress() {

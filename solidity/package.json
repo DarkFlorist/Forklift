@@ -5,7 +5,7 @@
 	"scripts": {
 		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
 		"compile": "tsc && node ./js/compile.js",
-		"test": "tsc --noEmit && node --import tsx $npm_config_testargs ./ts/tests/test.ts"
+		"test": "tsc --noEmit && npx tsx $npm_config_testargs ./ts/tests/test.ts"
 	},
 	"keywords": [],
 	"author": "",
