@@ -37,6 +37,8 @@ const compileAugurConstantProductMarket = async () => {
 			'IERC1155.sol': { content: await fs.readFile('contracts/IERC1155.sol', 'utf8') },
 			'IShareToken.sol': { content: await fs.readFile('contracts/IShareToken.sol', 'utf8') },
 			'IMarket.sol': { content: await fs.readFile('contracts/IMarket.sol', 'utf8') },
+			'IAugur.sol': { content: await fs.readFile('contracts/IAugur.sol', 'utf8') },
+			'Constants.sol': { content: await fs.readFile('contracts/Constants.sol', 'utf8') },
 		},
 		settings: {
 			viaIR: true,
@@ -56,7 +58,7 @@ const compileAugurConstantProductMarket = async () => {
 	}
 	var output = solc.compile(JSON.stringify(input))
 	var result = CompileResult.parse(JSON.parse(output))
-	let errors = (result!.errors || []).filter((x: any) => (x.severity === "error")).map((x: any) => x.formattedMessage);
+	let errors = (result!.errors || []).filter((x) => (x.severity === "error")).map((x) => x.formattedMessage);
 	if (errors.length) {
         let error = new Error("compilation error");
         (<any>error).errors = errors

@@ -5,24 +5,28 @@ import { ERC20 } from "./ERC20.sol";
 import { IERC20 } from "./IERC20.sol";
 import { IShareToken } from "./IShareToken.sol";
 import { IMarket } from "./IMarket.sol";
+import { IAugur } from "./IAugur.sol";
+import { Constants } from "./Constants.sol";
 
 contract AugurConstantProduct is ERC20 {
 
-	IERC20 public dai = ERC20(address(0x6B175474E89094C44Da98b954EedeAC495271d0F));
+	IERC20 public dai = ERC20(Constants.DAI_ADDRESS);
 	IShareToken public shareToken;
 	address public constant augurMarketAddress = address(0x5D1C6191E6c9D8DD2ea7A6CbB50265cD37BF01Ce);
 	IMarket public constant augurMarket = IMarket(augurMarketAddress);
-	address public constant augurAddress = address(0x23916a8F5C3846e3100e5f587FF14F3098722F5d);
+	IAugur public constant augur = IAugur(Constants.AUGUR_ADDRESS);
 	uint256 public numTicks;
 	uint256 public INVALID;
 	uint256 public NO;
 	uint256 public YES;
 
+	// constructor(string memory name, string memory symbol) ERC20(name, symbol) {
 	constructor() ERC20("Augur Constant Product DEV Market", "ACPM-DEV") {
 		shareToken = augurMarket.shareToken();
 		numTicks = augurMarket.getNumTicks();
 		dai.approve(address(shareToken), 2**256-1);
-		dai.approve(augurAddress, 2**256-1);
+		dai.approve(Constants.AUGUR_ADDRESS, 2**256-1);
+		require(augur.getMarketType(augurMarket) == 0, "ACPM only supports Yes No Markets");
 		INVALID = shareToken.getTokenId(augurMarketAddress, 0);
 		NO = shareToken.getTokenId(augurMarketAddress, 1);
 		YES = shareToken.getTokenId(augurMarketAddress, 2);

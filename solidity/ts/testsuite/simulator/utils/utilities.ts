@@ -184,6 +184,15 @@ export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) 
 	await mintDai(mockWindowEthereum, accountValues)
 }
 
+export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
+	const deployerBytecode = await client.getCode({ address: addressString(PROXY_DEPLOYER_ADDRESS)})
+	if (deployerBytecode === '0x60003681823780368234f58015156014578182fd5b80825250506014600cf3') return
+	const ethSendHash = await client.sendTransaction({ to: '0x4c8d290a1b368ac4728d83a9e8321fc3af2b39b1', amount: 10000000000000000n })
+	await client.waitForTransactionReceipt({ hash: ethSendHash })
+	const deployHash = await client.sendRawTransaction({ serializedTransaction: '0xf87e8085174876e800830186a08080ad601f80600e600039806000f350fe60003681823780368234f58015156014578182fd5b80825250506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222' })
+	await client.waitForTransactionReceipt({ hash: deployHash })
+}
+
 export function getAugurConstantProductMarketAddress() {
 	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.bytecode.object }`
 	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(0) })
@@ -199,15 +208,6 @@ export const isAugurConstantProductMarketDeployed = async (client: ReadClient) =
 export const deployAugurConstantProductMarketTransaction = () => {
 	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.bytecode.object }`
 	return { to: addressString(PROXY_DEPLOYER_ADDRESS), data: bytecode } as const
-}
-
-export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
-	const deployerBytecode = await client.getCode({ address: addressString(PROXY_DEPLOYER_ADDRESS)})
-	if (deployerBytecode === '0x60003681823780368234f58015156014578182fd5b80825250506014600cf3') return
-	const ethSendHash = await client.sendTransaction({ to: '0x4c8d290a1b368ac4728d83a9e8321fc3af2b39b1', amount: 10000000000000000n })
-	await client.waitForTransactionReceipt({ hash: ethSendHash })
-	const deployHash = await client.sendRawTransaction({ serializedTransaction: '0xf87e8085174876e800830186a08080ad601f80600e600039806000f350fe60003681823780368234f58015156014578182fd5b80825250506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222' })
-	await client.waitForTransactionReceipt({ hash: deployHash })
 }
 
 export const deployAugurConstantProductMarketContract = async (client: WriteClient) => {
