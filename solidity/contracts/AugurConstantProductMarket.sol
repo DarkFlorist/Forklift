@@ -12,21 +12,20 @@ contract AugurConstantProduct is ERC20 {
 
 	IERC20 public dai = ERC20(Constants.DAI_ADDRESS);
 	IShareToken public shareToken;
-	address public constant augurMarketAddress = address(0x5D1C6191E6c9D8DD2ea7A6CbB50265cD37BF01Ce);
-	IMarket public constant augurMarket = IMarket(augurMarketAddress);
+	address public augurMarketAddress;
 	IAugur public constant augur = IAugur(Constants.AUGUR_ADDRESS);
 	uint256 public numTicks;
 	uint256 public INVALID;
 	uint256 public NO;
 	uint256 public YES;
 
-	// constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-	constructor() ERC20("Augur Constant Product DEV Market", "ACPM-DEV") {
-		shareToken = augurMarket.shareToken();
-		numTicks = augurMarket.getNumTicks();
+	constructor(IMarket market, string memory name, string memory symbol) ERC20(name, symbol) {
+		augurMarketAddress = address(market);
+		shareToken = market.shareToken();
+		numTicks = market.getNumTicks();
 		dai.approve(address(shareToken), 2**256-1);
 		dai.approve(Constants.AUGUR_ADDRESS, 2**256-1);
-		require(augur.getMarketType(augurMarket) == 0, "ACPM only supports Yes No Markets");
+		require(augur.getMarketType(market) == 0, "ACPM only supports Yes No Markets");
 		INVALID = shareToken.getTokenId(augurMarketAddress, 0);
 		NO = shareToken.getTokenId(augurMarketAddress, 1);
 		YES = shareToken.getTokenId(augurMarketAddress, 2);

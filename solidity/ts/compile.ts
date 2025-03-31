@@ -39,6 +39,8 @@ const compileAugurConstantProductMarket = async () => {
 			'IMarket.sol': { content: await fs.readFile('contracts/IMarket.sol', 'utf8') },
 			'IAugur.sol': { content: await fs.readFile('contracts/IAugur.sol', 'utf8') },
 			'Constants.sol': { content: await fs.readFile('contracts/Constants.sol', 'utf8') },
+			'ACPMFactory.sol': { content: await fs.readFile('contracts/ACPMFactory.sol', 'utf8') },
+			'ContractExists.sol': { content: await fs.readFile('contracts/ContractExists.sol', 'utf8') },
 		},
 		settings: {
 			viaIR: true,
