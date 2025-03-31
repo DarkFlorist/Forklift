@@ -4,7 +4,7 @@ import { createWalletClient, custom, getContractAddress, numberToBytes, publicAc
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { ReadClient, WriteClient } from './viem.js'
-import { AUGUR_UNIVERSE_ADDRESS, DAI_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES } from './constants.js'
+import { AUGUR_UNIVERSE_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES, VITALIK } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address } from 'abitype'
 import { ABIS } from '../../../abi/abis.js'
@@ -164,7 +164,8 @@ export const mintETH = async (mockWindowEthereum: MockWindowEthereum, mintAmount
 	await mockWindowEthereum.addStateOverrides(stateOverrides)
 }
 
-export const mintDai = async (mockWindowEthereum: MockWindowEthereum, mintAmounts: { address: Address, amount: bigint }[]) => {
+export const mintCash = async (mockWindowEthereum: MockWindowEthereum, mintAmounts: { address: Address, amount: bigint }[]) => {
+	const cashAddress = await getCashAddress(createWriteClient(addressString(VITALIK)))
 	const overrides = mintAmounts.map((mintAmount) => {
 		const encodedKeySlotHash = keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'uint256' }], [mintAmount.address, 2n]))
 		return { key: encodedKeySlotHash, value: mintAmount.amount }
@@ -173,7 +174,7 @@ export const mintDai = async (mockWindowEthereum: MockWindowEthereum, mintAmount
 		acc[current.key] = current.value
 		return acc
 	}, {} as { [key: string]: bigint } )
-	await mockWindowEthereum.addStateOverrides({ [addressString(DAI_ADDRESS)]: { stateDiff: stateSets }})
+	await mockWindowEthereum.addStateOverrides({ [cashAddress]: { stateDiff: stateSets }})
 }
 
 export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) => {
@@ -181,7 +182,7 @@ export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) 
 		return { address: addressString(address), amount: 1000000n * 10n**18n}
 	})
 	await mintETH(mockWindowEthereum, accountValues)
-	await mintDai(mockWindowEthereum, accountValues)
+	await mintCash(mockWindowEthereum, accountValues)
 }
 
 export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
@@ -196,6 +197,15 @@ export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<
 export function getAugurConstantProductMarketAddress() {
 	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.evm.bytecode.object }`
 	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(0) })
+}
+
+export const getCashAddress = async (client: ReadClient) => {
+	return await client.readContract({
+		abi: ABIS.mainnet.universe,
+		functionName: 'cash',
+		address: addressString(AUGUR_UNIVERSE_ADDRESS),
+		args: []
+	})
 }
 
 export const isAugurConstantProductMarketDeployed = async (client: ReadClient) => {
@@ -229,33 +239,36 @@ export const getReportingFee = async (client: WriteClient) => {
 	})
 }
 
-export const approveDai = async (client: WriteClient) => {
+export const approveCash = async (client: WriteClient) => {
+	const cashAddress = await getCashAddress(client)
 	const acpmAddress = getAugurConstantProductMarketAddress()
 	const amount = 1000000000000000000000000000000n
 	return await client.writeContract({
 		chain: mainnet,
 		abi: ABIS.mainnet.erc20,
 		functionName: 'approve',
-		address: addressString(DAI_ADDRESS),
+		address: cashAddress,
 		args: [acpmAddress, amount]
 	})
 }
 
-export const getDaiBalance = async (client: WriteClient, address?: Address) => {
+export const getCashBalance = async (client: WriteClient, address?: Address) => {
+	const cashAddress = await getCashAddress(client)
 	return await client.readContract({
 		abi: ABIS.mainnet.erc20,
 		functionName: 'balanceOf',
-		address: addressString(DAI_ADDRESS),
+		address: cashAddress,
 		args: [address ? address: client.account.address]
 	})
 }
 
-export const getDaiAllowance = async (client: WriteClient) => {
+export const getCashAllowance = async (client: WriteClient) => {
+	const cashAddress = await getCashAddress(client)
 	const acpmAddress = getAugurConstantProductMarketAddress()
 	return await client.readContract({
 		abi: ABIS.mainnet.erc20,
 		functionName: 'allowance',
-		address: addressString(DAI_ADDRESS),
+		address: cashAddress,
 		args: [client.account.address, acpmAddress]
 	})
 }
