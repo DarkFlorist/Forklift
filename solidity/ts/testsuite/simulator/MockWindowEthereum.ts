@@ -9,6 +9,7 @@ import { EthereumJSONRpcRequestHandler } from './EthereumJSONRpcRequestHandler.j
 import { EthereumBytes32, EthereumData, EthereumQuantity, EthereumSignedTransactionWithBlockData } from './types/wire-types.js'
 import { ErrorWithDataAndCode, JsonRpcResponseError, printError } from './utils/errors.js'
 import * as funtypes from 'funtypes'
+import { getConfig } from './utils/config.js'
 
 async function singleCallWithFromOverride(ethereumClientService: EthereumClientService, simulationState: SimulationState | undefined, request: EthCallParams, from: bigint) {
 	const callParams = request.params[0]
@@ -85,7 +86,8 @@ export type MockWindowEthereum = EIP1193Provider & {
 	advanceTime: (amountInSeconds: EthereumQuantity) => Promise<void>
 }
 export const getMockedEthSimulateWindowEthereum = (): MockWindowEthereum => {
-	const httpsRpc = 'https://ethereum.dark.florist'
+	const config = getConfig()
+	const httpsRpc = config.testRPCEndpoint
 	const ethereumClientService = new EthereumClientService(
 		new EthereumJSONRpcRequestHandler(httpsRpc, false),
 		async () => {},
