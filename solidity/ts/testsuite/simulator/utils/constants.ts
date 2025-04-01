@@ -5,9 +5,11 @@ export const UNISWAP_V3_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564n
 export const MULTICALL3 = 0xcA11bde05977b3631167028862bE2a173976CA11n // Contract for bundling bulk call transactions, deployed on every chain. https://github.com/mds1/multicall
 export const ETHEREUM_LOGS_LOGGER_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeEn
 //export const DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0Fn
+export const AUGUR_ADDRESS = 0x23916a8F5C3846e3100e5f587FF14F3098722F5dn
 export const AUGUR_UNIVERSE_ADDRESS = 0x49244BD018Ca9fd1f06ecC07B9E9De773246e5AAn
 // export const UNISWAP_V3_NFT_ROUTER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88n
 // export const SUSHISWAP_FACTORY_ADDRESS = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Acn
+export const NULL_ADDRESS = 0x0000000000000000000000000000000000000000n
 
 export const Multicall3ABI = [
 	'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',

@@ -3,16 +3,13 @@ import { getContractAddress, numberToBytes, encodeAbiParameters, keccak256 } fro
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { createWriteClient, ReadClient, WriteClient } from './viem.js'
-import { AUGUR_UNIVERSE_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES, VITALIK } from './constants.js'
+import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES, VITALIK } from './constants.js'
 import { addressString } from './bigint.js'
-import { Abi, Address } from 'abitype'
+import { Abi, Address, parseAbiItem } from 'abitype'
 import { ABIS } from '../../../abi/abis.js'
 import * as funtypes from 'funtypes'
 import { MockWindowEthereum } from '../MockWindowEthereum.js'
 
-const MARKET_ADDRESS = "0x5D1C6191E6c9D8DD2ea7A6CbB50265cD37BF01Ce"; // XXX TEMP DELETE ME
-const MARKET_NAME = "TEST"
-const MARKET_SYMBOL = "TEST"
 
 const ContractDefinition = funtypes.ReadonlyObject({
 	abi: funtypes.Unknown,
@@ -40,6 +37,10 @@ const ContractArtifact = funtypes.ReadonlyObject({
 
 const contractLocation = './artifacts/AugurConstantProductMarket.json'
 export const augurConstantProductMarketContractArtifact = ContractArtifact.parse(JSON.parse(await fs.readFile(contractLocation, 'utf8')))
+
+let augurMarketAddress:Address = "0x0"
+const MARKET_NAME = "TEST"
+const MARKET_SYMBOL = "TEST"
 
 export async function sleep(milliseconds: number) {
 	await new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -175,10 +176,32 @@ export const mintCash = async (mockWindowEthereum: MockWindowEthereum, mintAmoun
 	await mockWindowEthereum.addStateOverrides({ [cashAddress]: { stateDiff: stateSets }})
 }
 
+export const mintRep = async (mockWindowEthereum: MockWindowEthereum, mintAmounts: { address: Address, amount: bigint }[]) => {
+	const repAddress = await getRepAddress(createWriteClient(mockWindowEthereum, VITALIK, 0))
+	const overrides = mintAmounts.map((mintAmount) => {
+		const encodedKeySlotHash = keccak256(encodeAbiParameters([{ type: 'address' }, { type: 'uint256' }], [mintAmount.address, 1n]))
+		return { key: encodedKeySlotHash, value: mintAmount.amount }
+	})
+	const stateSets = overrides.reduce((acc, current) => {
+		acc[current.key] = current.value
+		return acc
+	}, {} as { [key: string]: bigint } )
+	await mockWindowEthereum.addStateOverrides({ [repAddress]: { stateDiff: stateSets }})
+}
+
 export const getCashAddress = async (client: ReadClient) => {
 	return await client.readContract({
 		abi: ABIS.mainnet.universe,
 		functionName: 'cash',
+		address: addressString(AUGUR_UNIVERSE_ADDRESS),
+		args: []
+	})
+}
+
+export const getRepAddress = async (client: ReadClient) => {
+	return await client.readContract({
+		abi: ABIS.mainnet.universe,
+		functionName: 'getReputationToken',
 		address: addressString(AUGUR_UNIVERSE_ADDRESS),
 		args: []
 	})
@@ -190,6 +213,26 @@ export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) 
 	})
 	await mintETH(mockWindowEthereum, accountValues)
 	await mintCash(mockWindowEthereum, accountValues)
+	await mintRep(mockWindowEthereum, accountValues)
+}
+
+export const deployAugurMarket = async (client: WriteClient): Promise<Address> => {
+	await approveCash(client, addressString(AUGUR_ADDRESS))
+	const endTime = BigInt(Math.floor(Date.now() / 1000) + 100000)
+	const blockNumber = await client.getBlockNumber()
+	await client.writeContract({
+		abi: ABIS.mainnet.universe,
+		functionName: 'createYesNoMarket',
+		address: addressString(AUGUR_UNIVERSE_ADDRESS),
+		args: [endTime, 0n, addressString(NULL_ADDRESS), 0n, client.account.address, "{}"]
+	})
+	const logs = await client.getLogs({
+		address: addressString(AUGUR_ADDRESS),
+		event: parseAbiItem("event MarketCreated(address indexed universe, uint256 endTime, string extraInfo, address market, address indexed marketCreator, address designatedReporter, uint256 feePerCashInAttoCash, int256[] prices, uint8 marketType, uint256 numTicks, bytes32[] outcomes, uint256 noShowBond, uint256 timestamp)"),
+		fromBlock: blockNumber
+	})
+	augurMarketAddress = logs[0].args.market!
+	return augurMarketAddress
 }
 
 export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
@@ -233,7 +276,7 @@ export const getAugurConstantProductMarketAddress = async (client: ReadClient) =
 		abi: abi as Abi,
 		functionName: 'getACPMAddress',
 		address: acpmFactoryAddress,
-		args: [MARKET_ADDRESS, MARKET_NAME, MARKET_SYMBOL]
+		args: [augurMarketAddress, MARKET_NAME, MARKET_SYMBOL]
 	}) as Address
 }
 
@@ -246,13 +289,14 @@ export const isAugurConstantProductMarketDeployed = async (client: ReadClient) =
 export const deployAugurConstantProductMarketContract = async (client: WriteClient) => {
     await ensureACPMFactoryDeployed(client)
 	const acpmFactoryAddress = await getACPMFactoryAddress()
+	await deployAugurMarket(client)
 	const abi = augurConstantProductMarketContractArtifact.contracts['ACPMFactory.sol'].ACPMFactory.abi
 	return await client.writeContract({
 		chain: mainnet,
 		abi: abi as Abi,
 		functionName: 'createACPM',
 		address: acpmFactoryAddress,
-		args: [MARKET_ADDRESS, MARKET_NAME, MARKET_SYMBOL]
+		args: [augurMarketAddress, MARKET_NAME, MARKET_SYMBOL]
 	})
 }
 
@@ -265,16 +309,16 @@ export const getReportingFee = async (client: WriteClient) => {
 	})
 }
 
-export const approveCash = async (client: WriteClient) => {
+export const approveCash = async (client: WriteClient, target?: Address) => {
 	const cashAddress = await getCashAddress(client)
-	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	target = target ? target : await getAugurConstantProductMarketAddress(client)
 	const amount = 1000000000000000000000000000000n
 	return await client.writeContract({
 		chain: mainnet,
 		abi: ABIS.mainnet.erc20,
 		functionName: 'approve',
 		address: cashAddress,
-		args: [acpmAddress, amount]
+		args: [target, amount]
 	})
 }
 
