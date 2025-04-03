@@ -431,6 +431,16 @@ export const getPoolConstant = async (client: ReadClient) : Promise<bigint> => {
 	}) as bigint
 }
 
+export const getFeeNumerator = async (client: ReadClient) : Promise<bigint> => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'feeNumerator',
+		address: acpmAddress,
+		args: []
+	}) as bigint
+}
 
 export const addLiquidity = async (client: WriteClient, sharesToBuy: bigint) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
@@ -516,11 +526,16 @@ export const swap = async (client: WriteClient, inputShares: bigint, inputYes: b
 export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, yesShares: boolean) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const shareBalances = await getShareBalances(client, acpmAddress)
+	const feeNumerator = await getFeeNumerator(client)
 	const noBalance = shareBalances[1]
 	const yesBalance = shareBalances[2]
 	const poolConstant = noBalance * yesBalance
+	let amountOut = 0n
 	if (yesShares) {
-		return noBalance - poolConstant / (yesBalance + sharesFromUser)
+		amountOut = noBalance - poolConstant / (yesBalance + sharesFromUser)
 	}
-	return  yesBalance - poolConstant / (noBalance + sharesFromUser)
+	else {
+		amountOut = yesBalance - poolConstant / (noBalance + sharesFromUser)
+	}
+	return amountOut * feeNumerator / 1000n
 }
