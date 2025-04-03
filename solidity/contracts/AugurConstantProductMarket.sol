@@ -7,8 +7,11 @@ import { IShareToken } from "./IShareToken.sol";
 import { IMarket } from "./IMarket.sol";
 import { IAugur } from "./IAugur.sol";
 import { Constants } from "./Constants.sol";
+import { AddressToString } from "./AddressToString.sol";
 
 contract AugurConstantProduct is ERC20 {
+	using AddressToString for address;
+
 
 	IERC20 public dai = ERC20(Constants.DAI_ADDRESS);
 	IShareToken public shareToken;
@@ -19,7 +22,7 @@ contract AugurConstantProduct is ERC20 {
 	uint256 public NO;
 	uint256 public YES;
 
-	constructor(IMarket market, string memory name, string memory symbol) ERC20(name, symbol) {
+	constructor(IMarket market) ERC20(string(abi.encodePacked("ACPM-", address(market).addressToString())), address(market).addressToString()) {
 		augurMarketAddress = address(market);
 		shareToken = market.shareToken();
 		numTicks = market.getNumTicks();
@@ -55,7 +58,7 @@ contract AugurConstantProduct is ERC20 {
 		uint256 invalidShare = poolInvalid * poolTokensToSell / poolSupply;
 		uint256 noShare = poolNo * poolTokensToSell / poolSupply;
 		uint256 yesShare = poolYes * poolTokensToSell / poolSupply;
-		
+
 		// CONSIDER: selling complete sets incurs Augur fees, maybe we should let the user sell the sets themselves if they want to pay the fee?
 		uint256 completeSetsToSell = invalidShare;
 		completeSetsToSell = noShare < completeSetsToSell ? noShare : completeSetsToSell;

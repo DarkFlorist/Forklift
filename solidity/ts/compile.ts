@@ -22,26 +22,35 @@ async function exists(path: string) {
 	}
 }
 
+const contractList = [
+	'AugurConstantProductMarket.sol',
+	'Context.sol',
+	'draft-IERC6093.sol',
+	'ERC20.sol',
+	'IERC20.sol',
+	'IERC20Metadata.sol',
+	'IOwnable.sol',
+	'ITyped.sol',
+	'IERC1155.sol',
+	'IShareToken.sol',
+	'IMarket.sol',
+	'IAugur.sol',
+	'Constants.sol',
+	'AugurConstantProductMarketFactory.sol',
+	'ContractExists.sol',
+	'AddressToString.sol'
+]
+
+const sources = await contractList.reduce(async (acc, curr) => {
+	const value = { content: await fs.readFile(`contracts/${curr}`, 'utf8') }
+	acc.then(obj => obj[curr] = value);
+	return acc
+}, Promise.resolve(<{ [key: string]: { content: string } }>{}))
+
 const compileAugurConstantProductMarket = async () => {
 	const input = {
 		language: 'Solidity',
-		sources: {
-			'AugurConstantProductMarket.sol': { content: await fs.readFile('contracts/AugurConstantProductMarket.sol', 'utf8') },
-			'Context.sol': { content: await fs.readFile('contracts/Context.sol', 'utf8') },
-			'draft-IERC6093.sol': { content: await fs.readFile('contracts/draft-IERC6093.sol', 'utf8') },
-			'ERC20.sol': { content: await fs.readFile('contracts/ERC20.sol', 'utf8') },
-			'IERC20.sol': { content: await fs.readFile('contracts/IERC20.sol', 'utf8') },
-			'IERC20Metadata.sol': { content: await fs.readFile('contracts/IERC20Metadata.sol', 'utf8') },
-			'IOwnable.sol': { content: await fs.readFile('contracts/IOwnable.sol', 'utf8') },
-			'ITyped.sol': { content: await fs.readFile('contracts/ITyped.sol', 'utf8') },
-			'IERC1155.sol': { content: await fs.readFile('contracts/IERC1155.sol', 'utf8') },
-			'IShareToken.sol': { content: await fs.readFile('contracts/IShareToken.sol', 'utf8') },
-			'IMarket.sol': { content: await fs.readFile('contracts/IMarket.sol', 'utf8') },
-			'IAugur.sol': { content: await fs.readFile('contracts/IAugur.sol', 'utf8') },
-			'Constants.sol': { content: await fs.readFile('contracts/Constants.sol', 'utf8') },
-			'ACPMFactory.sol': { content: await fs.readFile('contracts/ACPMFactory.sol', 'utf8') },
-			'ContractExists.sol': { content: await fs.readFile('contracts/ContractExists.sol', 'utf8') },
-		},
+		sources,
 		settings: {
 			viaIR: true,
 			optimizer: {
