@@ -21,6 +21,8 @@ contract AugurConstantProduct is ERC20 {
 	uint256 public INVALID;
 	uint256 public NO;
 	uint256 public YES;
+	uint256 public constant afterFeeDenominator = 1000;
+	uint256 public constant afterFeeNumerator = 950; // 5% fee
 
 	constructor(IMarket market) ERC20(string(abi.encodePacked("ACPM-", address(market).addressToString())), address(market).addressToString()) {
 		augurMarketAddress = address(market);
@@ -104,10 +106,14 @@ contract AugurConstantProduct is ERC20 {
 		// simulate user swapping YES to NO or NO to YES
 		uint256 simulatedPoolConstant = poolYes * poolNo;
 		if (buyYes) {
-			yesToUser = yesToUser + poolYes - simulatedPoolConstant / (poolNo + noToUser);
+			uint256 amountfromSwap = poolYes - simulatedPoolConstant / (poolNo + noToUser);
+			amountfromSwap = amountfromSwap * afterFeeNumerator / afterFeeDenominator;
+			yesToUser = yesToUser + amountfromSwap;
 			noToUser = 0;
 		} else {
-			noToUser = noToUser + poolNo - simulatedPoolConstant / (poolYes + yesToUser);
+			uint256 amountFromSwap = poolNo - simulatedPoolConstant / (poolYes + yesToUser);
+			amountFromSwap = amountFromSwap * afterFeeNumerator / afterFeeDenominator;
+			noToUser = noToUser + amountFromSwap;
 			yesToUser = 0;
 		}
 
@@ -138,7 +144,7 @@ contract AugurConstantProduct is ERC20 {
 		uint256 noFromUser = 0;
 		uint256 yesFromUser = 0;
 		if (userYes > userNo) {
-			uint256 noToUser = setsToSell - userNo;
+			uint256 noToUser = (setsToSell - userNo) * afterFeeDenominator / afterFeeNumerator;
 			uint256 poolNoLessToUser = poolNo - noToUser;
 			uint256 yesToPool = simulatedPoolConstant / poolNoLessToUser;
 			if (yesToPool * poolNoLessToUser < simulatedPoolConstant) yesToPool += 1;
@@ -147,7 +153,7 @@ contract AugurConstantProduct is ERC20 {
 			noFromUser = userNo;
 			yesFromUser = yesToPool + setsToSell;
 		} else {
-			uint256 yesToUser = setsToSell - userYes;
+			uint256 yesToUser = (setsToSell - userYes) * afterFeeDenominator / afterFeeNumerator;
 			uint256 poolYesLessToUser = poolYes - yesToUser;
 			uint256 noToPool = simulatedPoolConstant / poolYesLessToUser;
 			if (noToPool * poolYesLessToUser < simulatedPoolConstant) noToPool += 1;
@@ -169,15 +175,17 @@ contract AugurConstantProduct is ERC20 {
 		if (inputYes) {
 			uint256 yesFromUser = inputShares;
 			uint256 noToUser = poolNo - currentPoolConstant / (poolYes + yesFromUser);
+			uint256 noToUserAfterFee = noToUser * afterFeeNumerator / afterFeeDenominator;
 			shareToken.unsafeTransferFrom(msg.sender, address(this), YES, yesFromUser);
-			shareToken.unsafeTransferFrom(address(this), msg.sender, NO, noToUser);
-			return noToUser;
+			shareToken.unsafeTransferFrom(address(this), msg.sender, NO, noToUserAfterFee);
+			return noToUserAfterFee;
 		} else {
 			uint256 noFromUser = inputShares;
 			uint256 yesToUser = poolYes - currentPoolConstant / (poolNo + noFromUser);
+			uint256 yesToUserAfterFee = yesToUser * afterFeeNumerator / afterFeeDenominator;
 			shareToken.unsafeTransferFrom(msg.sender, address(this), NO, noFromUser);
-			shareToken.unsafeTransferFrom(address(this), msg.sender, YES, yesToUser);
-			return yesToUser;
+			shareToken.unsafeTransferFrom(address(this), msg.sender, YES, yesToUserAfterFee);
+			return yesToUserAfterFee;
 		}
 	}
 

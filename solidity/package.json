@@ -5,7 +5,7 @@
 	"scripts": {
 		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
 		"compile": "tsc && node ./js/compile.js",
-		"test": "tsc && npx tsx --test $npm_config_testargs"
+		"test": "npx tsc && node --test $npm_config_testargs"
 	},
 	"keywords": [],
 	"author": "",
