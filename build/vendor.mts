@@ -7,7 +7,9 @@ const directoryOfThisFile = path.dirname(url.fileURLToPath(import.meta.url))
 const VENDOR_OUTPUT_PATH = path.join(directoryOfThisFile, '..', 'app', 'vendor')
 const MODULES_ROOT_PATH = path.join(directoryOfThisFile, '..', 'node_modules')
 const INDEX_HTML_PATH = path.join(directoryOfThisFile, '..', 'app', 'index.html')
-const AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH = path.join(directoryOfThisFile, '..', 'app', 'ts', 'VendoredAugurConstantProductMarket.ts')
+const AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_APP = path.join(directoryOfThisFile, '..', 'app', 'ts', 'VendoredAugurConstantProductMarket.ts')
+const AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_SOLIDITY = path.join(directoryOfThisFile, '..', 'solidity', 'ts', 'abi', 'VendoredAugurConstantProductMarket.ts')
+
 
 type Dependency = { packageName: string, packageToVendor?: string, subfolderToVendor: string, mainEntrypointFile: string, alternateEntrypoints: Record<string, string> }
 const dependencyPaths: Dependency[] = [
@@ -63,7 +65,8 @@ const copySolidityContractArtifact = async () => {
 	const contractLocation = path.join(directoryOfThisFile, '..', 'solidity/artifacts/AugurConstantProductMarket.json')
 	const solidityContract = JSON.parse(await fs.readFile(contractLocation, 'utf8'))
 	const typescript = `export const augurConstantProductMarketContractArtifact = ${ JSON.stringify(solidityContract) } as const`
-	await fs.writeFile(AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH, typescript)
+	await fs.writeFile(AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_APP, typescript)
+	await fs.writeFile(AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_SOLIDITY, typescript)
 }
 
 // rewrite the source paths in sourcemap files so they show up in the debugger in a reasonable location and if two source maps refer to the same (relative) path, we end up with them distinguished in the browser debugger

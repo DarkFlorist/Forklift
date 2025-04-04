@@ -121,8 +121,7 @@ describe('Contract Test Suite', () => {
 		// Exit Position
 		const shareTokenAddress = await getShareToken(client)
 		const acpmAddress = await getAugurConstantProductMarketAddress(client)
-		const feeNumerator = await getFeeNumerator(client)
-		const expectedDaiFromShares = amountInDai * feeNumerator / 1000n
+		const expectedDaiFromShares = (shareBalances[0] - 3n) * numTicks
 		await setERC1155Approval(client, shareTokenAddress, acpmAddress, true)
 		await exitPosition(client, expectedDaiFromShares)
 
@@ -131,9 +130,9 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(daiBalanceAfterExit, expectedDaiBalanceAfterExit, `Dai not recieved as expected. Balance ${daiBalanceAfterExit}. Expected: ${expectedDaiBalanceAfterExit}`)
 
 		const shareBalancesAfterExit = await getShareBalances(client, client.account.address)
-		assert.strictEqual(shareBalancesAfterExit[0], 5n, `Did not close out Invalid position when exiting Yes position`)
+		assert.strictEqual(shareBalancesAfterExit[0], 3n, `Did not close out Invalid position when exiting Yes position`)
 		assert.strictEqual(shareBalancesAfterExit[1], 0n, `Recieved No shares when exiting a Yes position`)
-		assert.strictEqual(shareBalancesAfterExit[2], 0n, `Did not close out Yes position when exiting Yes position`)
+		assert.strictEqual(shareBalancesAfterExit[2], 1n, `Did not close out Yes position when exiting Yes position`)
 	})
 
 	test('canEnterAndExitNoPosition', async () => {
@@ -165,8 +164,7 @@ describe('Contract Test Suite', () => {
 		// Exit Position
 		const shareTokenAddress = await getShareToken(client)
 		const acpmAddress = await getAugurConstantProductMarketAddress(client)
-		const feeNumerator = await getFeeNumerator(client)
-		const expectedDaiFromShares = amountInDai * feeNumerator / 1000n
+		const expectedDaiFromShares = (shareBalances[0] - 3n) * numTicks
 		await setERC1155Approval(client, shareTokenAddress, acpmAddress, true)
 		await exitPosition(client, expectedDaiFromShares)
 
@@ -175,8 +173,8 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(daiBalanceAfterExit, expectedDaiBalanceAfterExit, `Dai not recieved as expected. Balance ${daiBalanceAfterExit}. Expected: ${expectedDaiBalanceAfterExit}`)
 
 		const shareBalancesAfterExit = await getShareBalances(client, client.account.address)
-		assert.strictEqual(shareBalancesAfterExit[0], 5n, `Did not close out Invalid position when exiting No position`)
-		assert.strictEqual(shareBalancesAfterExit[1], 0n, `Did not close out No position when exiting No position`)
+		assert.strictEqual(shareBalancesAfterExit[0], 3n, `Did not close out Invalid position when exiting No position`)
+		assert.strictEqual(shareBalancesAfterExit[1], 1n, `Did not close out No position when exiting No position`)
 		assert.strictEqual(shareBalancesAfterExit[2], 0n, `Recieved Yes shares when exiting a No position`)
 	})
 
@@ -374,8 +372,8 @@ describe('Contract Test Suite', () => {
 		const expectedDaiBalanceAfterTotalRemoval = daiBalanceBeforeTotalLiquidityRemoval + expectedReturnFromTotalRemoval
 		assert.strictEqual(daiBalanceAfterTotalRemoval, expectedDaiBalanceAfterTotalRemoval, `Dai not returned as expected. Got ${daiBalanceAfterTotalRemoval}. Expected: ${expectedDaiBalanceAfterTotalRemoval}`)
 		const shareBalancesAfterTotalRemoval = await getShareBalances(liquidityProviderClient1, liquidityProviderClient1.account.address)
-		assert.strictEqual(shareBalancesAfterTotalRemoval[0], 4n, `User did not receive excess Invalid shares`)
-		assert.strictEqual(shareBalancesAfterTotalRemoval[1], 11n, `User did not receive excess No shares`)
+		assert.strictEqual(shareBalancesAfterTotalRemoval[0], 6n, `User did not receive excess Invalid shares`)
+		assert.strictEqual(shareBalancesAfterTotalRemoval[1], 13n, `User did not receive excess No shares`)
 		assert.strictEqual(shareBalancesAfterTotalRemoval[2], 0n, `User received Yes shares incorrectly`)
 
 		// Participant 2 exits position
@@ -391,7 +389,7 @@ describe('Contract Test Suite', () => {
 		const shareBalancesAfterTotalExit = await getShareBalances(participantClient2, participantClient2.account.address)
 		assert.strictEqual(shareBalancesAfterTotalExit[0], 3n, `Did not close out Invalid position when exiting Yes position`)
 		assert.strictEqual(shareBalancesAfterTotalExit[1], 0n, `Recieved No shares when exiting a Yes position`)
-		assert.strictEqual(shareBalancesAfterTotalExit[2], 2n, `Did not close out Yes position when exiting Yes position`)
+		assert.strictEqual(shareBalancesAfterTotalExit[2], 4n, `Did not close out Yes position when exiting Yes position`)
 
 		// Second LP removes all remaining liquidity
 		const daiBalanceBeforeFinalLiquidityRemoval = await getCashBalance(liquidityProviderClient2)

@@ -6,3 +6,4 @@
 app/ts/VendoredAugurConstantProductMarket.ts
 /solidity/js
 solidity/user-config.json
+solidity/ts/abi/VendoredAugurConstantProductMarket.ts

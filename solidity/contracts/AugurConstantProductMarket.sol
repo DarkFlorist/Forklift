@@ -21,8 +21,8 @@ contract AugurConstantProduct is ERC20 {
 	uint256 public INVALID;
 	uint256 public NO;
 	uint256 public YES;
-	uint256 public constant feeDenominator = 1000;
-	uint256 public constant feeNumerator = 900; // 10%
+	uint256 public constant afterFeeDenominator = 1000;
+	uint256 public constant afterFeeNumerator = 950; // 5% fee
 
 	constructor(IMarket market) ERC20(string(abi.encodePacked("ACPM-", address(market).addressToString())), address(market).addressToString()) {
 		augurMarketAddress = address(market);
@@ -107,12 +107,12 @@ contract AugurConstantProduct is ERC20 {
 		uint256 simulatedPoolConstant = poolYes * poolNo;
 		if (buyYes) {
 			uint256 amountfromSwap = poolYes - simulatedPoolConstant / (poolNo + noToUser);
-			amountfromSwap = amountfromSwap * feeNumerator / feeDenominator;
+			amountfromSwap = amountfromSwap * afterFeeNumerator / afterFeeDenominator;
 			yesToUser = yesToUser + amountfromSwap;
 			noToUser = 0;
 		} else {
 			uint256 amountFromSwap = poolNo - simulatedPoolConstant / (poolYes + yesToUser);
-			amountFromSwap = amountFromSwap * feeNumerator / feeDenominator;
+			amountFromSwap = amountFromSwap * afterFeeNumerator / afterFeeDenominator;
 			noToUser = noToUser + amountFromSwap;
 			yesToUser = 0;
 		}
@@ -148,8 +148,7 @@ contract AugurConstantProduct is ERC20 {
 			uint256 poolNoLessToUser = poolNo - noToUser;
 			uint256 yesToPool = simulatedPoolConstant / poolNoLessToUser;
 			if (yesToPool * poolNoLessToUser < simulatedPoolConstant) yesToPool += 1;
-			yesToPool = yesToPool - poolYes;
-			yesToPool = yesToPool * feeDenominator / feeNumerator;
+			yesToPool = (yesToPool - poolYes) * afterFeeDenominator / afterFeeNumerator;
 			require(yesToPool <= userYes - setsToSell, "AugurCP: You don't have enough YES tokens to close out for this amount.");
 			noFromUser = userNo;
 			yesFromUser = yesToPool + setsToSell;
@@ -158,8 +157,7 @@ contract AugurConstantProduct is ERC20 {
 			uint256 poolYesLessToUser = poolYes - yesToUser;
 			uint256 noToPool = simulatedPoolConstant / poolYesLessToUser;
 			if (noToPool * poolYesLessToUser < simulatedPoolConstant) noToPool += 1;
-			noToPool = noToPool - poolNo;
-			noToPool = noToPool * feeDenominator / feeNumerator;
+			noToPool = (noToPool - poolNo) * afterFeeDenominator / afterFeeNumerator;
 			require(noToPool <= userNo - setsToSell, "AugurCP: You don't have enough NO tokens to close out for this amount.");
 			yesFromUser = userYes;
 			noFromUser = noToPool + setsToSell;
@@ -177,14 +175,14 @@ contract AugurConstantProduct is ERC20 {
 		if (inputYes) {
 			uint256 yesFromUser = inputShares;
 			uint256 noToUser = poolNo - currentPoolConstant / (poolYes + yesFromUser);
-			uint256 noToUserAfterFee = noToUser * feeNumerator / feeDenominator;
+			uint256 noToUserAfterFee = noToUser * afterFeeNumerator / afterFeeDenominator;
 			shareToken.unsafeTransferFrom(msg.sender, address(this), YES, yesFromUser);
 			shareToken.unsafeTransferFrom(address(this), msg.sender, NO, noToUserAfterFee);
 			return noToUserAfterFee;
 		} else {
 			uint256 noFromUser = inputShares;
 			uint256 yesToUser = poolYes - currentPoolConstant / (poolNo + noFromUser);
-			uint256 yesToUserAfterFee = yesToUser * feeNumerator / feeDenominator;
+			uint256 yesToUserAfterFee = yesToUser * afterFeeNumerator / afterFeeDenominator;
 			shareToken.unsafeTransferFrom(msg.sender, address(this), NO, noFromUser);
 			shareToken.unsafeTransferFrom(address(this), msg.sender, YES, yesToUserAfterFee);
 			return yesToUserAfterFee;
