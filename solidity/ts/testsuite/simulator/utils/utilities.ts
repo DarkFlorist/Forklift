@@ -523,19 +523,45 @@ export const swap = async (client: WriteClient, inputShares: bigint, inputYes: b
 	})
 }
 
-export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, yesShares: boolean) => {
+export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, inputYes: boolean, isEnterPosition: boolean = false) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const shareBalances = await getShareBalances(client, acpmAddress)
 	const feeNumerator = await getFeeNumerator(client)
-	const noBalance = shareBalances[1]
-	const yesBalance = shareBalances[2]
+	let noBalance = shareBalances[1]
+	let yesBalance = shareBalances[2]
+	if (isEnterPosition) {
+		noBalance -= sharesFromUser
+		yesBalance -= sharesFromUser
+	}
 	const poolConstant = noBalance * yesBalance
 	let amountOut = 0n
-	if (yesShares) {
+	if (inputYes) {
 		amountOut = noBalance - poolConstant / (yesBalance + sharesFromUser)
 	}
 	else {
 		amountOut = yesBalance - poolConstant / (noBalance + sharesFromUser)
 	}
 	return amountOut * feeNumerator / 1000n
+}
+
+export const expectedSharesNeededForSwap = async (client: ReadClient, sharesToUser: bigint, inputYes: boolean, isEnterPosition: boolean = false) => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const shareBalances = await getShareBalances(client, acpmAddress)
+	const feeNumerator = await getFeeNumerator(client)
+	let noBalance = shareBalances[1]
+	let yesBalance = shareBalances[2]
+	if (isEnterPosition) {
+		noBalance -= sharesToUser
+		yesBalance -= sharesToUser
+	}
+	const poolConstant = noBalance * yesBalance
+	sharesToUser = sharesToUser * 1000n / feeNumerator
+	let amountIn = 0n
+	if (inputYes) {
+		amountIn = (poolConstant / (noBalance - sharesToUser)) - yesBalance
+	}
+	else {
+		amountIn = (poolConstant / (yesBalance - sharesToUser)) - noBalance
+	}
+	return amountIn
 }
