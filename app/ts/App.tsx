@@ -161,8 +161,7 @@ export function App() {
 
 	useSignalEffect(() => {
 		window.history.pushState({}, '', pathSignal.value)
-		const hash = pathSignal.value.replace('#/', '')
-		const [pathPart, params] = hash.split('?')
+		const [pathPart, params] = pathSignal.value.replace('#/', '').split('?')
 		const tabIndex = tabs.findIndex(tab => tab.path === pathPart)
 		if (tabIndex !== -1) {
 			activeTab.value = tabIndex
