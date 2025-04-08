@@ -3,7 +3,7 @@ import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
-import { deployAugurForkUtils, forkReportingParticipants, getAvailableDisputesFromForkedMarket } from '../utils/augurForkUtilities.js'
+import { deployAugurForkUtils, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurForkUtilities.js'
 
 interface DisplayShareDataProps {
 	availaleShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
@@ -89,7 +89,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 }
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
-	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarket>>>
+	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>
 	selectedForkedCrowdSourcers: Signal<Set<AccountAddress>>
 }
 
@@ -180,7 +180,7 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 	const availaleShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
-	const availableClaimsFromForkingDisputeCrowdSourcers = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarket>>>(undefined)
+	const availableClaimsFromForkingDisputeCrowdSourcers = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>(undefined)
 
 	const selectedShares = useSignal<Set<AccountAddress>>(new Set([]))
 	const selectedDisputes = useSignal<Set<AccountAddress>>(new Set([]))
@@ -198,7 +198,7 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 		availaleShareData.deepValue = await getAvailableShareData(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 		availableDisputes.deepValue = await getAvailableDisputes(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 		availableReports.deepValue = await getAvailableReports(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
-		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarket(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarkets(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 	}
 
 	const claim = async () => {

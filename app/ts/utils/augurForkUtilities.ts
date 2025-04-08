@@ -5,7 +5,7 @@ import { createReadClient, createWriteClient } from './ethereumWallet.js'
 import { FORK_UTILS_ABI } from '../ABI/ForkUtils.js'
 import { AUGUR_FORK_UTILS_BYTECODE } from './augurForkUtilsContract.js'
 
-export const getAugurForkUtilsAddress = () => getContractAddress({ AUGUR_FORK_UTILS_BYTECODE, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
+export const getAugurForkUtilsAddress = () => getContractAddress({ bytecode: AUGUR_FORK_UTILS_BYTECODE, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
 export const deployAugurForkUtils = async (accountAddress: AccountAddress) => {
 	const client = createWriteClient(accountAddress)
@@ -13,7 +13,7 @@ export const deployAugurForkUtils = async (accountAddress: AccountAddress) => {
 	await client.waitForTransactionReceipt({ hash })
 }
 
-export const getAvailableDisputesFromForkedMarket = async (reader: AccountAddress, account: AccountAddress) => {
+export const getAvailableDisputesFromForkedMarkets = async (reader: AccountAddress, account: AccountAddress) => {
 	const client = createReadClient(reader)
 	let offset = 0n
 	const pageSize = 10n
