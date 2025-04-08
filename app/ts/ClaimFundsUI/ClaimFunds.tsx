@@ -4,6 +4,7 @@ import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
 import { deployAugurForkUtils, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurForkUtilities.js'
+import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 
 interface DisplayShareDataProps {
 	availaleShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
@@ -173,10 +174,11 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 }
 
 interface ClaimFundsProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeReadClient: OptionalSignal<ReadClient>
+	maybeWriteClient: OptionalSignal<WriteClient>
 }
 
-export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
+export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProps) => {
 	const availaleShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
@@ -194,32 +196,37 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 		selectedShares.value = new Set([])
 		selectedDisputes.value = new Set([])
 		selectedReports.value = new Set([])
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
-		availaleShareData.deepValue = await getAvailableShareData(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
-		availableDisputes.deepValue = await getAvailableDisputes(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
-		availableReports.deepValue = await getAvailableReports(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
-		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarkets(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('readClient missing')
+		if (readClient.account?.address === undefined) throw new Error('account missing')
+		availaleShareData.deepValue = await getAvailableShareData(readClient, readClient.account.address)
+		availableDisputes.deepValue = await getAvailableDisputes(readClient, readClient.account.address)
+		availableReports.deepValue = await getAvailableReports(readClient, readClient.account.address)
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)
 	}
 
 	const claim = async () => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
 		const reportingParticipants = Array.from(selectedReports.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		const disputeWindows = Array.from(selectedDisputes.value) // Dispute Windows (Participation Tokens) the msg sender has tokens for
 		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
-		return await redeemStake(maybeAccountAddress.deepValue, reportingParticipants, disputeWindows)
+		return await redeemStake(writeClient, reportingParticipants, disputeWindows)
 	}
 	const deployForkUtils = async () => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
-		await deployAugurForkUtils(maybeAccountAddress.deepValue)
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
+		await deployAugurForkUtils(writeClient)
 	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
 	}
 	const claimForkDisputes = async () => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
 		const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		if (selected.length === 0) return
-		return await forkReportingParticipants(maybeAccountAddress.deepValue, selected)
+		return await forkReportingParticipants(writeClient, selected)
 	}
 
 	return <div class = 'subApplication'>

@@ -9,9 +9,11 @@ import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnix
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption, MarketReportingWithoutStake } from '../../SharedUI/MarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
+import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 
 interface MigrationProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeReadClient: OptionalSignal<ReadClient>
+	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
@@ -20,7 +22,7 @@ interface MigrationProps {
 
 const GENESIS_REPUTATION_V2_TOKEN_ADDRESS = '0x221657776846890989a759BA2973e427DfF5C9bB'
 
-export const Migration = ({ maybeAccountAddress, reputationTokenAddress, universe, universeForkingInformation, pathSignal }: MigrationProps) => {
+export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal }: MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const v1ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
@@ -42,19 +44,20 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 	}
 
 	const update = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('missing readClient')
+		if (readClient.account?.address === undefined) throw new Error('missing own address')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
-		v2ReputationBalance.deepValue = await getErc20TokenBalance(account.value, reputationTokenAddress.deepValue, account.value)
+		v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
 		if (isGenesisUniverse(universe.deepValue)) {
 			// retrieve v1 balance only for genesis universe as its only relevant there
-			v1ReputationBalance.deepValue = await getErc20TokenBalance(account.value, REPUTATION_V1_TOKEN_ADDRESS, account.value)
+			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address)
 			parentUniverse.deepValue = addressString(0n) // we know that genesis doesn't have parent universe
 		} else if (universe.deepValue !== undefined) {
-			parentUniverse.deepValue = await getParentUniverse(account.value, universe.deepValue)
+			parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
 		}
 		if (universeForkingInformation.deepValue?.isForking) {
-			const newMarketData = await fetchHotLoadingMarketData(account.value, universeForkingInformation.deepValue.forkingMarket)
+			const newMarketData = await fetchHotLoadingMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
 			const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 			forkingMarketData.deepValue = { marketAddress: universeForkingInformation.deepValue.forkingMarket, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 
@@ -65,8 +68,8 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 	}
 
 	const migrateReputationToChildUniverseByPayoutButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
 		const payoutNumerators = forkingoutcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
@@ -76,32 +79,32 @@ export const Migration = ({ maybeAccountAddress, reputationTokenAddress, univers
 		const repV2ToMigrateToNewUniverseBigInt = decimalStringToBigint(repV2ToMigrateToNewUniverse.value, 18n)
 		if (selectedOutcome.value === null) throw new Error('Invalid input')
 
-		await migrateReputationToChildUniverseByPayout(account.value, reputationTokenAddress.deepValue, payoutNumerators, repV2ToMigrateToNewUniverseBigInt)
+		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, payoutNumerators, repV2ToMigrateToNewUniverseBigInt)
 	}
 
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		await migrateFromRepV1toRepV2GenesisToken(account.value, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
+		await migrateFromRepV1toRepV2GenesisToken(writeClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
 	}
 
 	const approveRepV1ForMigration = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (v1ReputationBalance.deepValue === undefined) throw new Error('missing v1ReputationBalance balance')
-		await approveErc20Token(account.value, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
+		await approveErc20Token(writeClient, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
 	}
 
 	const getChildUniverseButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
 		const payoutNumerators = forkingoutcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
 		if (!payoutNumerators) throw new Error('Selected outcome not found')
 		if (selectedOutcome.value === null) throw new Error('Invalid input')
 		if (forkingMarketData.deepValue === undefined) throw new Error('Forking market missing')
 		const hotLoading = forkingMarketData.deepValue.hotLoadingMarketData
-		childUniverseAddress.deepValue = await getChildUniverse(account.value, hotLoading.universe, payoutNumerators, hotLoading.numTicks, hotLoading.numOutcomes)
+		childUniverseAddress.deepValue = await getChildUniverse(writeClient, hotLoading.universe, payoutNumerators, hotLoading.numTicks, hotLoading.numOutcomes)
 	}
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>

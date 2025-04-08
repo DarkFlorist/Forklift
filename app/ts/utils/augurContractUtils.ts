@@ -12,26 +12,22 @@ import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
 import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
 import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
-import { createReadClient, createWriteClient } from './ethereumWallet.js'
+import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 import { encodePacked, keccak256 } from 'viem'
 
-export const createYesNoMarket = async (universe: AccountAddress, marketCreator: AccountAddress, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
-	const client = createWriteClient(marketCreator)
-	const { request } = await client.simulateContract({
-		account: marketCreator,
+export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
+	await writeClient.writeContract({
 		address: universe,
 		abi: AUGUR_UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
-	await client.writeContract(request)
 }
 
-export const fetchMarket = async (reader: AccountAddress, marketAddress: AccountAddress) => {
-	const client = createWriteClient(reader)
-	return await client.readContract({
+export const fetchMarket = async (readClient: ReadClient, marketAddress: AccountAddress) => {
+	return await readClient.readContract({
 		abi: AUGUR_ABI,
 		functionName: 'getMarketCreationData',
 		address: AUGUR_CONTRACT,
@@ -39,9 +35,8 @@ export const fetchMarket = async (reader: AccountAddress, marketAddress: Account
 	})
 }
 
-export const fetchHotLoadingMarketData = async (reader: AccountAddress, marketAddress: AccountAddress) => {
-	const client = createWriteClient(reader)
-	return await client.readContract({
+export const fetchHotLoadingMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
+	return await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
@@ -49,9 +44,8 @@ export const fetchHotLoadingMarketData = async (reader: AccountAddress, marketAd
 	})
 }
 
-export const fetchHotLoadingCurrentDisputeWindowData = async (reader: AccountAddress, universe: AccountAddress) => {
-	const client = createWriteClient(reader)
-	return await client.readContract({
+export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {
+	return await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getCurrentDisputeWindowData',
 		address: HOT_LOADING_ADDRESS,
@@ -59,9 +53,8 @@ export const fetchHotLoadingCurrentDisputeWindowData = async (reader: AccountAdd
 	})
 }
 
-export const fetchHotLoadingTotalValidityBonds = async (reader: AccountAddress, marketAddresses: readonly AccountAddress[]) => {
-	const client = createWriteClient(reader)
-	return await client.readContract({
+export const fetchHotLoadingTotalValidityBonds = async (readClient: ReadClient, marketAddresses: readonly AccountAddress[]) => {
+	return await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getTotalValidityBonds',
 		address: HOT_LOADING_ADDRESS,
@@ -69,9 +62,8 @@ export const fetchHotLoadingTotalValidityBonds = async (reader: AccountAddress, 
 	})
 }
 
-export const buyParticipationTokens = async (writer: AccountAddress, universe: AccountAddress, attotokens: EthereumQuantity) => {
-	const client = createWriteClient(writer)
-	return await client.writeContract({
+export const buyParticipationTokens = async (writeClient: WriteClient, universe: AccountAddress, attotokens: EthereumQuantity) => {
+	return await writeClient.writeContract({
 		abi: BUY_PARTICIPATION_TOKENS_ABI,
 		functionName: 'buyParticipationTokens',
 		address: BUY_PARTICIPATION_TOKENS_CONTRACT,
@@ -79,9 +71,8 @@ export const buyParticipationTokens = async (writer: AccountAddress, universe: A
 	})
 }
 
-export const doInitialReport = async (writer: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
-	const client = createWriteClient(writer)
-	return await client.writeContract({
+export const doInitialReport = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'doInitialReport',
 		address: market,
@@ -89,9 +80,8 @@ export const doInitialReport = async (writer: AccountAddress, market: AccountAdd
 	})
 }
 
-export const finalizeMarket = async (writer: AccountAddress, market: AccountAddress) => {
-	const client = createWriteClient(writer)
-	return await client.writeContract({
+export const finalizeMarket = async (writeClient: WriteClient, market: AccountAddress) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'finalize',
 		address: market,
@@ -109,9 +99,8 @@ export const derivePayoutDistributionHash = (payoutNumerators: bigint[], numTick
 	return keccak256(encoded)
 }
 
-export const getStakeInOutcome = async (reader: AccountAddress, market: AccountAddress, payoutDistributionHash: EthereumBytes32) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getStakeInOutcome = async (readClient: ReadClient, market: AccountAddress, payoutDistributionHash: EthereumBytes32) => {
+	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'getStakeInOutcome',
 		address: market,
@@ -119,15 +108,14 @@ export const getStakeInOutcome = async (reader: AccountAddress, market: AccountA
 	})
 }
 
-export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (reader: AccountAddress, market: AccountAddress, numOutcomes: bigint, numTicks: EthereumQuantity) => {
+export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (readClient: ReadClient, market: AccountAddress, numOutcomes: bigint, numTicks: EthereumQuantity) => {
 	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
 	const payoutDistributionHashes = allPayoutNumeratorCombinations.map((payoutNumerators) => EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)))
-	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getStakeInOutcome(reader, market, payoutDistributionHash)))
+	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getStakeInOutcome(readClient, market, payoutDistributionHash)))
 }
 
-export const contributeToMarketDispute = async (writer: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
-	const client = createWriteClient(writer)
-	return await client.writeContract({
+export const contributeToMarketDispute = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'contribute',
 		address: market,
@@ -135,9 +123,8 @@ export const contributeToMarketDispute = async (writer: AccountAddress, market: 
 	})
 }
 
-export const contributeToMarketDisputeOnTentativeOutcome = async (writer: AccountAddress, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
-	const client = createWriteClient(writer)
-	return await client.writeContract({
+export const contributeToMarketDisputeOnTentativeOutcome = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'contributeToTentative',
 		address: market,
@@ -145,9 +132,8 @@ export const contributeToMarketDisputeOnTentativeOutcome = async (writer: Accoun
 	})
 }
 
-export const getDisputeWindow = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getDisputeWindow = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'getDisputeWindow',
 		address: market,
@@ -155,21 +141,20 @@ export const getDisputeWindow = async (reader: AccountAddress, market: AccountAd
 	})
 }
 
-export const getDisputeWindowInfo = async (reader: AccountAddress, disputeWindow: AccountAddress) => {
-	const client = createReadClient(reader)
-	const startTime = await client.readContract({
+export const getDisputeWindowInfo = async (readClient: ReadClient, disputeWindow: AccountAddress) => {
+	const startTime = await readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getStartTime',
 		address: disputeWindow,
 		args: []
 	})
-	const endTime = await client.readContract({
+	const endTime = await readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getEndTime',
 		address: disputeWindow,
 		args: []
 	})
-	const isActive = await client.readContract({
+	const isActive = await readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'isActive',
 		address: disputeWindow,
@@ -182,9 +167,8 @@ export const getDisputeWindowInfo = async (reader: AccountAddress, disputeWindow
 	}
 }
 
-export const getWinningReportingParticipant = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getWinningReportingParticipant = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'getWinningReportingParticipant',
 		address: market,
@@ -192,9 +176,8 @@ export const getWinningReportingParticipant = async (reader: AccountAddress, mar
 	})
 }
 
-export const getPayoutNumeratorsForReportingParticipant = async (reader: AccountAddress, reportingParticipant: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getPayoutNumeratorsForReportingParticipant = async (readClient: ReadClient, reportingParticipant: AccountAddress) => {
+	return await readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getPayoutNumerators',
 		address: reportingParticipant,
@@ -202,15 +185,14 @@ export const getPayoutNumeratorsForReportingParticipant = async (reader: Account
 	})
 }
 
-export const getWinningPayoutNumerators = async (reader: AccountAddress, market: AccountAddress) => {
-	const participantAddress = await getWinningReportingParticipant(reader, market)
+export const getWinningPayoutNumerators = async (readClient: ReadClient, market: AccountAddress) => {
+	const participantAddress = await getWinningReportingParticipant(readClient, market)
 	if (EthereumQuantity.parse(participantAddress) === 0n) return undefined
-	return await getPayoutNumeratorsForReportingParticipant(reader, participantAddress)
+	return await getPayoutNumeratorsForReportingParticipant(readClient, participantAddress)
 }
 
-export const getPreemptiveDisputeCrowdsourcer = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getPreemptiveDisputeCrowdsourcer = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'preemptiveDisputeCrowdsourcer',
 		address: market,
@@ -218,9 +200,8 @@ export const getPreemptiveDisputeCrowdsourcer = async (reader: AccountAddress, m
 	})
 }
 
-export const getStakeOfReportingParticipant = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getStakeOfReportingParticipant = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getStake',
 		address: market,
@@ -229,9 +210,8 @@ export const getStakeOfReportingParticipant = async (reader: AccountAddress, mar
 }
 
 // false if we are in fast reporting
-export const getDisputePacingOn = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getDisputePacingOn = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'getDisputePacingOn',
 		address: market,
@@ -239,9 +219,8 @@ export const getDisputePacingOn = async (reader: AccountAddress, market: Account
 	})
 }
 
-export const getReputationTotalTheoreticalSupply = async (reader: AccountAddress, reputationTokenAddress: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getReputationTotalTheoreticalSupply = async (readClient: ReadClient, reputationTokenAddress: AccountAddress) => {
+	return await readClient.readContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'getTotalTheoreticalSupply',
 		address: reputationTokenAddress,
@@ -250,12 +229,12 @@ export const getReputationTotalTheoreticalSupply = async (reader: AccountAddress
 }
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Universe.sol#L109
-export const getForkValues = async (reader: AccountAddress, reputationTokenAddress: AccountAddress) => {
+export const getForkValues = async (readClient: ReadClient, reputationTokenAddress: AccountAddress) => {
 	const FORK_THRESHOLD_DIVISOR = 40n // 2.5% of the total REP supply being filled in a single dispute bond will trigger a fork
 	const MAXIMUM_DISPUTE_ROUNDS = 20n // We ensure that after 20 rounds of disputes a fork will occur
 	const MINIMUM_SLOW_ROUNDS = 8n // We ensure that at least 8 dispute rounds take DISPUTE_ROUND_DURATION_SECONDS+ seconds to complete until the next round begins
 
-	const totalRepSupply = await getReputationTotalTheoreticalSupply(reader, reputationTokenAddress)
+	const totalRepSupply = await getReputationTotalTheoreticalSupply(readClient, reputationTokenAddress)
 	const forkReputationGoal = totalRepSupply / 2n // 50% of REP migrating results in a victory in a fork
 	const disputeThresholdForFork = totalRepSupply / FORK_THRESHOLD_DIVISOR // 2.5% of the total rep supply
 	const initialReportMinValue = (disputeThresholdForFork / 3n) / (2n ** (MAXIMUM_DISPUTE_ROUNDS - 2n)) + 1n // This value will result in a maximum 20 round dispute sequence
@@ -277,25 +256,23 @@ export type ReportingHistoryElement = {
 	stake: bigint
 }
 
-export const getReportingHistory = async(reader: AccountAddress, market: AccountAddress, currentRound: bigint) => {
-	const client = createReadClient(reader)
-
+export const getReportingHistory = async(readClient: ReadClient, market: AccountAddress, currentRound: bigint) => {
 	// loop over all (intentionally sequential not to spam)
 	const result: ReportingHistoryElement[] = []
 	for (let round = 0n; round <= currentRound; round++) {
-		const participantAddress = await client.readContract({
+		const participantAddress = await readClient.readContract({
 			abi: MARKET_ABI,
 			functionName: 'participants',
 			address: market,
 			args: [round]
 		})
-		const payoutNumerators = await client.readContract({
+		const payoutNumerators = await readClient.readContract({
 			abi: REPORTING_PARTICIPANT_ABI,
 			functionName: 'getPayoutNumerators',
 			address: participantAddress,
 			args: []
 		})
-		const stake = await client.readContract({
+		const stake = await readClient.readContract({
 			abi: REPORTING_PARTICIPANT_ABI,
 			functionName: 'getStake',
 			address: participantAddress,
@@ -311,9 +288,8 @@ export const getReportingHistory = async(reader: AccountAddress, market: Account
 	return result
 }
 
-export const redeemStake = async (reader: AccountAddress, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
-	const client = createWriteClient(reader)
-	return await client.writeContract({
+export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
+	return await writeClient.writeContract({
 		abi: REDEEM_STAKE_ABI,
 		functionName: 'redeemStake',
 		address: REDEEM_STAKE_ADDRESS,
@@ -321,13 +297,12 @@ export const redeemStake = async (reader: AccountAddress, reportingParticipants:
 	})
 }
 
-export const getAvailableShareData = async (reader: AccountAddress, account: AccountAddress) => {
-	const client = createReadClient(reader)
+export const getAvailableShareData = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
 	const pageSize = 10n
 	let pages: { market: `0x${ string }`, payout: bigint }[] = []
 	do {
-		const page = await client.readContract({
+		const page = await readClient.readContract({
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableShareData',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -340,13 +315,12 @@ export const getAvailableShareData = async (reader: AccountAddress, account: Acc
 	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
 }
 
-export const getAvailableReports = async (reader: AccountAddress, account: AccountAddress) => {
-	const client = createReadClient(reader)
+export const getAvailableReports = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
 	const pageSize = 10n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
-		const page = await client.readContract({
+		const page = await readClient.readContract({
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableReports',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -359,13 +333,12 @@ export const getAvailableReports = async (reader: AccountAddress, account: Accou
 	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
 }
 
-export const getAvailableDisputes = async (reader: AccountAddress, account: AccountAddress) => {
-	const client = createReadClient(reader)
+export const getAvailableDisputes = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
 	const pageSize = 10n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
-		const page = await client.readContract({
+		const page = await readClient.readContract({
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableDisputes',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -378,9 +351,8 @@ export const getAvailableDisputes = async (reader: AccountAddress, account: Acco
 	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
 }
 
-export const migrateThroughOneFork = async (reader: AccountAddress, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {
-	const client = createWriteClient(reader)
-	return await client.writeContract({
+export const migrateThroughOneFork = async (writeClient: WriteClient, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'migrateThroughOneFork',
 		address: market,
@@ -388,9 +360,8 @@ export const migrateThroughOneFork = async (reader: AccountAddress, market: Acco
 	})
 }
 
-export const disavowCrowdsourcers = async (reader: AccountAddress, market: AccountAddress) => {
-	const client = createWriteClient(reader)
-	return await client.writeContract({
+export const disavowCrowdsourcers = async (writeClient: WriteClient, market: AccountAddress) => {
+	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'disavowCrowdsourcers',
 		address: market,
@@ -398,28 +369,27 @@ export const disavowCrowdsourcers = async (reader: AccountAddress, market: Accou
 	})
 }
 
-export const getUniverseForkingInformation = async (reader: AccountAddress, universe: AccountAddress) => {
-	const client = createReadClient(reader)
-	const isForking = await client.readContract({
+export const getUniverseForkingInformation = async (readClient: ReadClient, universe: AccountAddress) => {
+	const isForking = await readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'isForking',
 		address: universe,
 		args: []
 	})
 	if (isForking === false) return { universe, isForking } as const
-	const forkEndTimePromise = client.readContract({
+	const forkEndTimePromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkEndTime',
 		address: universe,
 		args: []
 	})
-	const forkingMarketPromise = client.readContract({
+	const forkingMarketPromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkingMarket',
 		address: universe,
 		args: []
 	})
-	const payoutNumeratorsPromise = client.readContract({
+	const payoutNumeratorsPromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getPayoutNumerators',
 		address: universe,
@@ -434,9 +404,8 @@ export const getUniverseForkingInformation = async (reader: AccountAddress, univ
 	}
 }
 
-export const migrateReputationToChildUniverseByPayout = async (reader: AccountAddress, reputationTokenAddress: AccountAddress, payoutNumerators: readonly bigint[], attotokens: bigint) => {
-	const client = createWriteClient(reader)
-	return await client.writeContract({
+export const migrateReputationToChildUniverseByPayout = async (writeClient: WriteClient, reputationTokenAddress: AccountAddress, payoutNumerators: readonly bigint[], attotokens: bigint) => {
+	return await writeClient.writeContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateOutByPayout',
 		address: reputationTokenAddress,
@@ -444,9 +413,8 @@ export const migrateReputationToChildUniverseByPayout = async (reader: AccountAd
 	})
 }
 
-export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress, genesisReputationV2TokenAddress: AccountAddress) => {
-	const client = createWriteClient(reader)
-	return await client.writeContract({
+export const migrateFromRepV1toRepV2GenesisToken = async (writeClient: WriteClient, genesisReputationV2TokenAddress: AccountAddress) => {
+	return await writeClient.writeContract({
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateFromLegacyReputationToken',
 		address: genesisReputationV2TokenAddress,
@@ -454,9 +422,8 @@ export const migrateFromRepV1toRepV2GenesisToken = async (reader: AccountAddress
 	})
 }
 
-export const getReputationTokenForUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getReputationTokenForUniverse = async (readClient: ReadClient, universe: AccountAddress) => {
+	return await readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getReputationToken',
 		address: universe,
@@ -464,9 +431,8 @@ export const getReputationTokenForUniverse = async (reader: AccountAddress, univ
 	})
 }
 
-export const getMaximumMarketEndDate = async (reader: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getMaximumMarketEndDate = async (readClient: ReadClient) => {
+	return await readClient.readContract({
 		abi: AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE,
 		functionName: 'getMaximumMarketEndDate',
 		address: AUGUR_CONTRACT,
@@ -474,9 +440,8 @@ export const getMaximumMarketEndDate = async (reader: AccountAddress) => {
 	})
 }
 
-export const isKnownUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const isKnownUniverse = async (readClient: ReadClient, universe: AccountAddress) => {
+	return await readClient.readContract({
 		abi: AUGUR_ABI,
 		functionName: 'isKnownUniverse',
 		address: AUGUR_CONTRACT,
@@ -484,9 +449,8 @@ export const isKnownUniverse = async (reader: AccountAddress, universe: AccountA
 	})
 }
 
-export const getParentUniverse = async (reader: AccountAddress, universe: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await client.readContract({
+export const getParentUniverse = async (readClient: ReadClient, universe: AccountAddress) => {
+	return await readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getParentUniverse',
 		address: universe,
@@ -494,10 +458,9 @@ export const getParentUniverse = async (reader: AccountAddress, universe: Accoun
 	})
 }
 
-export const getChildUniverse = async (reader: AccountAddress, universe: AccountAddress, payoutNumerators: EthereumQuantity[], numTicks: bigint, numOutcomes: bigint) => {
+export const getChildUniverse = async (readClient: ReadClient, universe: AccountAddress, payoutNumerators: EthereumQuantity[], numTicks: bigint, numOutcomes: bigint) => {
 	const PayoutDistributionHash = derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)
-	const client = createReadClient(reader)
-	return await client.readContract({
+	return await readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getChildUniverse',
 		address: universe,

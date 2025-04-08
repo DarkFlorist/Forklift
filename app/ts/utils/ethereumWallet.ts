@@ -28,6 +28,9 @@ export const createWriteClient = (accountAddress: AccountAddress) => {
 	return createWalletClient({ account: accountAddress, chain: mainnet, transport: custom(window.ethereum) }).extend(publicActions)
 }
 
-export const getChainId = async (accountAddress: AccountAddress) => {
-	return await createWriteClient(accountAddress).getChainId()
+export type ReadClient = ReturnType<typeof createReadClient> | ReturnType<typeof createWriteClient>
+export type WriteClient = ReturnType<typeof createWriteClient>
+
+export const getChainId = async (readClient: ReadClient) => {
+	return await readClient.getChainId()
 }

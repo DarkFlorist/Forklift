@@ -1,6 +1,6 @@
 import { getBalance } from 'viem/actions'
 import { AccountAddress } from '../types/types.js'
-import { createReadClient } from './ethereumWallet.js'
+import { ReadClient } from './ethereumWallet.js'
 
 export function hexToBytes(value: string) {
 	const result = new Uint8Array((value.length - 2) / 2)
@@ -87,7 +87,6 @@ export function areEqualArrays<T>(first: readonly T[], second: readonly T[]) {
 	return first.every((value, index) => value === second[index])
 }
 
-export const getEthereumBalance = async (reader: AccountAddress, account: AccountAddress) => {
-	const client = createReadClient(reader)
-	return await getBalance(client, { address: account })
+export const getEthereumBalance = async (readClient: ReadClient, account: AccountAddress) => {
+	return await getBalance(readClient, { address: account })
 }
