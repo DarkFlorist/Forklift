@@ -3,6 +3,7 @@ import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
+import { deployAugurForkUtils, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurForkUtilities.js'
 
 interface DisplayShareDataProps {
 	availaleShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
@@ -87,6 +88,48 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 	</div>
 }
 
+interface ForkAndRedeemDisputeCrowdSourcersProps {
+	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>
+	selectedForkedCrowdSourcers: Signal<Set<AccountAddress>>
+}
+
+const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers }: ForkAndRedeemDisputeCrowdSourcersProps) => {
+	if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <></>
+	if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) {
+		return <div class = 'panel'>
+			<div style = 'display: grid'>
+				<span><b>Claims from forked markets</b></span>
+				<span>No claims from forked markets</span>
+			</div>
+		</div>
+	}
+	return <div class = 'panel'>
+		<div style = 'display: grid'>
+			<span><b>Claims from forked markets</b></span>
+			{
+				availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
+					<span key = { disputeEntry.bond }>
+						<label>
+							<input
+								type = 'checkbox'
+								name = 'selectedOutcome'
+								checked = { selectedForkedCrowdSourcers.value.has(disputeEntry.bond) }
+								disabled = { disputeEntry.amount === 0n }
+								onChange = { () => {
+									if (selectedForkedCrowdSourcers.value.has(disputeEntry.bond)) selectedForkedCrowdSourcers.value.delete(disputeEntry.bond)
+									else selectedForkedCrowdSourcers.value.add(disputeEntry.bond)
+								} }
+							/>
+							<span><b>Market { disputeEntry.market }{ ': ' }</b>
+							{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ disputeEntry.amount > 0 ? `${ bigintToDecimalString(disputeEntry.amount, 18n) } REP` : 'CLAIMED' }</span>
+						</label>
+					</span>
+				</>)
+			}
+		</div>
+	</div>
+}
+
 interface DisplayReportsDataProps {
 	availableReports: OptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>
 	selectedReports: Signal<Set<AccountAddress>>
@@ -137,10 +180,12 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 	const availaleShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
+	const availableClaimsFromForkingDisputeCrowdSourcers = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>(undefined)
 
 	const selectedShares = useSignal<Set<AccountAddress>>(new Set([]))
 	const selectedDisputes = useSignal<Set<AccountAddress>>(new Set([]))
 	const selectedReports = useSignal<Set<AccountAddress>>(new Set([]))
+	const selectedForkedCrowdSourcers = useSignal<Set<AccountAddress>>(new Set([]))
 
 	const queryForData = async () => {
 		availaleShareData.deepValue = undefined
@@ -153,6 +198,7 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 		availaleShareData.deepValue = await getAvailableShareData(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 		availableDisputes.deepValue = await getAvailableDisputes(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 		availableReports.deepValue = await getAvailableReports(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarkets(maybeAccountAddress.deepValue, maybeAccountAddress.deepValue)
 	}
 
 	const claim = async () => {
@@ -162,19 +208,32 @@ export const ClaimFunds = ({ maybeAccountAddress }: ClaimFundsProps) => {
 		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
 		return await redeemStake(maybeAccountAddress.deepValue, reportingParticipants, disputeWindows)
 	}
+	const deployForkUtils = async () => {
+		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		await deployAugurForkUtils(maybeAccountAddress.deepValue)
+	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
+	}
+	const claimForkDisputes = async () => {
+		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
+		if (selected.length === 0) return
+		return await forkReportingParticipants(maybeAccountAddress.deepValue, selected)
 	}
 
 	return <div class = 'subApplication'>
 		<p style = 'margin: 0;'>Claim Funds</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
+			<button class = 'button is-primary' onClick = { deployForkUtils }>Deploy fork utils</button>
 			<button class = 'button is-primary' onClick = { queryForData }>Query For Claims</button>
 			<DisplayShareData availaleShareData = { availaleShareData } selectedShares = { selectedShares }/>
 			<button class = 'button is-primary' onClick = { claimWinningShares }>Claim Winning shares</button>
 			<DisplayDisputesData availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 			<DisplayReportsData availableReports = { availableReports } selectedReports = { selectedReports }/>
 			<button class = 'button is-primary' onClick = { claim }>Claim Participation tokens, winning initial reporter and dispute crowdsourcer bonds</button>
+			<ForkAndRedeemDisputeCrowdSourcers availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+			<button class = 'button is-primary' onClick = { claimForkDisputes }>Claim fork disputes</button>
 		</div>
 	</div>
 }
