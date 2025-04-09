@@ -217,7 +217,7 @@ export function App() {
 			return
 		}
 		isWindowEthereum.value = true
-		window.ethereum.on('accountsChanged', function (accounts) {
+		window.ethereum.on('accountsChanged', (accounts) => {
 			updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
 		})
 		window.ethereum.on('chainChanged', async () => { updateChainId() })
