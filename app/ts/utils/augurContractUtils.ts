@@ -26,15 +26,6 @@ export const createYesNoMarket = async (universe: AccountAddress, writeClient: W
 	})
 }
 
-export const fetchMarket = async (readClient: ReadClient, marketAddress: AccountAddress) => {
-	return await readClient.readContract({
-		abi: AUGUR_ABI,
-		functionName: 'getMarketCreationData',
-		address: AUGUR_CONTRACT,
-		args: [marketAddress]
-	})
-}
-
 export const fetchHotLoadingMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
 	return await readClient.readContract({
 		abi: HOT_LOADING_ABI,

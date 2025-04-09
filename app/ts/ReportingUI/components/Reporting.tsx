@@ -118,6 +118,9 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('market missing')
 		const market = marketData.deepValue.marketAddress
+
+		const totalRepStake = outcomeStakes.deepValue?.reduce((prev, current) => prev + current.repStake, 0n)
+		if (totalRepStake === 0n) await doInitialReport(writeClient, market, outcomeStake.payoutNumerators, reportReason, amount)
 		if (outcomeStake.status === 'Winning') {
 			return await contributeToMarketDisputeOnTentativeOutcome(
 				writeClient,
@@ -369,17 +372,6 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		await buyParticipationTokens(writeClient, universe.deepValue, 10n)
 	}
 
-	const doInitialReportButton = async () => {
-		const writeClient = maybeWriteClient.deepPeek()
-		if (writeClient === undefined) throw new Error('missing writeClient')
-		if (marketData.deepValue === undefined) throw new Error('missing market data')
-		const ticks = marketData.deepValue.hotLoadingMarketData.numTicks
-		const report = Array(Number(marketData.deepValue.hotLoadingMarketData.numOutcomes)).fill(0n).map((_, option) => option === 1 ? ticks : 0n)
-		const reason = 'Just my initial report'
-		const additionalStake = 0n
-		await doInitialReport(writeClient, marketData.deepValue.marketAddress, report, reason, additionalStake)
-	}
-
 	const finalizeMarketButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
@@ -409,7 +401,6 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			<DisputeWindow disputeWindowData = { disputeWindowData }/>
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
-			<button class = 'button is-primary' onClick = { doInitialReportButton }>Do Initial Report On First Option</button>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues }/>
 			<DisplayDisputeWindow disputeWindowAddress = { disputeWindowAddress } disputeWindowInfo = { disputeWindowInfo }/>
 			<DisplayForkValues forkValues = { forkValues }/>
