@@ -5,9 +5,11 @@ import { AccountAddress, EthereumAddress, EthereumQuantity, NonHexBigInt } from 
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { addressString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token } from '../../utils/erc20.js'
+import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 
 interface CreateYesNoMarketProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeReadClient: OptionalSignal<ReadClient>
+	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 }
@@ -31,7 +33,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTokenAddress }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const marketCreatorFee = useSignal<string>('')
 	const affiliateValidator = useSignal<string>('0x0000000000000000000000000000000000000000')
@@ -44,15 +46,15 @@ export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTok
 	const maxiumMarketEndData = useOptionalSignal<bigint>(undefined)
 
 	const fetchMarketCreationInformation = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing account')
-		maxiumMarketEndData.deepValue = await getMaximumMarketEndDate(account.value)
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('missing account')
+		maxiumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
 	}
 
 	const createMarket = async () => {
 		if (universe.deepValue === undefined) throw new Error('missing universe')
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		console.log(endTime.value)
 		if (!isDecimalString(marketCreatorFee.value)) throw new Error('missing feePerCashInAttoCash')
 		const parsedFeePerCashInAttoCash = decimalStringToBigint(marketCreatorFee.value, 16n) //16n instead of 18n as we are converting from percentage
@@ -71,21 +73,21 @@ export const CreateYesNoMarket = ({ maybeAccountAddress, universe, reputationTok
 			categories: categories.value.split(',').map((category) => category.trim()).filter((category) => category.length > 0),
 			tags: categories.value.split(',').map((tag) => tag.trim()).filter((tag) => tag.length > 0)
 		})
-		await createYesNoMarket(universe.deepValue, account.value, marketEndTimeUnixTimeStamp, parsedFeePerCashInAttoCash, addressString(parsedAffiliateValidator.value), parsedAffiliateFeeDivisor.value, addressString(parsedDesignatedReporterAddress.value), extraInfoString)
+		await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, parsedFeePerCashInAttoCash, addressString(parsedAffiliateValidator.value), parsedAffiliateFeeDivisor.value, addressString(parsedDesignatedReporterAddress.value), extraInfoString)
 	}
 
 	const approveRep = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
-		return await approveErc20Token(account.value, reputationTokenAddress.deepValue, universe.deepValue, 10000n * 10n ** 18n)
+		return await approveErc20Token(writeClient, reputationTokenAddress.deepValue, universe.deepValue, 10000n * 10n ** 18n)
 	}
 
 	const approveDai = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		return await approveErc20Token(account.value, DAI_TOKEN_ADDRESS, AUGUR_CONTRACT, 10000n * 10n ** 18n)
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
+		return await approveErc20Token(writeClient, DAI_TOKEN_ADDRESS, AUGUR_CONTRACT, 10000n * 10n ** 18n)
 	}
 
 	function handleEndTimeInput(value: string) {

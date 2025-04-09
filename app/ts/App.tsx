@@ -1,8 +1,8 @@
-import { Signal, useSignal, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
-import { getAccounts, getChainId, requestAccounts } from './utils/ethereumWallet.js'
+import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
 import { DeployContract } from './ConstantProductUI/components/DeployContract.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { ensureError } from './utils/errorHandling.js'
@@ -60,19 +60,19 @@ const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNo
 }
 
 interface WalletComponentProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeReadClient: OptionalSignal<ReadClient>
+	maybeWriteClient: OptionalSignal<WriteClient>
 	loadingAccount: Signal<boolean>
-	isWindowEthereum: Signal<boolean>
 }
 
-const WalletComponent = ({ maybeAccountAddress, loadingAccount, isWindowEthereum }: WalletComponentProps) => {
-	if (!isWindowEthereum.value) return <p class = 'paragraph'> An Ethereum enabled wallet is required to make immutable domains.</p>
+const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount }: WalletComponentProps) => {
 	if (loadingAccount.value) return <></>
+	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
 	const connect = async () => {
-		maybeAccountAddress.deepValue = await requestAccounts()
+		updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
 	}
-	return maybeAccountAddress.value !== undefined ? (
-		<p style = 'color: gray; justify-self: right;'>{ `Connected with ${ maybeAccountAddress.value }` }</p>
+	return accountAddress.value !== undefined ? (
+		<p style = 'color: gray; justify-self: right;'>{ `Connected with ${ accountAddress.value }` }</p>
 	) : (
 		<button class = 'button is-primary' style = 'justify-self: right;' onClick = { connect }>
 			{ `Connect wallet` }
@@ -132,12 +132,18 @@ const Tabs = ({ tabs, activeTab }: TabsProps) => {
 	)
 }
 
+const updateWalletSignals = (maybeReadClient: OptionalSignal<ReadClient>, maybeWriteClient: OptionalSignal<WriteClient>, account: AccountAddress | undefined) => {
+	maybeReadClient.deepValue = account === undefined ? createReadClient(undefined) : createWriteClient(account)
+	maybeWriteClient.deepValue = account === undefined ? undefined : createWriteClient(account)
+}
+
 export function App() {
 	const errorString = useOptionalSignal<string>(undefined)
 	const loadingAccount = useSignal<boolean>(false)
 	const isWindowEthereum = useSignal<boolean>(true)
 	const areContractsDeployed = useSignal<boolean | undefined>(undefined)
-	const maybeAccountAddress = useOptionalSignal<AccountAddress>(undefined)
+	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
+	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
 	const chainId = useSignal<number | undefined>(undefined)
 	const inputTimeoutRef = useRef<number | null>(null)
 	const universe = useOptionalSignal<AccountAddress>(undefined)
@@ -152,11 +158,11 @@ export function App() {
 	const pathSignal = useSignal<string>('')
 
 	const tabs = [
-		{ title: 'Trading', path: 'trading', component: <DeployContract maybeAccountAddress = { maybeAccountAddress } areContractsDeployed = { areContractsDeployed }/> },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeAccountAddress = { maybeAccountAddress } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeAccountAddress = { maybeAccountAddress } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeAccountAddress = { maybeAccountAddress }/> },
-		{ title: 'Migration', path: 'migration', component: <Migration maybeAccountAddress = { maybeAccountAddress } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal }/> }
+		{ title: 'Trading', path: 'trading', component: <DeployContract maybeWriteClient = { maybeWriteClient } areContractsDeployed = { areContractsDeployed }/> },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/> },
+		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal }/> }
 	] as const
 
 	useSignalEffect(() => {
@@ -192,15 +198,16 @@ export function App() {
 	}
 
 	const updateChainId = async () => {
-		const account = maybeAccountAddress.deepPeek()
-		if (account === undefined) return
-		chainId.value = await getChainId(account)
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) return
+		chainId.value = await getChainId(readClient)
 	}
 
 	const setUniverseIfValid = async () => {
-		if (maybeAccountAddress.deepValue === undefined) return
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) return
 		if (universe.deepValue === undefined) return
-		if (!(await isKnownUniverse(maybeAccountAddress.deepValue, universe.deepValue))) throw new Error(`${ universe.deepValue } is not an universe recognized by Augur.`)
+		if (!(await isKnownUniverse(readClient, universe.deepValue))) throw new Error(`${ universe.deepValue } is not an universe recognized by Augur.`)
 	}
 
 	useEffect(() => {
@@ -209,19 +216,21 @@ export function App() {
 			return
 		}
 		isWindowEthereum.value = true
-		window.ethereum.on('accountsChanged', function (accounts) { maybeAccountAddress.deepValue = accounts[0] })
+		window.ethereum.on('accountsChanged', (accounts) => {
+			updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
+		})
 		window.ethereum.on('chainChanged', async () => { updateChainId() })
 		const fetchAccount = async () => {
 			try {
 				loadingAccount.value = true
 				const fetchedAccount = await getAccounts()
-				if (fetchedAccount) maybeAccountAddress.deepValue = fetchedAccount
+				updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
 				updateChainId()
 			} catch(e) {
 				setError(e)
 			} finally {
 				loadingAccount.value = false
-				areContractsDeployed.value = await isAugurConstantProductMarketDeployed(maybeAccountAddress.deepValue)
+				areContractsDeployed.value = maybeReadClient.deepValue === undefined ? undefined : await isAugurConstantProductMarketDeployed(maybeReadClient.deepValue)
 			}
 			setUniverseIfValid()
 		}
@@ -234,17 +243,18 @@ export function App() {
 	}, [])
 
 	useSignalEffect(() => {
-		const universeInfo = async (maybeAccountAddress: AccountAddress | undefined, universe: AccountAddress | undefined) => {
-			if (maybeAccountAddress === undefined) return
+		const universeInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
+			if (readClient === undefined) return
 			if (universe === undefined) return
-			universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeAccountAddress, universe)
-			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(maybeAccountAddress, universe)
+			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universe)
+			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(readClient, universe)
 
-			repBalance.deepValue = await getErc20TokenBalance(maybeAccountAddress, reputationTokenAddress.deepValue, maybeAccountAddress)
-			daiBalance.deepValue = await getErc20TokenBalance(maybeAccountAddress, DAI_TOKEN_ADDRESS, maybeAccountAddress)
-			ethBalance.deepValue = await getEthereumBalance(maybeAccountAddress, maybeAccountAddress)
+			if (readClient.account?.address === undefined) return
+			repBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
+			daiBalance.deepValue = await getErc20TokenBalance(readClient, DAI_TOKEN_ADDRESS, readClient.account.address)
+			ethBalance.deepValue = await getEthereumBalance(readClient, readClient.account.address)
 		}
-		universeInfo(maybeAccountAddress.deepValue, universe.deepValue)
+		universeInfo(maybeReadClient.deepValue, universe.deepValue)
 	})
 
 	if (universe.deepValue === undefined) return <main><p> loading... </p></main>
@@ -253,7 +263,7 @@ export function App() {
 		<div class = 'app'>
 			<div style = 'display: flex; justify-content: space-between;'>
 				<UniverseComponent universe = { universe}/>
-				<WalletComponent loadingAccount = { loadingAccount } isWindowEthereum = { isWindowEthereum } maybeAccountAddress = { maybeAccountAddress }/>
+				<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>
 			</div>
 			<div style = 'display: flex; justify-content: right;'>
 				<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>

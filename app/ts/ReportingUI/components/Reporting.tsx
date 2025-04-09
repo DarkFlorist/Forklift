@@ -9,6 +9,7 @@ import { humanReadableDateDelta, SomeTimeAgo } from './SomeTimeAgo.js'
 import { MarketReportingOptions, MarketReportingWithoutStake, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, getOutcomeName } from '../../utils/augurUtils.js'
+import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 
 type DisputeWindowData = {
     disputeWindow: `0x${ string }`
@@ -48,26 +49,28 @@ export const ValidityBond = ({ totalValidityBondsForAMarket }: ValidityBondProps
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
-	maybeAccountAddress: OptionalSignal<AccountAddress>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+	maybeWriteClient: OptionalSignal<WriteClient>
 }
 
-export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes }: ForkMigrationProps) => {
+export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	const initialReportReason = useSignal<string>('')
 	const selectedOutcome = useSignal<string | null>(null)
 	const disavowCrowdsourcersButton = async () => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('marketData missing')
-		await disavowCrowdsourcers(maybeAccountAddress.deepValue, marketData.deepValue.marketAddress)
+		await disavowCrowdsourcers(writeClient, marketData.deepValue.marketAddress)
 	}
 	const migrateThroughOneForkButton = async () => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('marketData missing')
 		if (outcomeStakes.deepValue === undefined) throw new Error('outcomeStakes missing')
 		const initialReportPayoutNumerators = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
 		if (!initialReportPayoutNumerators) throw new Error('Selected outcome not found')
-		await migrateThroughOneFork(maybeAccountAddress.deepValue, marketData.deepValue.marketAddress, initialReportPayoutNumerators, initialReportReason.peek())
+		await migrateThroughOneFork(writeClient, marketData.deepValue.marketAddress, initialReportPayoutNumerators, initialReportReason.peek())
 	}
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
@@ -96,14 +99,14 @@ export const ForkMigration = ({ marketData, maybeAccountAddress, outcomeStakes }
 
 interface DisplayStakesProps {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeWriteClient: OptionalSignal<WriteClient>
 	marketData: OptionalSignal<MarketData>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 }
 
-export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues }: DisplayStakesProps) => {
+export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues }: DisplayStakesProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const selectedOutcome = useSignal<string | null>(null)
@@ -111,12 +114,13 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 	const amountInput = useSignal<string>('')
 
 	const report = async (outcomeStake: OutcomeStake, reportReason: string, amount: bigint) => {
-		if (maybeAccountAddress.deepValue === undefined) throw new Error('account missing')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('market missing')
 		const market = marketData.deepValue.marketAddress
 		if (outcomeStake.status === 'Winning') {
 			return await contributeToMarketDisputeOnTentativeOutcome(
-				maybeAccountAddress.deepValue,
+				writeClient,
 				market,
 				outcomeStake.payoutNumerators,
 				amount,
@@ -124,7 +128,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeAccountAddress, marketData, 
 			)
 		}
 		return await contributeToMarketDispute(
-			maybeAccountAddress.deepValue,
+			writeClient,
 			market,
 			outcomeStake.payoutNumerators,
 			amount,
@@ -275,12 +279,13 @@ export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHist
 }
 
 interface ReportingProps {
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeReadClient: OptionalSignal<ReadClient>
+	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 }
 
-export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddress }: ReportingProps) => {
+export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: ReportingProps) => {
 	const marketAddressString = useSignal<string>('')
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const disputeWindowData = useOptionalSignal<DisputeWindowData>(undefined)
@@ -302,8 +307,8 @@ export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddres
 	}
 
 	const fetchMarketData = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('missing readClient')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		marketData.deepValue = undefined
 		disputeWindowData.deepValue = undefined
@@ -319,17 +324,17 @@ export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddres
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
 		const parsedMarketAddressString = addressString(marketAddress.value)
-		const newMarketData = await fetchHotLoadingMarketData(account.value, parsedMarketAddressString)
+		const newMarketData = await fetchHotLoadingMarketData(readClient, parsedMarketAddressString)
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 		const currentMarketData = marketData.deepValue
-		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(account.value, currentMarketData.hotLoadingMarketData.universe)
-		totalValidityBondsForAMarket.deepValue = await fetchHotLoadingTotalValidityBonds(account.value, [parsedMarketAddressString])
+		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(readClient, currentMarketData.hotLoadingMarketData.universe)
+		totalValidityBondsForAMarket.deepValue = await fetchHotLoadingTotalValidityBonds(readClient, [parsedMarketAddressString])
 		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
 			const allPayoutNumerators = getAllPayoutNumeratorCombinations(marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const winningOption = await getWinningPayoutNumerators(account.value, parsedMarketAddressString)
+			const winningOption = await getWinningPayoutNumerators(readClient, parsedMarketAddressString)
 			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
-			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(account.value, parsedMarketAddressString, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
+			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, parsedMarketAddressString, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
 			outcomeStakes.deepValue = stakes.map((repStake, index) => {
 				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
 				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
@@ -344,42 +349,42 @@ export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddres
 				}
 			})
 		}
-		disputeWindowAddress.deepValue = await getDisputeWindow(account.value, parsedMarketAddressString)
+		disputeWindowAddress.deepValue = await getDisputeWindow(readClient, parsedMarketAddressString)
 		if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
-			disputeWindowInfo.deepValue = await getDisputeWindowInfo(account.value, disputeWindowAddress.deepValue)
+			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
 		}
-		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(account.value, parsedMarketAddressString)
+		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(readClient, parsedMarketAddressString)
 		if (EthereumAddress.parse(preemptiveDisputeCrowdsourcerAddress.deepValue) !== 0n) {
-			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(account.value, preemptiveDisputeCrowdsourcerAddress.deepValue)
+			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(readClient, preemptiveDisputeCrowdsourcerAddress.deepValue)
 		}
 
-		forkValues.deepValue = await getForkValues(account.value, reputationTokenAddress.deepValue)
-		reportingHistory.deepValue = await getReportingHistory(account.value, parsedMarketAddressString, newMarketData.disputeRound)
+		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
+		reportingHistory.deepValue = await getReportingHistory(readClient, parsedMarketAddressString, newMarketData.disputeRound)
 	}
 
 	const buyParticipationTokensButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
-		await buyParticipationTokens(account.value, universe.deepValue, 10n)
+		await buyParticipationTokens(writeClient, universe.deepValue, 10n)
 	}
 
 	const doInitialReportButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (marketData.deepValue === undefined) throw new Error('missing market data')
 		const ticks = marketData.deepValue.hotLoadingMarketData.numTicks
 		const report = Array(Number(marketData.deepValue.hotLoadingMarketData.numOutcomes)).fill(0n).map((_, option) => option === 1 ? ticks : 0n)
 		const reason = 'Just my initial report'
 		const additionalStake = 0n
-		await doInitialReport(account.value, marketData.deepValue.marketAddress, report, reason, additionalStake)
+		await doInitialReport(writeClient, marketData.deepValue.marketAddress, report, reason, additionalStake)
 	}
 
 	const finalizeMarketButton = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (marketData.deepValue === undefined) throw new Error('missing market data')
-		await finalizeMarket(account.value, marketData.deepValue.marketAddress)
+		await finalizeMarket(writeClient, marketData.deepValue.marketAddress)
 	}
 
 	function handleMarketAddress(value: string) {
@@ -405,12 +410,12 @@ export const Reporting = ({ maybeAccountAddress, universe, reputationTokenAddres
 			<ValidityBond totalValidityBondsForAMarket = { totalValidityBondsForAMarket }/>
 			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
 			<button class = 'button is-primary' onClick = { doInitialReportButton }>Do Initial Report On First Option</button>
-			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues }/>
+			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues }/>
 			<DisplayDisputeWindow disputeWindowAddress = { disputeWindowAddress } disputeWindowInfo = { disputeWindowInfo }/>
 			<DisplayForkValues forkValues = { forkValues }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
-			<ForkMigration marketData = { marketData } maybeAccountAddress = { maybeAccountAddress } outcomeStakes = { outcomeStakes }/>
+			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes }/>
 		</div>
 	</div>
 }

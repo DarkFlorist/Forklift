@@ -1,18 +1,18 @@
 import { Signal } from '@preact/signals'
 import { OptionalSignal } from '../../utils/OptionalSignal.js'
-import { AccountAddress } from '../../types/types.js'
 import { deployAugurConstantProductMarketContract } from '../../utils/contractDeployment.js'
+import { WriteClient } from '../../utils/ethereumWallet.js'
 
 interface DeployProps {
 	areContractsDeployed: Signal<boolean | undefined>
-	maybeAccountAddress: OptionalSignal<AccountAddress>
+	maybeWriteClient: OptionalSignal<WriteClient>
 }
 
-export const DeployContract = ({ maybeAccountAddress, areContractsDeployed }: DeployProps) => {
+export const DeployContract = ({ maybeWriteClient, areContractsDeployed }: DeployProps) => {
 	const deploy = async () => {
-		const account = maybeAccountAddress.peek()
-		if (account === undefined) throw new Error('missing maybeAccountAddress')
-		await deployAugurConstantProductMarketContract(account.value)
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing write client')
+		await deployAugurConstantProductMarketContract(writeClient)
 		areContractsDeployed.value = true
 	}
 	if (areContractsDeployed.value !== false) return <></>
