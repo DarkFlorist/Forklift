@@ -33,7 +33,7 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 					checked = { selectedOutcome.value === outcomeStake.outcomeName }
 					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
 				/>
-			<span>{ outcomeStake.outcomeName } ({ outcomeStake.status })</span>
+			<span>{ outcomeStake.outcomeName }</span>
 			</>)
 		} </div>
 	}
