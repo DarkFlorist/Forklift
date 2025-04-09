@@ -39,7 +39,7 @@ export const ParticipationTokens = ({ maybeReadClient, maybeWriteClient, univers
 
 	const update = async () => {
 		const readClient = maybeReadClient.deepPeek()
-		if (readClient === undefined) throw new Error('missing writeClient')
+		if (readClient === undefined) throw new Error('missing readClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		disputeWindowData.deepValue = undefined
 		disputeWindowData.deepValue = await fetchHotLoadingCurrentDisputeWindowData(readClient, universe.deepValue)
