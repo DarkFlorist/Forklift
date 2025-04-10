@@ -24,12 +24,12 @@ contract AugurConstantProduct is ERC20 {
 	uint256 public constant fee = 50; // 5% fee
 
 	uint private unlocked = 1;
-    modifier lock() {
-        require(unlocked == 1, 'LOCKED');
-        unlocked = 0;
-        _;
-        unlocked = 1;
-    }
+	modifier lock() {
+		require(unlocked == 1, 'LOCKED');
+		unlocked = 0;
+		_;
+		unlocked = 1;
+	}
 
 	constructor(IMarket market) ERC20(string(abi.encodePacked("ACPM-", address(market).addressToString())), address(market).addressToString()) {
 		augurMarketAddress = address(market);
@@ -49,12 +49,12 @@ contract AugurConstantProduct is ERC20 {
 		uint256 liquidity = 0;
 
 		if (supply == 0) {
-            liquidity = sqrt(noIn * yesIn); // CONSIDER: MINIMUM BALANCE handling?
-        } else {
+			liquidity = sqrt(noIn * yesIn); // CONSIDER: MINIMUM BALANCE handling?
+		} else {
 			uint256 liquidity1 = noIn * supply / noBalance;
 			uint256 liquidity2 = yesIn * supply / yesBalance;
-            liquidity = liquidity1 < liquidity2 ? liquidity1 : liquidity2;
-        }
+			liquidity = liquidity1 < liquidity2 ? liquidity1 : liquidity2;
+		}
 
 		_mint(mintTo, liquidity);
 
@@ -88,11 +88,11 @@ contract AugurConstantProduct is ERC20 {
 
 		uint256 noSharesIn = poolNo > noBalance - noSharesOut ? poolNo - (noBalance - noSharesOut) : 0;
 		uint256 yesSharesIn = poolYes > yesBalance - yesSharesOut ? poolYes - (yesBalance - yesSharesOut) : 0;
-        require(noSharesIn > 0 || yesSharesIn > 0, 'AugurCP: INSUFFICIENT_INPUT_AMOUNT');
+		require(noSharesIn > 0 || yesSharesIn > 0, 'AugurCP: INSUFFICIENT_INPUT_AMOUNT');
 
 		uint256 noBalanceAdjusted = (poolNo * feeScope) - (noSharesIn * fee);
-        uint256 yesBalanceAdjusted = (poolYes * feeScope) - (yesSharesIn * fee);
-        require(noBalanceAdjusted * yesBalanceAdjusted >= noBalance * yesBalance * feeScope**2, 'K');
+		uint256 yesBalanceAdjusted = (poolYes * feeScope) - (yesSharesIn * fee);
+		require(noBalanceAdjusted * yesBalanceAdjusted >= noBalance * yesBalance * feeScope**2, 'K');
 
 		noBalance = poolNo;
 		yesBalance = poolYes;

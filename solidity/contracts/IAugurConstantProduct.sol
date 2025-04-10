@@ -6,7 +6,7 @@ interface IAugurConstantProduct is IERC20 {
 	function INVALID() external view returns (uint256);
 	function NO() external view returns (uint256);
 	function YES() external view returns (uint256);
-    function augurMarketAddress() external view returns (address);
+	function augurMarketAddress() external view returns (address);
 	function fee() external view returns (uint256);
 	function noBalance() external view returns (uint256);
 	function yesBalance() external view returns (uint256);

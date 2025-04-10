@@ -126,19 +126,19 @@ contract AugurConstantProductRouter {
 	}
 
 	function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut, uint256 fee) internal pure returns (uint256 amountOut) {
-        require(amountIn > 0, 'AugurCP: INSUFFICIENT_INPUT_AMOUNT');
-        require(reserveIn > 0 && reserveOut > 0, 'AugurCP: INSUFFICIENT_LIQUIDITY');
-        uint256 amountInWithFee = amountIn * (1000 - fee);
-        uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = (reserveIn * 1000) + amountInWithFee;
-        amountOut = numerator / denominator;
-    }
+		require(amountIn > 0, 'AugurCP: INSUFFICIENT_INPUT_AMOUNT');
+		require(reserveIn > 0 && reserveOut > 0, 'AugurCP: INSUFFICIENT_LIQUIDITY');
+		uint256 amountInWithFee = amountIn * (1000 - fee);
+		uint256 numerator = amountInWithFee * reserveOut;
+		uint256 denominator = (reserveIn * 1000) + amountInWithFee;
+		amountOut = numerator / denominator;
+	}
 
 	function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut, uint256 fee) internal pure returns (uint256 amountIn) {
-        require(amountOut > 0, 'AugurCP: INSUFFICIENT_OUTPUT_AMOUNT');
-        require(reserveIn > 0 && reserveOut > 0, 'AugurCP: INSUFFICIENT_LIQUIDITY');
-        uint256 numerator = reserveIn * amountOut * 1000;
-        uint256 denominator = (reserveOut - amountOut) * (1000 - fee);
-        amountIn = (numerator / denominator) + 1;
-    }
+		require(amountOut > 0, 'AugurCP: INSUFFICIENT_OUTPUT_AMOUNT');
+		require(reserveIn > 0 && reserveOut > 0, 'AugurCP: INSUFFICIENT_LIQUIDITY');
+		uint256 numerator = reserveIn * amountOut * 1000;
+		uint256 denominator = (reserveOut - amountOut) * (1000 - fee);
+		amountIn = (numerator / denominator) + 1;
+	}
 }
