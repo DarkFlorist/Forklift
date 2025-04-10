@@ -8,7 +8,7 @@ import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
 import { MarketReportingOptions, MarketReportingWithoutStake, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { getAllPayoutNumeratorCombinations, getOutcomeName } from '../../utils/augurUtils.js'
+import { getAllPayoutNumeratorCombinations, getOutcomeName, maxStakeAmountForOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
 
@@ -82,6 +82,17 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const amountInput = useSignal<string>('')
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcerSize.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcerSize.deepValue >= forkValues.deepValue.disputeThresholdForDisputePacing)
 
+	const maxStakeAmount = useComputed(() => {
+		if (selectedOutcome.value === null) return undefined
+		if (outcomeStakes.deepValue === undefined) return undefined
+		if (forkValues.deepValue === undefined) return undefined
+		const outcomeStake = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)
+		if (outcomeStake === undefined) return undefined
+		const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
+		return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing)
+	})
+
+	const isDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
 	const report = async (outcomeStake: OutcomeStake, reportReason: string, amount: bigint) => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('account missing')
@@ -150,11 +161,16 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		</div>
 	}
 
+	const setMaxStake = () => {
+		if (maxStakeAmount.value === undefined) return
+		amountInput.value = bigintToDecimalString(maxStakeAmount.value, 18n)
+	}
+
 	return (
 		<div class = 'panel'>
 			<div style = 'display: grid'>
 				<span><b>Market Reporting ({ isSlowReporting.value ? 'Slow reporting' : 'Fast reporting' }):</b></span>
-				<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
+				<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } isSlowReporting = { isSlowReporting } forkValues = { forkValues }/>
 				<TotalRepStaked/>
 				<ResolvingTo/>
 				<div style = 'margin-top: 1rem'>
@@ -163,6 +179,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 						<input
 							type = 'text'
 							value = { reason.value }
+							disabled = { isDisabled.value }
 							style = { 'width: 100%' }
 							placeholder = 'Optional: Explain why you believe this outcome is correct'
 							onChange = { (event) => {
@@ -173,43 +190,30 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 					</label>
 				</div>
 				<div style = 'margin-top: 0.5rem'>
-					<label>
+					<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem' } }>
 						Amount:{' '}
 						<input
 							type = 'text'
 							placeholder = ''
 							value = { amountInput.value }
+							disabled = { isDisabled.value }
 							onChange = { (event) => {
 								const target = event.target as HTMLInputElement
 								amountInput.value = target.value
 							} }
 						/>
-					</label>
+						{ maxStakeAmount.value === undefined ? <></> : <>
+							/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP
+							<button class = 'button is-primary' onClick = { setMaxStake }>Max</button>
+						</> }
+					</div>
 				</div>
 				<div style = 'margin-top: 1rem'>
-					<button class = 'button is-primary' onClick = { handleReport }>Report</button>
+					<button class = 'button is-primary' disabled = { isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n } onClick = { handleReport }>Report</button>
 				</div>
 			</div>
 		</div>
 	)
-}
-
-interface DisplayDisputeWindowProps {
-	disputeWindowAddress: OptionalSignal<AccountAddress>
-	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
-}
-
-export const DisplayDisputeWindow = ({ disputeWindowAddress, disputeWindowInfo }: DisplayDisputeWindowProps) => {
-	if (disputeWindowAddress.deepValue === undefined) return <></>
-	if (disputeWindowInfo.deepValue === undefined) return <></>
-	return <div class = 'panel'>
-		<div style = 'display: grid'>
-			<span><b>Dispute Window Address:</b>{ disputeWindowAddress.deepValue }</span>
-			<span><b>Start:</b>{ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) }</span>
-			<span><b>End:</b>{ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) }</span>
-			<span><b>Is Active:</b>{ disputeWindowInfo.deepValue.isActive ? 'Yes' : 'No' }</span>
-		</div>
-	</div>
 }
 
 interface ReportingHistoryProps {
@@ -351,7 +355,6 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			<Market marketData = { marketData } universe = { universe }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcerSize = { lastCompletedCrowdSourcerSize }/>
-			<DisplayDisputeWindow disputeWindowAddress = { disputeWindowAddress } disputeWindowInfo = { disputeWindowInfo }/>
 			<button class = 'button is-primary' onClick = { finalizeMarketButton }>Finalize Market</button>
 			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes }/>
 		</div>
