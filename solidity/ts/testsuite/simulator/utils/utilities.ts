@@ -3,7 +3,7 @@ import { getContractAddress, numberToBytes, encodeAbiParameters, keccak256 } fro
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { createWriteClient, ReadClient, WriteClient } from './viem.js'
-import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES, VITALIK } from './constants.js'
+import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, VITALIK, YEAR_2030 } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address, parseAbiItem } from 'viem'
 import { ABIS } from '../../../abi/abis.js'
@@ -477,7 +477,7 @@ export const removeLiquidity = async (client: WriteClient, poolTokensToSell: big
 	})
 }
 
-export const enterPosition = async (client: WriteClient, amountInDai: bigint, buyYes: boolean) => {
+export const enterPosition = async (client: WriteClient, amountInDai: bigint, buyYes: boolean, minSharesOut: bigint = 0n, deadline = YEAR_2030) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -486,7 +486,7 @@ export const enterPosition = async (client: WriteClient, amountInDai: bigint, bu
 		abi: abi as Abi,
 		functionName: 'enterPosition',
 		address: routerAddress,
-		args: [acpmAddress, amountInDai, buyYes]
+		args: [acpmAddress, amountInDai, buyYes, minSharesOut, deadline]
 	})
 }
 
@@ -511,7 +511,7 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Addr
 	})
 }
 
-export const exitPosition = async (client: WriteClient, daiToBuy: bigint) => {
+export const exitPosition = async (client: WriteClient, daiToBuy: bigint, deadline = YEAR_2030) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -520,11 +520,11 @@ export const exitPosition = async (client: WriteClient, daiToBuy: bigint) => {
 		abi: abi as Abi,
 		functionName: 'exitPosition',
 		address: routerAddress,
-		args: [acpmAddress, daiToBuy]
+		args: [acpmAddress, daiToBuy, deadline]
 	})
 }
 
-export const swap = async (client: WriteClient, inputShares: bigint, inputYes: boolean) => {
+export const swap = async (client: WriteClient, inputShares: bigint, inputYes: boolean, minSharesOut: bigint = 0n, deadline = YEAR_2030) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -533,9 +533,23 @@ export const swap = async (client: WriteClient, inputShares: bigint, inputYes: b
 		abi: abi as Abi,
 		functionName: 'swapExactSharesForShares',
 		address: routerAddress,
-		args: [acpmAddress, inputShares, inputYes]
+		args: [acpmAddress, inputShares, inputYes, minSharesOut, deadline]
 	})
 }
+
+export const swapForExact = async (client: WriteClient, outputShares: bigint, inputYes: boolean, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'swapSharesForExactShares',
+		address: routerAddress,
+		args: [acpmAddress, outputShares, inputYes, maxSharesIn, deadline]
+	})
+}
+
 
 export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, inputYes: boolean) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)

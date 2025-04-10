@@ -58,7 +58,8 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(acpm.augurMarketAddress(), msg.sender, msg.sender, completeSetsToSell, bytes32(0));
 	}
 
-	function enterPosition(IAugurConstantProduct acpm, uint256 amountInDai, bool buyYes) external {
+	function enterPosition(IAugurConstantProduct acpm, uint256 amountInDai, bool buyYes, uint256 minSharesOut, uint256 deadline) external {
+		require(block.timestamp < deadline, "AugurCP: Deadline");
 		uint256 setsToBuy = amountInDai / numTicks;
 		dai.transferFrom(msg.sender, address(this), amountInDai);
 		shareToken.buyCompleteSets(acpm.augurMarketAddress(), msg.sender, setsToBuy);
@@ -66,17 +67,20 @@ contract AugurConstantProductRouter {
 		(uint256 poolNoBalance, uint256 poolYesBalance) = acpm.getNoYesBalances();
 
 		if (buyYes) {
-			uint256 amountNoOut = getAmountOut(setsToBuy, poolNoBalance, poolYesBalance, acpm.fee());
+			uint256 amountYesOut = getAmountOut(setsToBuy, poolNoBalance, poolYesBalance, acpm.fee());
+			require(amountYesOut + setsToBuy >= minSharesOut, "AugurCP: Enter would result in < minShares");
 			shareToken.unsafeTransferFrom(msg.sender, address(acpm), acpm.NO(), setsToBuy);
-			acpm.swap(msg.sender, 0, amountNoOut);
+			acpm.swap(msg.sender, 0, amountYesOut);
 		} else {
-			uint256 amountYesOut = getAmountOut(setsToBuy, poolYesBalance, poolNoBalance, acpm.fee());
+			uint256 amountNoOut = getAmountOut(setsToBuy, poolYesBalance, poolNoBalance, acpm.fee());
+			require(amountNoOut + setsToBuy >= minSharesOut, "AugurCP: Enter would result in < minShares");
 			shareToken.unsafeTransferFrom(msg.sender, address(acpm), acpm.YES(), setsToBuy);
-			acpm.swap(msg.sender, amountYesOut, 0);
+			acpm.swap(msg.sender, amountNoOut, 0);
 		}
 	}
 
-	function exitPosition(IAugurConstantProduct acpm, uint256 daiToBuy) external {
+	function exitPosition(IAugurConstantProduct acpm, uint256 daiToBuy, uint256 deadline) external {
+		require(block.timestamp < deadline, "AugurCP: Deadline");
 		(uint256 userInvalid, uint256 userNo, uint256 userYes) = acpm.shareBalances(msg.sender);
 		uint256 setsToSell = daiToBuy / numTicks;
 
@@ -111,16 +115,20 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(acpm.augurMarketAddress(), msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
-	function swapExactSharesForShares(IAugurConstantProduct acpm, uint256 inputShares, bool inputYes) external {
+	function swapExactSharesForShares(IAugurConstantProduct acpm, uint256 inputShares, bool inputYes, uint256 minSharesOut, uint256 deadline) external {
+		require(block.timestamp < deadline, "AugurCP: Deadline");
 		(uint256 poolNo, uint256 poolYes) = acpm.getNoYesBalances();
 		uint256 amountOut = getAmountOut(inputShares, inputYes ? poolYes : poolNo, inputYes ? poolNo : poolYes, acpm.fee());
+		require(amountOut >= minSharesOut, "AugurCP: shares out < minSharesOut");
 		shareToken.unsafeTransferFrom(msg.sender, address(acpm), inputYes ? acpm.YES() : acpm.NO(), inputShares);
 		acpm.swap(msg.sender, inputYes ? amountOut : 0, inputYes ? 0 : amountOut);
 	}
 
-	function swapSharesForExactShares(IAugurConstantProduct acpm, uint256 outputShares, bool inputYes) external {
+	function swapSharesForExactShares(IAugurConstantProduct acpm, uint256 outputShares, bool inputYes, uint256 maxSharesIn, uint256 deadline) external {
+		require(block.timestamp < deadline, "AugurCP: Deadline");
 		(uint256 poolNo, uint256 poolYes) = acpm.getNoYesBalances();
 		uint256 amountIn = getAmountIn(outputShares, inputYes ? poolYes : poolNo, inputYes ? poolNo : poolYes, acpm.fee());
+		require(amountIn <= maxSharesIn, "AugurCP: shares in > maxSharesIn");
 		shareToken.unsafeTransferFrom(msg.sender, address(acpm), inputYes ? acpm.YES() : acpm.NO(), amountIn);
 		acpm.swap(msg.sender, inputYes ? outputShares : 0, inputYes ? 0 : outputShares);
 	}
