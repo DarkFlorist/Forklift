@@ -2,7 +2,7 @@ import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
-import { getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
+import { getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredState } from '../utils/augurUtils.js'
 
 export type OutcomeStake = {
@@ -25,9 +25,10 @@ type MarketReportingOptionsProps = {
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	isSlowReporting: Signal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 }
 
-export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, disputeWindowInfo, isSlowReporting, forkValues }: MarketReportingOptionsProps) => {
+export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, disputeWindowInfo, isSlowReporting, forkValues, lastCompletedCrowdSourcer }: MarketReportingOptionsProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -37,7 +38,7 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 		if (outcomeStakes.deepValue === undefined) return []
 		if (forkValues.deepValue === undefined) return []
 		const disputeThresholdForDisputePacing = forkValues.deepValue.disputeThresholdForDisputePacing
-		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing))
+		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing, lastCompletedCrowdSourcer.deepValue))
 	})
 
 	if (totalStake.value === 0n) { // initial reporting
