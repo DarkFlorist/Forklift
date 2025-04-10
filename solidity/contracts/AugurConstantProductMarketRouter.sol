@@ -79,7 +79,7 @@ contract AugurConstantProductRouter {
 		}
 	}
 
-	function exitPosition(IAugurConstantProduct acpm, uint256 daiToBuy, uint256 deadline) external {
+	function exitPosition(IAugurConstantProduct acpm, uint256 daiToBuy, uint256 maxSharesIn, uint256 deadline) external {
 		require(block.timestamp < deadline, "AugurCP: Deadline");
 		(uint256 userInvalid, uint256 userNo, uint256 userYes) = acpm.shareBalances(msg.sender);
 		uint256 setsToSell = daiToBuy / numTicks;
@@ -101,6 +101,7 @@ contract AugurConstantProductRouter {
 			uint256 yesToSwap = userYes - setsToSell;
 			uint256 yesNeeded = getAmountIn(noNeeded, poolYesBalance, poolNoBalance, fee);
 			require(yesNeeded <= yesToSwap, "AugurCP: Not enough YES shares to close out for this amount");
+			require(setsToSell + yesNeeded <= maxSharesIn, "AugurCP: YES shares needed > maxSharesIn");
 			shareToken.unsafeTransferFrom(msg.sender, address(acpm), acpm.YES(), yesNeeded);
 			acpm.swap(msg.sender, noNeeded, 0);
 		} else {
@@ -108,12 +109,17 @@ contract AugurConstantProductRouter {
 			uint256 noToSwap = userNo - setsToSell;
 			uint256 noNeeded = getAmountIn(yesNeeded, poolNoBalance, poolYesBalance, fee);
 			require(noNeeded <= noToSwap, "AugurCP: Not enough No shares to close out for this amount");
+			require(setsToSell + noNeeded <= maxSharesIn, "AugurCP: No shares needed > maxSharesIn");
 			shareToken.unsafeTransferFrom(msg.sender, address(acpm), acpm.NO(), noNeeded);
 			acpm.swap(msg.sender, 0, yesNeeded);
 		}
 
 		shareToken.sellCompleteSets(acpm.augurMarketAddress(), msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
+
+	// function enterPositionForMinShares() external {
+
+	// }
 
 	function swapExactSharesForShares(IAugurConstantProduct acpm, uint256 inputShares, bool inputYes, uint256 minSharesOut, uint256 deadline) external {
 		require(block.timestamp < deadline, "AugurCP: Deadline");

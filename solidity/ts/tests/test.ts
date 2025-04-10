@@ -145,11 +145,17 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not sent as expected. Balance: ${daiBalance}. Expected: ${expectedDaiBalance}`)
 
 		// Exit Position
-		const expectedDaiFromShares = (shareBalances[0] - 3n) * numTicks
+		const setsToSell = shareBalances[0] - 3n
+		const yesNeededForSwap = await expectedSharesNeededForSwap(participantClient1, setsToSell, true)
+		const yesSharesNeeded = setsToSell + yesNeededForSwap
+		const expectedDaiFromShares = setsToSell * numTicks
 		await setERC1155Approval(participantClient1, shareTokenAddress, acpmAddress, true)
 
 		// Deadline check works
-		assert.rejects(exitPosition(participantClient1, expectedDaiFromShares, 0n))
+		assert.rejects(exitPosition(participantClient1, expectedDaiFromShares, yesSharesNeeded, 0n))
+
+		// maxSharesSwapped check works
+		assert.rejects(exitPosition(participantClient1, expectedDaiFromShares, yesSharesNeeded - 1n))
 
 		await exitPosition(participantClient1, expectedDaiFromShares)
 

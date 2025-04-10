@@ -511,7 +511,7 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Addr
 	})
 }
 
-export const exitPosition = async (client: WriteClient, daiToBuy: bigint, deadline = YEAR_2030) => {
+export const exitPosition = async (client: WriteClient, daiToBuy: bigint, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -520,7 +520,7 @@ export const exitPosition = async (client: WriteClient, daiToBuy: bigint, deadli
 		abi: abi as Abi,
 		functionName: 'exitPosition',
 		address: routerAddress,
-		args: [acpmAddress, daiToBuy, deadline]
+		args: [acpmAddress, daiToBuy, maxSharesIn, deadline]
 	})
 }
 
