@@ -117,10 +117,6 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(acpm.augurMarketAddress(), msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
-	// function enterPositionForMinShares() external {
-
-	// }
-
 	function swapExactSharesForShares(IAugurConstantProduct acpm, uint256 inputShares, bool inputYes, uint256 minSharesOut, uint256 deadline) external {
 		require(block.timestamp < deadline, "AugurCP: Deadline");
 		(uint256 poolNo, uint256 poolYes) = acpm.getNoYesBalances();
