@@ -170,6 +170,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		<div class = 'panel'>
 			<div style = 'display: grid'>
 				<span><b>Market Reporting ({ isSlowReporting.value ? 'Slow reporting' : 'Fast reporting' }):</b></span>
+				{ isDisabled.value ? <span><b>The reporting is closed for this round. Please check again in the next round.</b></span> : <></>}
 				<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } isSlowReporting = { isSlowReporting } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer }/>
 				<TotalRepStaked/>
 				<ResolvingTo/>
@@ -202,7 +203,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 								amountInput.value = target.value
 							} }
 						/>
-						{ maxStakeAmount.value === undefined ? <></> : <>
+						{ maxStakeAmount.value === undefined || isDisabled.value ? <></> : <>
 							/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP
 							<button class = 'button is-primary' onClick = { setMaxStake }>Max</button>
 						</> }
