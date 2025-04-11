@@ -92,7 +92,7 @@ contract AugurConstantProduct is ERC20 {
 
 		uint256 noBalanceAdjusted = (poolNo * feeScope) - (noSharesIn * fee);
 		uint256 yesBalanceAdjusted = (poolYes * feeScope) - (yesSharesIn * fee);
-		require(noBalanceAdjusted * yesBalanceAdjusted >= noBalance * yesBalance * feeScope**2, 'K');
+		require(noBalanceAdjusted * yesBalanceAdjusted >= noBalance * yesBalance * feeScope**2, 'AugurCP: Constant product constant was not maintained');
 
 		noBalance = poolNo;
 		yesBalance = poolYes;
