@@ -221,7 +221,7 @@ export const setupTestAccounts = async (mockWindowEthereum: MockWindowEthereum) 
 	await mintRep(mockWindowEthereum, accountValues)
 }
 
-export const deployAugurMarket = async (client: WriteClient): Promise<Address> => {
+export const deployAugurMarket = async (client: WriteClient, storeMarketAddress: boolean = true): Promise<Address> => {
 	await approveCash(client, addressString(AUGUR_ADDRESS))
 	const endTime = BigInt(Math.floor(Date.now() / 1000) + 100000)
 	const blockNumber = await client.getBlockNumber()
@@ -236,8 +236,8 @@ export const deployAugurMarket = async (client: WriteClient): Promise<Address> =
 		event: parseAbiItem("event MarketCreated(address indexed universe, uint256 endTime, string extraInfo, address market, address indexed marketCreator, address designatedReporter, uint256 feePerCashInAttoCash, int256[] prices, uint8 marketType, uint256 numTicks, bytes32[] outcomes, uint256 noShowBond, uint256 timestamp)"),
 		fromBlock: blockNumber
 	})
-	augurMarketAddress = logs[0].args.market!
-	return augurMarketAddress
+	if (storeMarketAddress) augurMarketAddress = logs[0].args.market!
+	return logs[0].args.market!
 }
 
 export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
@@ -288,14 +288,15 @@ export const ensureAugurConstantProductMarketRouterDeployed = async (client: Wri
 	await client.waitForTransactionReceipt({ hash })
 }
 
-export const getAugurConstantProductMarketAddress = async (client: ReadClient) => {
+export const getAugurConstantProductMarketAddress = async (client: ReadClient, augurMarket?: Address) => {
 	const acpmFactoryAddress = await getAugurConstantProductMarketFactoryAddress()
+	augurMarket = augurMarket || augurMarketAddress
 	const abi = vendoredACPMArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
 	return await client.readContract({
 		abi,
 		functionName: 'getACPMAddress',
 		address: acpmFactoryAddress,
-		args: [augurMarketAddress]
+		args: [augurMarket]
 	})
 }
 
@@ -305,18 +306,52 @@ export const isAugurConstantProductMarketDeployed = async (client: ReadClient) =
 	return deployedBytecode !== '0x0'
 }
 
-export const deployAugurConstantProductMarketContract = async (client: WriteClient, duplicationTest:boolean = false) => {
+export const deployAugurConstantProductMarketContract = async (client: WriteClient, duplicationTest:boolean = false, newMarket:boolean = false) => {
     if (!duplicationTest) await ensureAugurConstantProductMarketFactoryDeployed(client)
 	if (!duplicationTest) await ensureAugurConstantProductMarketRouterDeployed(client)
 	const acpmFactoryAddress = await getAugurConstantProductMarketFactoryAddress()
-	if (!duplicationTest) await deployAugurMarket(client)
+    const marketAddress = (!duplicationTest || newMarket) ? await deployAugurMarket(client) : augurMarketAddress
 	const abi = augurConstantProductMarketContractArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
-	return await client.writeContract({
+	await client.writeContract({
 		chain: mainnet,
 		abi: abi as Abi,
 		functionName: 'createACPM',
 		address: acpmFactoryAddress,
-		args: [augurMarketAddress]
+		args: [marketAddress]
+	})
+	return marketAddress
+}
+
+export const getNumMarkets = async (client: ReadClient) => {
+	const acpmFactoryAddress = await getAugurConstantProductMarketFactoryAddress()
+	const abi = vendoredACPMArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
+	return await client.readContract({
+		abi,
+		functionName: 'getNumMarkets',
+		address: acpmFactoryAddress,
+		args: []
+	})
+}
+
+export const getMarketIsValid = async (client: ReadClient, market: Address) => {
+	const acpmFactoryAddress = await getAugurConstantProductMarketFactoryAddress()
+	const abi = vendoredACPMArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
+	return await client.readContract({
+		abi,
+		functionName: 'getIsValidMarket',
+		address: acpmFactoryAddress,
+		args: [market]
+	})
+}
+
+export const getMarkets = async (client: ReadClient, startIndex: bigint, pageSize: bigint) => {
+	const acpmFactoryAddress = await getAugurConstantProductMarketFactoryAddress()
+	const abi = vendoredACPMArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
+	return await client.readContract({
+		abi,
+		functionName: 'getMarkets',
+		address: acpmFactoryAddress,
+		args: [startIndex, pageSize]
 	})
 }
 
