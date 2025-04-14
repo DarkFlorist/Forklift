@@ -2,7 +2,7 @@ import { describe, beforeEach, test } from 'node:test'
 import { getMockedEthSimulateWindowEthereum, MockWindowEthereum } from '../testsuite/simulator/MockWindowEthereum.js'
 import { createWriteClient } from '../testsuite/simulator/utils/viem.js'
 import { TEST_ADDRESSES } from '../testsuite/simulator/utils/constants.js'
-import { deployAugurConstantProductMarketContract, isAugurConstantProductMarketDeployed, approveCash, getCashAllowance, addLiquidity, getPoolLiquidityBalance, removeLiquidity, getCashBalance, getReportingFee, getShareBalances, enterPosition, getAugurConstantProductMarketAddress, expectedSharesAfterSwap, exitPosition, getShareToken, setERC1155Approval, swap, getPoolSupply, getNoYesShareBalances, setupTestAccounts, getACPMName, getMarketAddress, getACPMSymbol, expectedSharesNeededForSwap, getAugurConstantProductMarketRouterAddress, approveToken, swapForExact } from '../testsuite/simulator/utils/utilities.js'
+import { deployAugurConstantProductMarketContract, isAugurConstantProductMarketDeployed, approveCash, getCashAllowance, addLiquidity, getPoolLiquidityBalance, removeLiquidity, getCashBalance, getReportingFee, getShareBalances, enterPosition, getAugurConstantProductMarketAddress, expectedSharesAfterSwap, exitPosition, getShareToken, setERC1155Approval, swap, getPoolSupply, getNoYesShareBalances, setupTestAccounts, getACPMName, getMarketAddress, getACPMSymbol, expectedSharesNeededForSwap, getAugurConstantProductMarketRouterAddress, approveToken, swapForExact, getNumMarkets, getMarketIsValid, getMarkets } from '../testsuite/simulator/utils/utilities.js'
 import assert from 'node:assert'
 
 const numTicks = 1000n
@@ -732,6 +732,49 @@ describe('Contract Test Suite', () => {
 				}
 			})
 		}
+	})
+
+	test('canUseFactoryCollectionFunctions', async () => {
+		const client = createWriteClient(mockWindow, TEST_ADDRESSES[0], 0)
+		const market1 = await getAugurConstantProductMarketAddress(client, await deployAugurConstantProductMarketContract(client))
+		const market2 = await getAugurConstantProductMarketAddress(client, await deployAugurConstantProductMarketContract(client, true, true))
+		const market3 = await getAugurConstantProductMarketAddress(client, await deployAugurConstantProductMarketContract(client, true, true))
+		const market4 = await getAugurConstantProductMarketAddress(client, await deployAugurConstantProductMarketContract(client, true, true))
+		const market5 = await getAugurConstantProductMarketAddress(client, await deployAugurConstantProductMarketContract(client, true, true))
+
+		// Get num markets
+		const numMarkets = await getNumMarkets(client)
+		assert.strictEqual(numMarkets, 5n, `Number of markets incorrect`)
+
+		// We can test validity
+		const valid = await getMarketIsValid(client, market5)
+		assert.ok(valid, "Valid market not viewed as valid")
+
+		const notValid = await getMarketIsValid(client, client.account.address)
+		assert.ok(!notValid, "Invalid address thought of as valid market")
+
+		// We can get markets starting at the latest by using a -1 sentinel value for startIndex
+
+		let markets = await getMarkets(client, -1n, 5n)
+		assert.deepEqual(markets, [market5, market4, market3, market2, market1], "Incorrect results using sentinel start and full page value")
+
+		markets = await getMarkets(client, -1n, 20n)
+		assert.deepEqual(markets.slice(0, 5), [market5, market4, market3, market2, market1], "Incorrect results using sentinel start and excess page value")
+
+		// We can get a single market
+
+		markets = await getMarkets(client, 0n, 1n)
+		assert.deepEqual(markets, [market1])
+
+		// We can get 2 markets
+
+		markets = await getMarkets(client, 1n, 2n)
+		assert.deepEqual(markets, [market2, market1])
+
+		// We can get a specific number of markets starting at a specfific index
+
+		markets = await getMarkets(client, 3n, 3n)
+		assert.deepEqual(markets, [market4, market3, market2])
 	})
 
 	test('canUseViewFunctionsWithNoData', async () => {

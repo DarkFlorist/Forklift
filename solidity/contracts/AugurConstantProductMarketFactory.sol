@@ -10,6 +10,9 @@ contract AugurConstantProductMarketFactory {
     using ContractExists for address;
 	using AddressToString for address;
 
+	mapping(address => bool) public isValidMarket;
+	address[] private marketList;
+
     function createACPM(IMarket market) public returns (AugurConstantProduct) {
         address acpmAddress = getACPMAddress(market);
 		require(!acpmAddress.exists(), string(abi.encodePacked("ACPM for market already exists: ", address(acpmAddress).addressToString())));
@@ -23,6 +26,8 @@ contract AugurConstantProductMarketFactory {
                 }
             }
         }
+		isValidMarket[acpmAddress] = true;
+		marketList.push(acpmAddress);
         return AugurConstantProduct(acpmAddress);
     }
 
@@ -36,4 +41,20 @@ contract AugurConstantProductMarketFactory {
             keccak256(abi.encodePacked(type(AugurConstantProduct).creationCode, abi.encode(market)))
         )))));
     }
+
+	function getNumMarkets() external view returns (uint256) {
+		return marketList.length;
+	}
+
+	function getMarkets(int256 startIndex, uint256 pageSize) external view returns (address[] memory) {
+		uint256 marketsLength = marketList.length;
+		uint256 realStartIndex = startIndex < 0 ? marketsLength - 1 : uint256(startIndex);
+		address[] memory pageMarkets = new address[](pageSize);
+		for (uint256 i = 0; i < pageSize; i++) {
+			uint256 curIndex = realStartIndex - i;
+			pageMarkets[i] = marketList[curIndex];
+			if (curIndex <= 0) break;
+		}
+		return pageMarkets;
+	}
 }
