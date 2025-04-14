@@ -338,7 +338,7 @@ export const getMarketIsValid = async (client: ReadClient, market: Address) => {
 	const abi = vendoredACPMArtifact.contracts['AugurConstantProductMarketFactory.sol'].AugurConstantProductMarketFactory.abi
 	return await client.readContract({
 		abi,
-		functionName: 'getIsValidMarket',
+		functionName: 'isValidMarket',
 		address: acpmFactoryAddress,
 		args: [market]
 	})

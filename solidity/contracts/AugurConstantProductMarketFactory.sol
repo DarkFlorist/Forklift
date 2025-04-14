@@ -10,7 +10,7 @@ contract AugurConstantProductMarketFactory {
     using ContractExists for address;
 	using AddressToString for address;
 
-	mapping(address => bool) private markets;
+	mapping(address => bool) public isValidMarket;
 	address[] private marketList;
 
     function createACPM(IMarket market) public returns (AugurConstantProduct) {
@@ -26,7 +26,7 @@ contract AugurConstantProductMarketFactory {
                 }
             }
         }
-		markets[acpmAddress] = true;
+		isValidMarket[acpmAddress] = true;
 		marketList.push(acpmAddress);
         return AugurConstantProduct(acpmAddress);
     }
@@ -41,10 +41,6 @@ contract AugurConstantProductMarketFactory {
             keccak256(abi.encodePacked(type(AugurConstantProduct).creationCode, abi.encode(market)))
         )))));
     }
-
-	function getIsValidMarket(address marketAddress) external view returns (bool) {
-		return markets[marketAddress];
-	}
 
 	function getNumMarkets() external view returns (uint256) {
 		return marketList.length;
