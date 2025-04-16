@@ -37,7 +37,7 @@ export const getOutcomeNamesAndNumeratorCombinationsForMarket = (marketType: Mar
 export const getUniverseUrl = (universe: AccountAddress, path: string) => `/#/${ path }?universe=${ universe }`
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
-export const requiredState = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
+export const requiredStake = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
 
 export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake: bigint, isSlowReporting: boolean, preemptiveDisputeCrowdsourcerStake: bigint, disputeThresholdForDisputePacing: bigint, lastCompletedCrowdSourcer: Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>) => {
 	const alreadyContributed = outcomeStake.alreadyContributedToOutcome?.stake || 0n
@@ -47,7 +47,7 @@ export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake:
 		return disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake - alreadyContributed
 	}
 
-	const requiredStakeForTheRound = requiredState(totalStake, outcomeStake.repStake)
+	const requiredStakeForTheRound = requiredStake(totalStake, outcomeStake.repStake)
 	if (isSlowReporting) return outcomeStake.status === 'Losing' ? requiredStakeForTheRound - alreadyContributed : 0n
 	return (outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - totalStake - preemptiveDisputeCrowdsourcerStake) - alreadyContributed
 }

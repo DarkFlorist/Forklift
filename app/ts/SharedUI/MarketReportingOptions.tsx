@@ -3,7 +3,7 @@ import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
-import { maxStakeAmountForOutcome, requiredState } from '../utils/augurUtils.js'
+import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 
 export type OutcomeStake = {
 	outcomeName: string
@@ -54,7 +54,7 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 			<span>{ outcomeStake.outcomeName }</span>
 			<span>
 				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredState(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
 			</>)
@@ -74,12 +74,12 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 			<span>
 				{ outcomeStake.status === 'Winning'
 					? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
-					: `Required for Dispute: ${ bigintToDecimalString(requiredState(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
+					: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
 				}
 			</span>
 			<span>
 				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredState(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
 		</>)
