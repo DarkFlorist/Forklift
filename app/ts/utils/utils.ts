@@ -1,5 +1,5 @@
 export const bigintSecondsToDate = (seconds: bigint) => {
-	if (seconds > Number.MAX_SAFE_INTEGER) throw new Error(`Too big seconds value: ${ seconds }`)
+	if (seconds > 8640000000000n) throw new Error(`Too big seconds value: ${ seconds }`)
 	if (seconds < 0) throw new Error(`Got negative seconds: ${ seconds }`)
 	return new Date(Number(seconds) * 1000)
 }
