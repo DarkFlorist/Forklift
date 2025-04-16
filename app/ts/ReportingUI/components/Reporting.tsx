@@ -230,7 +230,7 @@ export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHist
 				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
 				const payoutIndex = allPayoutNumerators.findIndex((option) => areEqualArrays(option, round.payoutNumerators))
 				const outcomeName = getOutcomeName(payoutIndex, marketType, marketData.deepValue.hotLoadingMarketData.outcomes || [])
-				return <span><b>{ round.type } Round { ' ' }{ round.round }</b>{ ': ' }
+				return <span><b>{ round.type }{ 'Round ' }{ round.round }</b>{ ': ' }
 					{ outcomeName }
 					{ ' Stake: ' }{ bigintToDecimalString(round.stake, 18n, 2) }{ ' ' }REP
 					{ ' Size: ' }{ bigintToDecimalString(round.size, 18n, 2) }{ ' ' }REP
