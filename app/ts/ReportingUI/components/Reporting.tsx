@@ -185,7 +185,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	return (
 		<div class = 'panel'>
 			<div style = 'display: grid'>
-				<span><b>Market Reporting ({ isInitialReporting ? 'Initial reporting' : (isSlowReporting.value ? 'Slow reporting' : 'Fast reporting') }):</b></span>
+				<span><b>Market Reporting ({ isInitialReporting.value ? 'Initial reporting' : (isSlowReporting.value ? 'Slow reporting' : 'Fast reporting') }):</b></span>
 				{ isDisabled.value ? <span><b>The reporting is closed for this round. Please check again in the next round.</b></span> : <></>}
 				<MarketReportingOptions outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport }/>
 				<TotalRepStaked/>
@@ -303,6 +303,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		forkValues.deepValue = undefined
 		reportingHistory.deepValue = undefined
 		lastCompletedCrowdSourcer.deepValue = undefined
+		repBond.deepValue = undefined
 
 		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
 		if (!marketAddress.success) throw new Error('market not defined')
@@ -345,7 +346,10 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		repBond.deepValue = await getRepBond(readClient, parsedMarketAddressString)
 
 		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
-		reportingHistory.deepValue = await getReportingHistory(readClient, parsedMarketAddressString, newMarketData.disputeRound)
+		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
+		if (!(state === 'PreReporting' || state === 'OpenReporting' || state === 'DesignatedReporting')) {
+			reportingHistory.deepValue = await getReportingHistory(readClient, parsedMarketAddressString, newMarketData.disputeRound)
+		}
 	}
 
 	const finalizeMarketButton = async () => {
