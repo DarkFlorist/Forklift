@@ -223,11 +223,11 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 							placeholder = 'REP to stake'
 							disabled = { isDisabled.value }
 							value = { amountInput }
-							sanitize = { (amount: string) => amount }
+							sanitize = { (amount: string) => amount.trim() }
 							tryParse = { (amount: string | undefined) => {
 								if (amount === undefined) return { ok: false } as const
-								if (!isDecimalString(amount)) return { ok: false } as const
-								const parsed = decimalStringToBigint(amount, 18n)
+								if (!isDecimalString(amount.trim())) return { ok: false } as const
+								const parsed = decimalStringToBigint(amount.trim(), 18n)
 								return { ok: true, value: parsed } as const
 							}}
 							serialize = { (amount: EthereumQuantity | undefined) => {
