@@ -1,9 +1,9 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond } from '../../utils/augurContractUtils.js'
-import { addressString, areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
+import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { MARKET_TYPES, REPORTING_STATES } from '../../utils/constants.js'
-import { Signal, useComputed, useSignal } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
 import { MarketReportingOptions, MarketReportingWithoutStake, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
@@ -11,6 +11,7 @@ import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, getOutcomeName, maxStakeAmountForOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
+import { Input } from '../../SharedUI/Input.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -83,7 +84,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 
 	const selectedOutcome = useSignal<string | null>(null)
 	const reason = useSignal<string>('')
-	const amountInput = useSignal<string>('')
+	const amountInput = useOptionalSignal<EthereumQuantity>(undefined)
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
 	const isInitialReporting = useComputed(() => {
 		if (marketData.deepValue == undefined) return false
@@ -140,13 +141,12 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 
 	const handleReport = async () => {
 		if (outcomeStakes.deepValue === undefined) return
-		if (amountInput.value.trim() === '') throw new Error ('Input missing')
-		const amountBigInt = decimalStringToBigint(amountInput.value, 18n)
+		if (amountInput.deepValue === undefined) throw new Error ('Input missing')
 		if (selectedOutcome.value === null) throw new Error('Invalid input')
 		const outcomeStake = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)
 		if (!outcomeStake) throw new Error('Selected outcome not found')
 		try {
-			await report(outcomeStake, reason.value, amountBigInt)
+			await report(outcomeStake, reason.value, amountInput.deepValue)
 		} catch (error) {
 			console.error('Error reporting for outcome:', outcomeStake.outcomeName, error)
 		}
@@ -181,8 +181,11 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	}
 
 	const setMaxStake = () => {
-		if (maxStakeAmount.value === undefined) return
-		amountInput.value = bigintToDecimalString(maxStakeAmount.value, 18n)
+		if (maxStakeAmount.value === undefined) {
+			amountInput.deepValue = 0n
+			return
+		}
+		amountInput.deepValue = maxStakeAmount.value
 	}
 
 	return (
@@ -211,15 +214,25 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				</div>
 				<div style = 'margin-top: 0.5rem'>
 					<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem' } }>
-						Amount:{' '}
-						<input
+						{'Amount: '}
+						<Input
+							style = 'height: fit-content;'
+							class = 'input'
 							type = 'text'
-							placeholder = ''
-							value = { amountInput.value }
+							width = '100%'
+							placeholder = 'REP to stake'
 							disabled = { isDisabled.value }
-							onChange = { (event) => {
-								const target = event.target as HTMLInputElement
-								amountInput.value = target.value
+							value = { amountInput }
+							sanitize = { (amount: string) => amount }
+							tryParse = { (amount: string | undefined) => {
+								if (amount === undefined) return { ok: false } as const
+								if (!isDecimalString(amount)) return { ok: false } as const
+								const parsed = decimalStringToBigint(amount, 18n)
+								return { ok: true, value: parsed } as const
+							}}
+							serialize = { (amount: EthereumQuantity | undefined) => {
+								if (amount === undefined) return ''
+								return bigintToDecimalString(amount, 18n, 18)
 							} }
 						/>
 						{ maxStakeAmount.value === undefined || isDisabled.value ? <></> : <>
@@ -273,7 +286,7 @@ interface ReportingProps {
 }
 
 export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: ReportingProps) => {
-	const marketAddressString = useSignal<string>('')
+	const marketAddress = useOptionalSignal<AccountAddress>(undefined)
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
@@ -307,10 +320,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		}
 	}
 
-	const fetchMarketData = async () => {
-		const readClient = maybeReadClient.deepPeek()
-		if (readClient === undefined) throw new Error('missing readClient')
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
+	const clear = () => {
 		marketData.deepValue = undefined
 		outcomeStakes.deepValue = undefined
 		disputeWindowAddress.deepValue = undefined
@@ -321,21 +331,33 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		reportingHistory.deepValue = undefined
 		lastCompletedCrowdSourcer.deepValue = undefined
 		repBond.deepValue = undefined
+	}
 
-		const marketAddress = EthereumAddress.safeParse(marketAddressString.value.trim())
-		if (!marketAddress.success) throw new Error('market not defined')
-		const parsedMarketAddressString = addressString(marketAddress.value)
-		const newMarketData = await fetchHotLoadingMarketData(readClient, parsedMarketAddressString)
-		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, parsedMarketAddressString, newMarketData.disputeRound)
+	useSignalEffect(() => {
+		if (marketAddress.deepValue === undefined) {
+			clear()
+		} else {
+			fetchMarketData()
+		}
+	})
+
+	const fetchMarketData = async () => {
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('missing readClient')
+		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
+		clear()
+		if (marketAddress.deepValue === undefined) throw new Error('market not defined')
+		const newMarketData = await fetchHotLoadingMarketData(readClient, marketAddress.deepValue)
+		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, marketAddress.deepValue, newMarketData.disputeRound)
 		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
-		marketData.deepValue = { marketAddress: parsedMarketAddressString, parsedExtraInfo, hotLoadingMarketData: newMarketData }
+		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 		const currentMarketData = marketData.deepValue
 		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
 			const allPayoutNumerators = getAllPayoutNumeratorCombinations(marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const winningOption = await getWinningPayoutNumerators(readClient, parsedMarketAddressString)
+			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
 			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
-			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, parsedMarketAddressString, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, parsedMarketAddressString, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
+			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
+			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
 			outcomeStakes.deepValue = stakes.map((repStake, index) => {
 				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
 				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
@@ -351,21 +373,21 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 				}
 			})
 		}
-		disputeWindowAddress.deepValue = await getDisputeWindow(readClient, parsedMarketAddressString)
+		disputeWindowAddress.deepValue = await getDisputeWindow(readClient, marketAddress.deepValue)
 		if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
 			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
 		}
-		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(readClient, parsedMarketAddressString)
+		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(readClient, marketAddress.deepValue)
 		if (EthereumAddress.parse(preemptiveDisputeCrowdsourcerAddress.deepValue) !== 0n) {
 			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(readClient, preemptiveDisputeCrowdsourcerAddress.deepValue)
 		}
 
-		repBond.deepValue = await getRepBond(readClient, parsedMarketAddressString)
+		repBond.deepValue = await getRepBond(readClient, marketAddress.deepValue)
 
 		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
 		if (!(state === 'PreReporting' || state === 'OpenReporting' || state === 'DesignatedReporting')) {
-			reportingHistory.deepValue = await getReportingHistory(readClient, parsedMarketAddressString, newMarketData.disputeRound)
+			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, newMarketData.disputeRound)
 		}
 	}
 
@@ -376,24 +398,27 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		await finalizeMarket(writeClient, marketData.deepValue.marketAddress)
 	}
 
-	function handleMarketAddress(value: string) {
-		marketAddressString.value = value
-	}
-
 	return <div class = 'subApplication'>
-		<p style = 'margin: 0;'>Reporting:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'>Market address:</p>
-			<input
+			<Input
 				style = 'height: fit-content;'
 				class = 'input'
 				type = 'text'
 				width = '100%'
-				placeholder = '0x...'
-				value = { marketAddressString.value }
-				onInput = { e => handleMarketAddress(e.currentTarget.value) }
+				placeholder = 'Market address'
+				value = { marketAddress }
+				sanitize = { (addressString: string) => addressString }
+				tryParse = { (marketAddressString: string | undefined) => {
+					if (marketAddressString === undefined) return { ok: false } as const
+					const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+					if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+					return { ok: false } as const
+				}}
+				serialize = { (marketAddressString: string | undefined) => {
+					if (marketAddressString === undefined) return ''
+					return marketAddressString.trim()
+				} }
 			/>
-			<button class = 'button is-primary' onClick = { fetchMarketData }>Fetch Market Information</button>
 			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond }/>
