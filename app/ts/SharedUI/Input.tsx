@@ -44,9 +44,17 @@ function ParsedInput<T>(model: ParsedInputModel<T>) {
 	// model value changed or signal/hook referenced by sanitize/tryParse/serialize changed
 	useSignalEffect(() => {
 		batch(() => {
-			const parsedInternal = model.tryParse(model.sanitize(internalValue.peek()))
-			if (parsedInternal.ok && parsedInternal.value === model.value.deepValue) return
-			internalValue.value = model.serialize(model.value.deepValue)
+			const sanitized = model.sanitize(internalValue.peek())
+			const parsed = model.tryParse(sanitized)
+
+			// If the input is invalid, don't change the visible input value
+			if (!parsed.ok) return
+
+			// Only update if the sanitized input doesn't match the serialized model value
+			const currentSerialized = model.serialize(model.value.deepValue)
+			if (sanitized === currentSerialized) return
+
+			internalValue.value = currentSerialized
 		})
 	})
 
@@ -60,6 +68,7 @@ function ParsedInput<T>(model: ParsedInputModel<T>) {
 	// we want to pass through all model values *except* the rawValue, which may contain a password
 	const inputModel = { ...model }
 	delete inputModel.rawValue
+
 	return <input { ...inputModel } value = { internalValue } onInput = { event => internalValue.value = event.currentTarget.value } onChange = { onChange }/>
 }
 
@@ -67,7 +76,7 @@ export function Input<T>(model: UnparsedInputModel | ParsedInputModel<T>) {
 	if ('tryParse' in model && model.tryParse !== undefined) {
 		return <ParsedInput { ...model }/>
 	} else {
-		return <ParsedInput { ...model } value = { new OptionalSignal(model.value) } sanitize = { model.sanitize || (x => x) } tryParse = { value => ({ ok: true, value })} serialize = { x => x || '' }/>
+		return <ParsedInput { ...model } value = { new OptionalSignal(model.value) } sanitize = { model.sanitize || (x => x) } tryParse = { value => ({ ok: true, value }) } serialize = { x => x || '' }/>
 	}
 }
 
