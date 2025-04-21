@@ -9,3 +9,9 @@
 	padding: 10px;
 	margin: 10px;
 }
+
+.invalid {
+	border: 2px solid #ef4444;
+	border-radius: 4px;
+	outline: none;
+}

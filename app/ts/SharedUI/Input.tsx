@@ -13,6 +13,7 @@ export interface UnparsedInputModel extends BaseInputModel {
 	readonly sanitize?: (input: string) => string
 	readonly tryParse?: never
 	readonly serialize?: never
+	readonly invalidSignal?: Signal<boolean>
 }
 
 export interface ParsedInputModel<T> extends BaseInputModel {
@@ -20,11 +21,13 @@ export interface ParsedInputModel<T> extends BaseInputModel {
 	readonly sanitize: (input: string) => string
 	readonly tryParse: (input: string) => { ok: true, value: T | undefined } | { ok: false }
 	readonly serialize: (input: T | undefined) => string
+	readonly invalidSignal?: Signal<boolean>
 }
 
 function ParsedInput<T>(model: ParsedInputModel<T>) {
 	const pendingOnChange = useSignal(false)
 	const internalValue = model.rawValue || useSignal(model.serialize(model.value.deepPeek()))
+	const isInvalid = useSignal(false)
 
 	// internalValue changed or signal/hook referenced by sanitize/tryParse changed
 	useSignalEffect(() => {
@@ -32,6 +35,10 @@ function ParsedInput<T>(model: ParsedInputModel<T>) {
 			const sanitized = model.sanitize(internalValue.value)
 			internalValue.value = sanitized
 			const parsed = model.tryParse(sanitized)
+
+			const hasContent = sanitized.trim() !== ''
+			isInvalid.value = hasContent && !parsed.ok
+
 			if (!parsed.ok) {
 				model.value.deepValue = undefined
 				return
@@ -68,6 +75,15 @@ function ParsedInput<T>(model: ParsedInputModel<T>) {
 	// we want to pass through all model values *except* the rawValue, which may contain a password
 	const inputModel = { ...model }
 	delete inputModel.rawValue
+
+	// Expose invalid signal to the outside
+	if ('invalidSignal' in model && model.invalidSignal instanceof Signal) {
+		model.invalidSignal.value = isInvalid.value
+	}
+
+	const baseClass = model.class || ''
+	const errorClass = isInvalid.value ? ' invalid' : ''
+	inputModel.class = `${ baseClass }${ errorClass }`.trim()
 
 	return <input { ...inputModel } value = { internalValue } onInput = { event => internalValue.value = event.currentTarget.value } onChange = { onChange }/>
 }
