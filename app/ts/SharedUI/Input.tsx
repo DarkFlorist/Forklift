@@ -95,12 +95,3 @@ export function Input<T>(model: UnparsedInputModel | ParsedInputModel<T>) {
 		return <ParsedInput { ...model } value = { new OptionalSignal(model.value) } sanitize = { model.sanitize || (x => x) } tryParse = { value => ({ ok: true, value }) } serialize = { x => x || '' }/>
 	}
 }
-
-// <>
-// 	<Input value={new Signal('')}/>
-// 	<Input value={new Signal('')} sanitize={x=>x}/>
-// 	<Input value={new Signal('')} sanitize={x=>x} serialize={x=>x} tryParse={x=>({result:'success',value:x})}/>
-// 	<Input/>
-// 	<Input value={new Signal('')} sanitize={x=>x} serialize={(x: string)=>x}/>
-// 	<Input value={new Signal('')} serialize={(x: string)=>x}/>
-// </>
