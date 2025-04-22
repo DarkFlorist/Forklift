@@ -6,11 +6,12 @@ import { MARKET_TYPES } from '../../utils/constants.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
-import { OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
+import { MarketReportingForYesNoAndCategoricalWithoutStake, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
+import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -20,7 +21,7 @@ interface ForkMigrationProps {
 	refreshData: () => Promise<void>
 }
 
-export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes }: ForkMigrationProps) => {
+export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, canMigrate }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	const initialReportReason = useSignal<string>('')
 	const selectedOutcome = useSignal<string | null>(null)
@@ -85,7 +86,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 
 	const reason = useSignal<string>('')
-	const amountInput = useSignal<string>('')
+	const amountInput = useOptionalSignal<bigint>(undefined)
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
 
 	const maxStakeAmount = useComputed(() => {
@@ -164,7 +165,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				alreadyContributedToOutcomeStake: undefined
 			} as const
 			try {
-				return await report(reportingOutcomeStake, reason.value, amountInput.deepValue)
+				await report(reportingOutcomeStake, reason.value, amountInput.deepValue)
 			} catch (error) {
 				console.error('Error reporting for payout numerators:', payoutNumerators.join(', '), error)
 			}
@@ -209,8 +210,11 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	}
 
 	const setMaxStake = () => {
-		if (maxStakeAmount.value === undefined) return
-		amountInput.value = bigintToDecimalString(maxStakeAmount.value, 18n)
+		if (maxStakeAmount.value === undefined) {
+			amountInput.deepValue = 0n
+			return
+		}
+		amountInput.deepValue = maxStakeAmount.value
 	}
 
 	const minValue = useComputed(() => marketData.deepValue?.hotLoadingMarketData.displayPrices[0] || 0n)
