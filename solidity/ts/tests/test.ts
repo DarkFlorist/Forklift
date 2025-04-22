@@ -183,55 +183,72 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(shareBalancesAfterExit[2], 1n, `Did not close out Yes position when exiting Yes position`)
 	})
 
-// 	test('canEnterAndExitNoPosition', async () => {
-// 		const client = createWriteClient(mockWindow, TEST_ADDRESSES[0], 0)
-// 		const participantClient1 = createWriteClient(mockWindow, TEST_ADDRESSES[1], 0)
-// 		await deployAugurConstantProductMarket(client)
+	test('canEnterAndExitNoPosition', async () => {
+		const client = createWriteClient(mockWindow, TEST_ADDRESSES[0], 0)
+		const participantClient1 = createWriteClient(mockWindow, TEST_ADDRESSES[1], 0)
+		await deployAugurConstantProductMarket(client)
 
-// 		const lpToBuy = 10000000n
-// 		const shareTokenAddress = addressString(SHARE_TOKEN)
-// 		const router = await getAugurConstantProductMarketRouterAddress()
-// 		await approveCash(client)
-// 		await approveCash(participantClient1)
-// 		await setERC1155Approval(client, shareTokenAddress, router, true)
-// 		await setERC1155Approval(participantClient1, shareTokenAddress, router, true)
-// 		await addLiquidity(client, lpToBuy)
+		const setsToBuy = 10000000n
+		await approveCash(client)
+		await approveCash(participantClient1)
+		const router = await getAugurConstantProductMarketRouterAddress()
+		const shareTokenAddress = addressString(SHARE_TOKEN)
+		await setERC1155Approval(client, shareTokenAddress, router, true)
+		await setERC1155Approval(participantClient1, shareTokenAddress, router, true)
 
-// 		const originalDaiBalance = await getCashBalance(participantClient1)
+		await mintLiquidity(client, setsToBuy, UNIV4_MIN_TICK, UNIV4_MAX_TICK, setsToBuy, setsToBuy, YEAR_2030)
 
-// 		// Enter position
-// 		const amountInDai = 50000n
-// 		const baseSharesExpected = amountInDai / numTicks
-// 		const expectedSwapShares = await expectedSharesAfterSwap(participantClient1, baseSharesExpected, true)
-// 		const expectedNoShares = baseSharesExpected + expectedSwapShares
-// 		await enterPosition(participantClient1, amountInDai, false)
+		const originalDaiBalance = await getCashBalance(participantClient1)
 
-// 		const shareBalances = await getShareBalances(participantClient1, participantClient1.account.address)
-// 		assert.strictEqual(shareBalances[0], baseSharesExpected, `Did not receive expected Invalid shares when purchasing No: Got ${shareBalances[0]}. Expected: ${baseSharesExpected}`)
-// 		assert.strictEqual(shareBalances[1], expectedNoShares, `Did not recieve expected No shares when purchasing No: Got ${shareBalances[1]}. Expected: ${expectedNoShares}`)
-// 		assert.strictEqual(shareBalances[2], 0n, `Recieved Yes shares when purchasing No`)
+		// Enter position
+		const amountInDai = 50000n
+		const baseSharesExpected = amountInDai / numTicks
+		const expectedSwapShares = await expectedSharesAfterSwap(participantClient1, true, baseSharesExpected)
+		const expectedNoShares = baseSharesExpected + expectedSwapShares
 
-// 		const daiBalance = await getCashBalance(participantClient1)
-// 		const expectedDaiBalance = originalDaiBalance - amountInDai
-// 		assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not sent as expected. Balance: ${daiBalance}. Expected: ${expectedDaiBalance}`)
+		// Deadline check works
+		assert.rejects(enterPosition(participantClient1, amountInDai, false, 0n, 0n))
 
-// 		// Exit Position
-// 		const acpmAddress = await getAugurConstantProductMarketAddress(participantClient1)
-// 		const expectedDaiFromShares = (shareBalances[0] - 3n) * numTicks
-// 		await setERC1155Approval(participantClient1, shareTokenAddress, acpmAddress, true)
-// 		await exitPosition(participantClient1, expectedDaiFromShares)
+		// minSharesOut check works
+		assert.rejects(enterPosition(participantClient1, amountInDai, false, expectedNoShares + 1n))
 
-// 		const reportingFee = await getReportingFee(participantClient1)
-// 		const daiBalanceAfterExit = await getCashBalance(participantClient1)
-// 		const expectedDaiFromSharesAfterReportingFee = expectedDaiFromShares - (expectedDaiFromShares / reportingFee)
-// 		const expectedDaiBalanceAfterExit = expectedDaiBalance + expectedDaiFromSharesAfterReportingFee
-// 		assert.strictEqual(daiBalanceAfterExit, expectedDaiBalanceAfterExit, `Dai not recieved as expected. Balance ${daiBalanceAfterExit}. Expected: ${expectedDaiBalanceAfterExit}`)
+		await enterPosition(participantClient1, amountInDai, false)
 
-// 		const shareBalancesAfterExit = await getShareBalances(participantClient1, participantClient1.account.address)
-// 		assert.strictEqual(shareBalancesAfterExit[0], 3n, `Did not close out Invalid position when exiting No position`)
-// 		assert.strictEqual(shareBalancesAfterExit[1], 0n, `Did not close out No position when exiting No position`)
-// 		assert.strictEqual(shareBalancesAfterExit[2], 0n, `Recieved Yes shares when exiting a No position`)
-// 	})
+		const shareBalances = await getShareBalances(participantClient1, participantClient1.account.address)
+		assert.strictEqual(shareBalances[0], baseSharesExpected, `Did not receive expected Invalid shares when purchasing No: Got ${shareBalances[0]}. Expected: ${baseSharesExpected}`)
+		assert.strictEqual(shareBalances[1], expectedNoShares, `Did not recieve expected No shares when purchasing No: Got ${shareBalances[1]}. Expected: ${expectedNoShares}`)
+		assert.strictEqual(shareBalances[2], 0n, `Recieved Yes shares when purchasing No`)
+
+		const daiBalance = await getCashBalance(participantClient1)
+		const expectedDaiBalance = originalDaiBalance - amountInDai
+		assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not sent as expected. Balance: ${daiBalance}. Expected: ${expectedDaiBalance}`)
+
+		// Exit Position
+		const setsToSell = shareBalances[0] - 4n
+		const noNeededForSwap = await expectedSharesNeededForSwap(participantClient1, false, setsToSell)
+		const noSharesNeeded = setsToSell + noNeededForSwap
+		const expectedDaiFromShares = setsToSell * numTicks
+		await setERC1155Approval(participantClient1, shareTokenAddress, router, true)
+
+		// Deadline check works
+		assert.rejects(exitPosition(participantClient1, expectedDaiFromShares, noSharesNeeded, 0n))
+
+		// maxSharesSwapped check works
+		assert.rejects(exitPosition(participantClient1, expectedDaiFromShares, noSharesNeeded - 1n))
+
+		await exitPosition(participantClient1, expectedDaiFromShares)
+
+		const reportingFee = await getReportingFee(participantClient1)
+		const daiBalanceAfterExit = await getCashBalance(participantClient1)
+		const expectedDaiFromSharesAfterReportingFee = expectedDaiFromShares - (expectedDaiFromShares / reportingFee)
+		const expectedDaiBalanceAfterExit = expectedDaiBalance + expectedDaiFromSharesAfterReportingFee
+		assert.strictEqual(daiBalanceAfterExit, expectedDaiBalanceAfterExit, `Dai not recieved as expected. Balance ${daiBalanceAfterExit}. Expected: ${expectedDaiBalanceAfterExit}`)
+
+		const shareBalancesAfterExit = await getShareBalances(participantClient1, participantClient1.account.address)
+		assert.strictEqual(shareBalancesAfterExit[0], 4n, `Did not close out Invalid position when exiting Yes position`)
+		assert.strictEqual(shareBalancesAfterExit[1], 0n, `Did not close out No position when exiting No position`)
+		assert.strictEqual(shareBalancesAfterExit[2], 0n, `Recieved Yes shares when exiting a No position`)
+	})
 
 // 	test('canSwapNo', async () => {
 // 		const liquidityProviderClient = createWriteClient(mockWindow, TEST_ADDRESSES[0], 0)
