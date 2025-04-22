@@ -283,7 +283,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				</div>
 				<div style = 'margin-top: 0.5rem'>
 					<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem' } }>
-						Amount:{' '}
+						{ 'Amount: ' }
 						<Input
 							style = 'height: fit-content;'
 							class = 'input'
@@ -483,7 +483,6 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'>Market address:</p>
 			<Input
 				style = 'height: fit-content;'
 				class = 'input'
@@ -504,6 +503,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 				} }
 				invalidSignal = { isInvalidMarketAddress }
 			/>
+			<button class = 'button is-primary' onClick = { refreshData }>Refresh Data</button>
 			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
