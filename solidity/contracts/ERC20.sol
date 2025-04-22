@@ -29,7 +29,7 @@ import {IERC20Errors} from "./draft-IERC6093.sol";
 abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
     mapping(address account => uint256) internal _balances;
 
-    mapping(address account => mapping(address spender => uint256)) private _allowances;
+    mapping(address account => mapping(address spender => uint256)) internal _allowances;
 
     uint256 private _totalSupply;
 

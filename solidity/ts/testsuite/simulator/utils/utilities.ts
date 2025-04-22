@@ -3,7 +3,7 @@ import { getContractAddress, numberToBytes, encodeAbiParameters, keccak256 } fro
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { createWriteClient, ReadClient, WriteClient } from './viem.js'
-import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
+import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address, parseAbiItem } from 'viem'
 import { ABIS } from '../../../abi/abis.js'
@@ -31,6 +31,12 @@ const ContractArtifact = funtypes.ReadonlyObject({
 		}),
 		'contracts/uniswap/interfaces/IPositionManager.sol': funtypes.ReadonlyObject({
 			IPositionManager: ContractDefinition
+		}),
+		'contracts/uniswap/interfaces/IV4Quoter.sol': funtypes.ReadonlyObject({
+			IV4Quoter: ContractDefinition
+		}),
+		'contracts/uniswap/interfaces/IUniversalRouter.sol': funtypes.ReadonlyObject({
+			IUniversalRouter: ContractDefinition
 		}),
 	}),
 })
@@ -545,18 +551,17 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Addr
 	})
 }
 
-// export const exitPosition = async (client: WriteClient, daiToBuy: bigint, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
-// 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
-// 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
-// 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
-// 	return await client.writeContract({
-// 		chain: mainnet,
-// 		abi: abi as Abi,
-// 		functionName: 'exitPosition',
-// 		address: routerAddress,
-// 		args: [acpmAddress, daiToBuy, maxSharesIn, deadline]
-// 	})
-// }
+export const exitPosition = async (client: WriteClient, daiToBuy: bigint, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'exitPosition',
+		address: routerAddress,
+		args: [augurMarketAddress, daiToBuy, maxSharesIn, deadline]
+	})
+}
 
 // export const swap = async (client: WriteClient, inputShares: bigint, inputYes: boolean, minSharesOut: bigint = 0n, deadline = YEAR_2030) => {
 // 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
@@ -584,22 +589,26 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Addr
 // 	})
 // }
 
+export const expectedSharesAfterSwap = async (client: ReadClient, swapYes: boolean, exactAmount: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	const results = await client.readContract({
+		abi: abi as Abi,
+		functionName: 'quoteExactInputSingle',
+		address: routerAddress,
+		args: [augurMarketAddress, exactAmount, swapYes]
+	}) as [bigint, bigint]
+	return results[0]
+}
 
-// export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, inputYes: boolean) => {
-// 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
-// 	const shareBalances = await getShareBalances(client, acpmAddress)
-// 	const fee = await getFee(client)
-// 	const reserveOut = inputYes ? shareBalances[1] : shareBalances[2]
-// 	const reserveIn = inputYes ? shareBalances[2] : shareBalances[1]
-// 	const amountInWithFee = sharesFromUser * (1000n - fee)
-// 	return (amountInWithFee * reserveOut) / (reserveIn * 1000n + amountInWithFee)
-// }
-
-// export const expectedSharesNeededForSwap = async (client: ReadClient, sharesToUser: bigint, inputYes: boolean) => {
-// 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
-// 	const shareBalances = await getShareBalances(client, acpmAddress)
-// 	const fee = await getFee(client)
-// 	const reserveOut = inputYes ? shareBalances[1] : shareBalances[2]
-// 	const reserveIn = inputYes ? shareBalances[2] : shareBalances[1]
-// 	return (reserveIn * sharesToUser * 1000n) / ((reserveOut - sharesToUser) * (1000n - fee));
-// }
+export const expectedSharesNeededForSwap = async (client: ReadClient, swapYes: boolean, exactAmount: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	const results = await client.readContract({
+		abi: abi as Abi,
+		functionName: 'quoteExactOutputSingle',
+		address: routerAddress,
+		args: [augurMarketAddress, exactAmount, swapYes]
+	}) as [bigint, bigint]
+	return results[0]
+}

@@ -14,6 +14,7 @@ import { PoolKey } from "./uniswap/types/PoolKey.sol";
 import { Currency, CurrencyLibrary } from "./uniswap/types/Currency.sol";
 import { IPositionManager } from "./uniswap/interfaces/IPositionManager.sol";
 import { Actions } from "./uniswap/libraries/Actions.sol";
+import { Commands } from "./uniswap/libraries/Commands.sol";
 import { IShareTokenWrapper } from "./IShareTokenWrapper.sol";
 import { IPoolManager } from './uniswap/interfaces/IPoolManager.sol';
 import { IHooks } from './uniswap/interfaces/IHooks.sol';
@@ -22,6 +23,9 @@ import { TickMath } from "./uniswap/libraries/TickMath.sol";
 import { LiquidityAmounts } from "./uniswap/libraries/LiquidityAmounts.sol";
 import { StateLibrary } from "./uniswap/libraries/StateLibrary.sol";
 import { IAllowanceTransfer } from "./uniswap/interfaces/external/IAllowanceTransfer.sol";
+import { IV4Router } from './uniswap/interfaces/IV4Router.sol';
+import { IUniversalRouter } from './uniswap/interfaces/IUniversalRouter.sol';
+import { IV4Quoter } from './uniswap/interfaces/IV4Quoter.sol';
 
 contract AugurConstantProductRouter {
 	using CurrencyLibrary for uint256;
@@ -35,12 +39,19 @@ contract AugurConstantProductRouter {
 	IShareToken public shareToken = IShareToken(Constants.SHARE_TOKEN);
 	IERC20 public dai = IERC20(Constants.DAI_ADDRESS);
 	IAugur public constant augur = IAugur(Constants.AUGUR_ADDRESS);
-	uint256 private constant numTicks = 1000;
+	uint128 private constant numTicks = 1000;
 
+	// Liquidity Actions
 	bytes private constant MINT_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR));
 	bytes private constant INCREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.INCREASE_LIQUIDITY), uint8(Actions.SETTLE_PAIR));
 	bytes private constant DECREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR));
 	bytes private constant BURN_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR)); // TODO Confirm this handles collecting fees
+
+	// Swap Commands
+	bytes private constant SWAP_COMMAND = abi.encodePacked(uint8(Commands.V4_SWAP));
+
+	// Swap actions
+	bytes private constant SWAP_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
 
 	constructor() {
 		dai.approve(Constants.SHARE_TOKEN, 2**256-1);
@@ -193,13 +204,91 @@ contract AugurConstantProductRouter {
 		);
 	}
 
-	uint256 counter;
-	function enterPosition(IAugurConstantProduct acpm, uint256 amountInDai, bool buyYes, uint256 minSharesOut, uint256 deadline) external {
-		counter++;
+	function enterPosition(address augurMarketAddress, uint128 amountInDai, bool buyYes, uint256 minSharesOut, uint256 deadline) external {
+		uint128 setsToBuy = amountInDai / numTicks;
+		dai.transferFrom(msg.sender, address(this), amountInDai);
+		shareToken.buyCompleteSets(augurMarketAddress, address(this), setsToBuy);
+
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+
+		IShareTokenWrapper noShareToken = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
+		IShareTokenWrapper yesShareToken = IShareTokenWrapper(Currency.unwrap(poolKey.currency1));
+
+		yesShareToken.wrap(setsToBuy);
+		noShareToken.wrap(setsToBuy);
+
+		performSwapInternal(poolKey, buyYes, setsToBuy, 0, deadline);
+
+		IShareTokenWrapper desiredToken = buyYes ? yesShareToken : noShareToken;
+		uint256 balanceOfDesiredToken = desiredToken.balanceOf(address(this));
+		require(balanceOfDesiredToken >= minSharesOut, "AugurCP: Did not recieve minSharesOut");
+		desiredToken.transfer(msg.sender, balanceOfDesiredToken);
+		shareToken.unsafeTransferFrom(address(this), msg.sender, shareToken.getTokenId(augurMarketAddress, 0), setsToBuy);
 	}
 
-	function exitPosition(IAugurConstantProduct acpm, uint256 daiToBuy, uint256 maxSharesIn, uint256 deadline) external {
-		counter++;
+	function exitPosition(address augurMarketAddress, uint256 daiToBuy, uint256 maxSharesIn, uint256 deadline) external {
+		uint256 setsToSell = daiToBuy / numTicks;
+		(uint256 userInvalid, uint256 userNo, uint256 userYes) = getShareBalances(augurMarketAddress, msg.sender);
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+
+		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
+		IShareTokenWrapper yesShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency1));
+
+		// short circuit if user is closing out their own complete sets
+		if (userInvalid >= setsToSell && userNo >= setsToSell && userYes >= setsToSell) {
+			noShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+			yesShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+			shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
+			return;
+		}
+
+		require(userInvalid >= setsToSell, "AugurCP: You don't have enough invalid tokens to close out for this amount.");
+		require(userNo > setsToSell || userYes > setsToSell, "AugurCP: You don't have enough YES or NO tokens to close out for this amount.");
+
+		if (userYes > userNo) {
+			uint256 noNeeded = setsToSell - userNo;
+			uint256 yesToSwap = userYes - setsToSell;
+			(uint256 yesNeeded, uint256 gasEstimate) = quoteExactOutputSingle(augurMarketAddress, uint128(noNeeded), true);
+			require(yesNeeded <= yesToSwap, "AugurCP: Not enough YES shares to close out for this amount");
+			require(setsToSell + yesNeeded <= maxSharesIn, "AugurCP: YES shares needed > maxSharesIn");
+			yesShareTokenWrapper.transferFrom(msg.sender, address(this), yesNeeded);
+			performSwapInternal(poolKey, false, uint128(yesNeeded), uint128(noNeeded), deadline);
+			noShareTokenWrapper.transfer(msg.sender, noNeeded);
+		} else {
+			uint256 yesNeeded = setsToSell - userYes;
+			uint256 noToSwap = userNo - setsToSell;
+			(uint256 noNeeded, uint256 gasEstimate) = quoteExactOutputSingle(augurMarketAddress, uint128(yesNeeded), false);
+			require(noNeeded <= noToSwap, "AugurCP: Not enough No shares to close out for this amount");
+			require(setsToSell + noNeeded <= maxSharesIn, "AugurCP: No shares needed > maxSharesIn");
+			noShareTokenWrapper.transferFrom(msg.sender, address(this), noNeeded);
+			performSwapInternal(poolKey, true, uint128(noNeeded), uint128(yesNeeded), deadline);
+			yesShareTokenWrapper.transfer(msg.sender, yesNeeded);
+		}
+
+		noShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+		yesShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+		shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
+	}
+
+	function performSwapInternal(PoolKey memory poolKey, bool buyYes, uint128 amountIn, uint128 amountOutMinimum, uint256 deadline) internal {
+		bytes[] memory inputs = new bytes[](1);
+		bytes[] memory params = new bytes[](3);
+
+		params[0] = abi.encode(
+			IV4Router.ExactInputSingleParams({
+				poolKey: poolKey,
+				zeroForOne: buyYes,
+				amountIn: amountIn,
+				amountOutMinimum: amountOutMinimum,
+				hookData: bytes("")
+			})
+		);
+		params[1] = abi.encode(buyYes ? poolKey.currency0 : poolKey.currency1, amountIn);
+		params[2] = abi.encode(buyYes ? poolKey.currency1 : poolKey.currency0, amountOutMinimum);
+
+		inputs[0] = abi.encode(SWAP_ACTIONS, params);
+
+		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
 	}
 
 	function buyShares(address augurMarketAddress, uint256 setsToBuy) external {
@@ -225,7 +314,7 @@ contract AugurConstantProductRouter {
 		yes = Currency.unwrap(poolKey.currency1);
 	}
 
-	function getShareBalances(address augurMarketAddress, address owner) external view returns (uint256 invalidBalance, uint256 noBalance, uint256 yesBalance) {
+	function getShareBalances(address augurMarketAddress, address owner) public view returns (uint256 invalidBalance, uint256 noBalance, uint256 yesBalance) {
 		invalidBalance = shareToken.balanceOfMarketOutcome(augurMarketAddress, 0, owner);
 		(address noAddress, address yesAddress) = getShareTokenWrappers(augurMarketAddress);
 		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(noAddress);
@@ -249,8 +338,10 @@ contract AugurConstantProductRouter {
 
 		IShareTokenWrapper(noShareTokenWrapperAddress).approve(Constants.PERMIT2, 2**256-1);
 		IShareTokenWrapper(yesShareTokenWrapperAddress).approve(Constants.PERMIT2, 2**256-1);
-		IAllowanceTransfer(Constants.PERMIT2).approve(noShareTokenWrapperAddress ,Constants.UNIV4_POSITION_MANAGER, 2**160-1, Constants.YEAR_2099);
+		IAllowanceTransfer(Constants.PERMIT2).approve(noShareTokenWrapperAddress, Constants.UNIV4_POSITION_MANAGER, 2**160-1, Constants.YEAR_2099);
 		IAllowanceTransfer(Constants.PERMIT2).approve(yesShareTokenWrapperAddress, Constants.UNIV4_POSITION_MANAGER, 2**160-1, Constants.YEAR_2099);
+		IAllowanceTransfer(Constants.PERMIT2).approve(noShareTokenWrapperAddress, Constants.UNIV4_ROUTER, 2**160-1, Constants.YEAR_2099);
+		IAllowanceTransfer(Constants.PERMIT2).approve(yesShareTokenWrapperAddress, Constants.UNIV4_ROUTER, 2**160-1, Constants.YEAR_2099);
 
 		shareToken.setApprovalForAll(address(noShareTokenWrapperAddress), true);
 		shareToken.setApprovalForAll(address(yesShareTokenWrapperAddress), true);
@@ -282,6 +373,30 @@ contract AugurConstantProductRouter {
                 }
             }
         }
+	}
+
+	function quoteExactInputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) external returns (uint256, uint256) {
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+
+		IV4Quoter.QuoteExactSingleParams memory params;
+		params.poolKey = poolKey;
+		params.zeroForOne = !swapYes;
+		params.exactAmount = exactAmount;
+		params.hookData = "";
+
+		return IV4Quoter(Constants.UNIV4_QUOTER).quoteExactInputSingle(params);
+	}
+
+	function quoteExactOutputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) public returns (uint256, uint256) {
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+
+		IV4Quoter.QuoteExactSingleParams memory params;
+		params.poolKey = poolKey;
+		params.zeroForOne = !swapYes;
+		params.exactAmount = exactAmount;
+		params.hookData = "";
+
+		return IV4Quoter(Constants.UNIV4_QUOTER).quoteExactOutputSingle(params);
 	}
 
 	function getNumMarkets() external view returns (uint256) {

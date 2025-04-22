@@ -8,4 +8,5 @@ interface IShareTokenWrapper is IERC20 {
 	function isYes() external view returns (bool);
 	function wrap(uint256 amount) external;
 	function unwrap(uint256 amount) external;
+	function approvedUnwrap(address owner, uint256 amount) external;
 }
