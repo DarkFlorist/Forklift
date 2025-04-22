@@ -15,3 +15,21 @@ export function humanReadableDateDelta(secondsDiff: number) {
 }
 
 export const humanReadableDateDeltaFromTo = (from: Date, to: Date) => humanReadableDateDelta(Number(dateToBigintSeconds(to) - dateToBigintSeconds(from)))
+
+export const min = (left: bigint, right: bigint) => left < right ? left : right
+export const max = (left: bigint, right: bigint) => left > right ? left : right
+export const abs = (x: bigint) => (x < 0n) ? -1n * x : x
+export const clamp = <T>(val: T, min: T, max: T) => val < min ? min : val > max ? max : val
+export const indexOfMax = (array: readonly bigint[]) => {
+	var greatest = array[0]
+	var indexOfGreatest = 0
+	for (var i = 1; i < array.length; i++) {
+		const element = array[i]
+		if (element === undefined) throw new Error('element was undefined')
+		if (!greatest || element > greatest) {
+			greatest = element
+			indexOfGreatest = i
+		}
+	}
+	return indexOfGreatest
+}

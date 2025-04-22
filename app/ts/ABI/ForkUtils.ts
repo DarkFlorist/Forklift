@@ -97,5 +97,56 @@ export const FORK_UTILS_ABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract IMarket",
+				"name": "_market",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_offset",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_num",
+				"type": "uint256"
+			}
+		],
+		"name": "getReportingParticipantsForMarket",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "size",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "stake",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "payoutNumerators",
+						"type": "uint256[]"
+					}
+				],
+				"internalType": "struct AuditForkUtilities.ReportingParticipant[]",
+				"name": "_data",
+				"type": "tuple[]"
+			},
+			{
+				"internalType": "bool",
+				"name": "_done",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	}
 ] as const
