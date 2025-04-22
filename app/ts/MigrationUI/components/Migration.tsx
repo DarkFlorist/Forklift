@@ -42,6 +42,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
 	const forkingoutcomeStakes = useOptionalSignal<readonly MarketOutcomeOption[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
+	const forkingRepBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const selectedOutcome = useSignal<string | null>(null)
 	const repV2ToMigrateToNewUniverse = useSignal<string>('')
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
@@ -75,6 +76,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 			const newMarketData = await fetchHotLoadingMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
 			const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 			forkingMarketData.deepValue = { marketAddress: universeForkingInformation.deepValue.forkingMarket, parsedExtraInfo, hotLoadingMarketData: newMarketData }
+			forkingRepBond.deepValue = await getRepBond(readClient, universeForkingInformation.deepValue.forkingMarket)
 
 			const marketType = MARKET_TYPES[forkingMarketData.deepValue.hotLoadingMarketData.marketType]
 			if (marketType === undefined) throw new Error('invalid marketType')
@@ -142,7 +144,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		</div>
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe }/>
+				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }/>
 				<MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>

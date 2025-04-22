@@ -2,7 +2,7 @@ import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
-import { getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
+import { getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 
 export type OutcomeStake = {
@@ -17,7 +17,6 @@ type MarketReportingOptionsForYesNoAndCategoricalProps = {
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	isSlowReporting: Signal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
