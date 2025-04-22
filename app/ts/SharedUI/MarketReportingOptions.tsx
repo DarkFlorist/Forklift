@@ -1,8 +1,8 @@
 import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
-import { getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
+import { getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 
 export type OutcomeStake = {
@@ -10,26 +10,20 @@ export type OutcomeStake = {
 	repStake: bigint
 	status: 'Winning' | 'Losing'
 	payoutNumerators: EthereumQuantity[]
-	alreadyContributedToOutcome: undefined | {
-		participantAddress: AccountAddress
-		payoutNumerators: readonly bigint[]
-		stake: bigint
-		size: bigint
-	}
+	alreadyContributedToOutcomeStake: undefined | bigint
 }
 
 type MarketReportingOptionsProps = {
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
+	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	isSlowReporting: Signal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
-	areOptionsDisabled: Signal<boolean>
-	canInitialReport: Signal<boolean>
 }
 
-export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, lastCompletedCrowdSourcer, areOptionsDisabled, canInitialReport }: MarketReportingOptionsProps) => {
+export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, disputeWindowInfo, isSlowReporting, forkValues, lastCompletedCrowdSourcer }: MarketReportingOptionsProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -46,7 +40,7 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 		return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
 			outcomeStakes.deepValue.map((outcomeStake, index) => <>
 				<input
-					disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
+					disabled = { (!disputeWindowInfo.deepValue?.isActive && isSlowReporting.value) || maxStakeAmountForEachOption.value[index] === 0n }
 					type = 'radio'
 					name = 'selectedOutcome'
 					checked = { selectedOutcome.value === outcomeStake.outcomeName }
@@ -54,8 +48,8 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 				/>
 			<span>{ outcomeStake.outcomeName }</span>
 			<span>
-				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
 			</>)
@@ -64,7 +58,7 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
 		outcomeStakes.deepValue.map((outcomeStake, index) => <>
 			<input
-				disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
+				disabled = { (!disputeWindowInfo.deepValue?.isActive && isSlowReporting.value) || maxStakeAmountForEachOption.value[index] === 0n }
 				type = 'radio'
 				name = 'selectedOutcome'
 				checked = { selectedOutcome.value === outcomeStake.outcomeName }
@@ -79,8 +73,8 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 				}
 			</span>
 			<span>
-				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
 		</>)

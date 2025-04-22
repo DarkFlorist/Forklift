@@ -1,9 +1,9 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumQuantity } from '../../types/types.js'
-import { fetchHotLoadingMarketData, getChildUniverse, getForkValues, getParentUniverse, getRepBond, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
+import { fetchHotLoadingMarketData, getChildUniverse, getForkValues, getParentUniverse, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { getOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
+import { getUniverseName, getUniverseUrl, getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
@@ -42,7 +42,6 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
 	const forkingoutcomeStakes = useOptionalSignal<readonly MarketOutcomeOption[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
-	const forkingRepBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const selectedOutcome = useSignal<string | null>(null)
 	const repV2ToMigrateToNewUniverse = useSignal<string>('')
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
@@ -76,10 +75,10 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 			const newMarketData = await fetchHotLoadingMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
 			const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 			forkingMarketData.deepValue = { marketAddress: universeForkingInformation.deepValue.forkingMarket, parsedExtraInfo, hotLoadingMarketData: newMarketData }
-			forkingRepBond.deepValue = await getRepBond(readClient, universeForkingInformation.deepValue.forkingMarket)
+
 			const marketType = MARKET_TYPES[forkingMarketData.deepValue.hotLoadingMarketData.marketType]
 			if (marketType === undefined) throw new Error('invalid marketType')
-			forkingoutcomeStakes.deepValue = getOutcomeNamesAndNumeratorCombinationsForMarket(marketType, forkingMarketData.deepValue.hotLoadingMarketData.numOutcomes, forkingMarketData.deepValue.hotLoadingMarketData.numTicks, forkingMarketData.deepValue.hotLoadingMarketData.outcomes)
+			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(marketType, forkingMarketData.deepValue.hotLoadingMarketData.numOutcomes, forkingMarketData.deepValue.hotLoadingMarketData.numTicks, forkingMarketData.deepValue.hotLoadingMarketData.outcomes)
 			forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 		}
 	}
@@ -143,7 +142,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		</div>
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }/>
+				<Market marketData = { forkingMarketData } universe = { universe }/>
 				<MarketReportingWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
