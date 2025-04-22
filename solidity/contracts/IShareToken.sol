@@ -8,6 +8,7 @@ interface IShareToken is ITyped, IERC1155 {
     function initializeMarket(address _market, uint256 _numOutcomes, uint256 _numTicks) external;
     function unsafeTransferFrom(address _from, address _to, uint256 _id, uint256 _value) external;
     function unsafeBatchTransferFrom(address _from, address _to, uint256[] memory _ids, uint256[] memory _values) external;
+	function setApprovalForAll(address operator, bool approved) external;
     function claimTradingProceeds(address _market, address _shareHolder, bytes32 _fingerprint) external returns (uint256[] memory _outcomeFees);
     function getMarket(uint256 _tokenId) external view returns (address);
     function getOutcome(uint256 _tokenId) external view returns (uint256);
