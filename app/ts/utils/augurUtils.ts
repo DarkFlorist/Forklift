@@ -132,3 +132,27 @@ export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedS
 	if (scaled < 0n) throw new Error('selectedScalarOutcome is is too small')
 	return [0n, scaled, numTicks - scaled] as const
 }
+
+// https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/Augur.sol#L321
+export function getTradeInterval(displayRange: bigint, numTicks: bigint): bigint {
+	const MAX_NUM_TICKS = 2n ** 256n - 2n
+	const MIN_TRADE_INTERVAL = 10n ** 14n  // We ignore "dust" portions of the min interval and for huge scalars have a larger min value
+	const TRADE_INTERVAL_VALUE = 10n ** 19n // Trade value of 10 DAI
+	if (numTicks === MAX_NUM_TICKS ) return MIN_TRADE_INTERVAL
+	let displayAmount = TRADE_INTERVAL_VALUE * ( 10n ** 18n ) / displayRange
+	let displayInterval = MIN_TRADE_INTERVAL
+	while (displayInterval < displayAmount) {
+		displayInterval = displayInterval * 10n
+	}
+	return displayInterval * displayRange / numTicks / ( 10n ** 18n )
+}
+
+export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
+	if (invalid) return [numTicks, 0n, 0n] as const
+	if (selectedScalarOutcome === undefined) throw new Error('selectedScalarOutcome is undefined')
+	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
+	const scaled = (selectedScalarOutcome - minPrice) / tradeInterval
+	if (scaled > numTicks) throw new Error('selectedScalarOutcome is is too big')
+	if (scaled < 0n) throw new Error('selectedScalarOutcome is is too small')
+	return [0n, scaled, numTicks - scaled] as const
+}

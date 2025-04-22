@@ -2,16 +2,15 @@ import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer } from '../../utils/augurContractUtils.js'
 import { addressString, areEqualArrays, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
-import { MARKET_TYPES } from '../../utils/constants.js'
+import { MARKET_TYPES, REPORTING_STATES } from '../../utils/constants.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { AccountAddress, EthereumAddress } from '../../types/types.js'
+import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
 import { MarketReportingOptionsForYesNoAndCategorical, MarketReportingForYesNoAndCategoricalWithoutStake, OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
-import { Input } from '../../SharedUI/Input.js'
 import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurForkUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 
@@ -88,8 +87,21 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 
 	const reason = useSignal<string>('')
-	const amountInput = useOptionalSignal<bigint>(undefined)
+	const amountInput = useOptionalSignal<EthereumQuantity>(undefined)
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
+	const isInitialReporting = useComputed(() => {
+		if (marketData.deepValue == undefined) return false
+		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
+		if (state === 'OpenReporting' || state === 'DesignatedReporting') return true
+		return false
+	})
+	const canInitialReport = useComputed(() => {
+		if (marketData.deepValue == undefined) return false
+		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
+		if (state === 'OpenReporting') return true
+		if (state === 'DesignatedReporting' && marketData.deepValue.hotLoadingMarketData.designatedReporter === maybeWriteClient.deepValue?.account.address) return true
+		return false
+	})
 
 	const maxStakeAmount = useComputed(() => {
 		if (marketData.deepValue === undefined) return undefined
