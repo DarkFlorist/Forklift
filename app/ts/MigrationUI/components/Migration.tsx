@@ -3,11 +3,11 @@ import { AccountAddress, EthereumQuantity } from '../../types/types.js'
 import { fetchHotLoadingMarketData, getChildUniverse, getForkValues, getParentUniverse, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { getUniverseName, getUniverseUrl, getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, isGenesisUniverse } from '../../utils/augurUtils.js'
+import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { MarketOutcomeOption, MarketReportingWithoutStake } from '../../SharedUI/MarketReportingOptions.js'
+import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from '../../SharedUI/MarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 
@@ -143,7 +143,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
 				<Market marketData = { forkingMarketData } universe = { universe }/>
-				<MarketReportingWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
+				<MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
 				<div style = 'margin-top: 0.5rem'>
