@@ -3,7 +3,7 @@ import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome,
 import { addressString, areEqualArrays, bigintToDecimalString, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { MARKET_TYPES } from '../../utils/constants.js'
-import { useComputed, useSignal } from '@preact/signals'
+import { Signal, useComputed, useSignal } from '@preact/signals'
 import { AccountAddress, EthereumAddress } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
 import { OutcomeStake } from '../../SharedUI/MarketReportingOptions.js'
