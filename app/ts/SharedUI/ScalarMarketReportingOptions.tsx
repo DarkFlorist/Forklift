@@ -6,7 +6,7 @@ import { getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
 import { getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
-import { OutcomeStake } from './MarketReportingOptions.js'
+import { OutcomeStake } from './YesNoCategoricalMarketReportingOptions.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
