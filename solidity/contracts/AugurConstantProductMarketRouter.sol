@@ -304,6 +304,12 @@ contract AugurConstantProductRouter {
 	function swapExactOut(address augurMarketAddress, bool swapYes, uint128 exactAmountOut, uint128 maxAmountIn, uint256 deadline) external {
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
+		IShareTokenWrapper shareTokenIn = IShareTokenWrapper(Currency.unwrap(swapYes ? poolKey.currency1 : poolKey.currency0));
+		IShareTokenWrapper shareTokenOut = IShareTokenWrapper(Currency.unwrap(swapYes ? poolKey.currency0 : poolKey.currency1));
+
+		(uint256 sharesInNeeded, uint256 gasEstimate) = quoteExactOutputSingle(augurMarketAddress, uint128(exactAmountOut), swapYes);
+		require(sharesInNeeded <= maxAmountIn, "AugurCP: Shares needed > maxAmountIn");
+
 		bytes[] memory inputs = new bytes[](1);
 		bytes[] memory params = new bytes[](3);
 
@@ -321,7 +327,9 @@ contract AugurConstantProductRouter {
 
 		inputs[0] = abi.encode(SWAP_EXACT_OUT_ACTIONS, params);
 
+		shareTokenIn.transferFrom(msg.sender, address(this), sharesInNeeded);
 		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
+		shareTokenOut.transfer(msg.sender, shareTokenOut.balanceOf(address(this)));
 	}
 
 	function buyShares(address augurMarketAddress, uint256 setsToBuy) external {
