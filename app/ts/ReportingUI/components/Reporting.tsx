@@ -354,7 +354,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 	const repBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 
-	const canFinalize = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'AwaitingFinalization')
+	const finalizeDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingFinalization')
 	const migrationDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingForkMigration')
 
 	const getParsedExtraInfo = (extraInfo: string) => {
@@ -478,7 +478,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
-			{ marketData.deepValue === undefined ? <> </> : <button class = 'button is-primary' onClick = { finalizeMarketButton } disabled = { !canFinalize.value }>Finalize Market</button> }
+			{ marketData.deepValue === undefined ? <> </> : <button class = 'button is-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
 			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
 		</div>
 	</div>
