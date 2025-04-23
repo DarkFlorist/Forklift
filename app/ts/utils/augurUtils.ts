@@ -2,7 +2,7 @@ import { MarketData } from '../SharedUI/Market.js'
 import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
-import { GENESIS_UNIVERSE, MARKET_TYPES, YES_NO_OPTIONS } from './constants.js'
+import { GENESIS_UNIVERSE, YES_NO_OPTIONS } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
 import { indexOfMax } from './utils.js'
@@ -34,16 +34,14 @@ const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint
 
 export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
 	const malformedOutcomeName = `Malformed Outcome (${ payoutNumerators.join(', ') })`
-	const marketType = MARKET_TYPES[marketData.hotLoadingMarketData.marketType]
-	if (marketType === undefined) throw new Error('unknown market type')
-	switch(marketType) {
+	switch(marketData.hotLoadingMarketData.marketType) {
 		case 'Categorical':
 		case 'Yes/No': {
 			if (payoutNumerators.length !== 3 || payoutNumerators[0] === undefined || payoutNumerators[1] === undefined || payoutNumerators[2] === undefined) return malformedOutcomeName
 			var indexOfMaxValue = indexOfMax(payoutNumerators)
 			if (indexOfMaxValue === undefined) return malformedOutcomeName
 			if (payoutNumerators.filter((numerator) => numerator > 0).length > 0) return malformedOutcomeName
-			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketType, marketData.hotLoadingMarketData.outcomes)
+			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketData.hotLoadingMarketData.marketType, marketData.hotLoadingMarketData.outcomes)
 			if (name === undefined) return malformedOutcomeName
 			return name
 		}
@@ -52,7 +50,7 @@ export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: 
 			if (marketData.hotLoadingMarketData.displayPrices[0] === undefined || marketData.hotLoadingMarketData.displayPrices[1] === undefined) return malformedOutcomeName
 			return getScalarOutComeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.hotLoadingMarketData.numTicks, marketData.hotLoadingMarketData.displayPrices[0], marketData.hotLoadingMarketData.displayPrices[1])
 		}
-		default: assertNever(marketType)
+		default: assertNever(marketData.hotLoadingMarketData.marketType)
 	}
 }
 

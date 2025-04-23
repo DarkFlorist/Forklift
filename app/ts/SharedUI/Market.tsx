@@ -1,7 +1,7 @@
 import { ExtraInfo } from '../CreateMarketUI/types/createMarketTypes.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { fetchHotLoadingMarketData } from '../utils/augurContractUtils.js'
-import { MARKET_TYPES, REPORTING_STATES, YES_NO_OPTIONS } from '../utils/constants.js'
+import { YES_NO_OPTIONS } from '../utils/constants.js'
 import { assertNever } from '../utils/errorHandling.js'
 import { bigintToDecimalString, formatUnixTimestampISO } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
@@ -48,9 +48,8 @@ export const Market = ({ marketData, universe, repBond }: MarketProps) => {
 	if (repBond.deepValue === undefined) return <></>
 	const formatWinningOption = () => {
 		if (marketData.deepValue === undefined) return ''
-		const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
 		const payouts = marketData.deepValue.hotLoadingMarketData.winningPayout
-		switch(marketType) {
+		switch(marketData.deepValue.hotLoadingMarketData.marketType) {
 			case 'Categorical':
 			case 'Scalar': {
 				return payouts.join(', ')
@@ -59,8 +58,7 @@ export const Market = ({ marketData, universe, repBond }: MarketProps) => {
 				const winningIndex = payouts.findIndex((payout) => payout > 0)
 				return YES_NO_OPTIONS[winningIndex]
 			}
-			case undefined: throw new Error(`invalid marketType: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
-			default: assertNever(marketType)
+			default: assertNever(marketData.deepValue.hotLoadingMarketData.marketType)
 		}
 	}
 
@@ -75,9 +73,9 @@ export const Market = ({ marketData, universe, repBond }: MarketProps) => {
 			<span><b>Market Creator:</b>{ marketData.deepValue.hotLoadingMarketData.marketCreator }</span>
 			<span><b>Owner:</b>{ marketData.deepValue.hotLoadingMarketData.owner }</span>
 			<span><b>Outcomes:</b>{ marketData.deepValue.hotLoadingMarketData.outcomes.join(', ') }</span>
-			<span><b>Market Type:</b>{ MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] }</span>
+			<span><b>Market Type:</b>{ marketData.deepValue.hotLoadingMarketData.marketType }</span>
 			<span><b>Designated Reporter:</b>{ marketData.deepValue.hotLoadingMarketData.designatedReporter }</span>
-			<span><b>Reporting State:</b>{ REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState] }</span>
+			<span><b>Reporting State:</b>{ marketData.deepValue.hotLoadingMarketData.reportingState }</span>
 			<span><b>Dispute Round:</b>{ marketData.deepValue.hotLoadingMarketData.disputeRound }</span>
 			<span><b>Winning Outcome:</b>{ formatWinningOption() }</span>
 			<span><b>Open Interest:</b>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n, 2) } DAI</span>
