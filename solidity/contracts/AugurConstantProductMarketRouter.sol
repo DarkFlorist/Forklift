@@ -51,7 +51,8 @@ contract AugurConstantProductRouter {
 	bytes private constant SWAP_COMMAND = abi.encodePacked(uint8(Commands.V4_SWAP));
 
 	// Swap actions
-	bytes private constant SWAP_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
+	bytes private constant SWAP_EXACT_IN_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
+	bytes private constant SWAP_EXACT_OUT_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_OUT_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
 
 	constructor() {
 		dai.approve(Constants.SHARE_TOKEN, 2**256-1);
@@ -217,7 +218,7 @@ contract AugurConstantProductRouter {
 		yesShareToken.wrap(setsToBuy);
 		noShareToken.wrap(setsToBuy);
 
-		performSwapInternal(poolKey, buyYes, setsToBuy, 0, deadline);
+		performExactInSwapInternal(poolKey, buyYes, setsToBuy, 0, deadline);
 
 		IShareTokenWrapper desiredToken = buyYes ? yesShareToken : noShareToken;
 		uint256 balanceOfDesiredToken = desiredToken.balanceOf(address(this));
@@ -252,7 +253,7 @@ contract AugurConstantProductRouter {
 			require(yesNeeded <= yesToSwap, "AugurCP: Not enough YES shares to close out for this amount");
 			require(setsToSell + yesNeeded <= maxSharesIn, "AugurCP: YES shares needed > maxSharesIn");
 			yesShareTokenWrapper.transferFrom(msg.sender, address(this), yesNeeded);
-			performSwapInternal(poolKey, false, uint128(yesNeeded), uint128(noNeeded), deadline);
+			performExactInSwapInternal(poolKey, false, uint128(yesNeeded), uint128(noNeeded), deadline);
 			noShareTokenWrapper.transfer(msg.sender, noNeeded);
 		} else {
 			uint256 yesNeeded = setsToSell - userYes;
@@ -261,7 +262,7 @@ contract AugurConstantProductRouter {
 			require(noNeeded <= noToSwap, "AugurCP: Not enough No shares to close out for this amount");
 			require(setsToSell + noNeeded <= maxSharesIn, "AugurCP: No shares needed > maxSharesIn");
 			noShareTokenWrapper.transferFrom(msg.sender, address(this), noNeeded);
-			performSwapInternal(poolKey, true, uint128(noNeeded), uint128(yesNeeded), deadline);
+			performExactInSwapInternal(poolKey, true, uint128(noNeeded), uint128(yesNeeded), deadline);
 			yesShareTokenWrapper.transfer(msg.sender, yesNeeded);
 		}
 
@@ -270,7 +271,16 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
-	function performSwapInternal(PoolKey memory poolKey, bool buyYes, uint128 amountIn, uint128 amountOutMinimum, uint256 deadline) internal {
+	function swapExactIn(address augurMarketAddress, bool swapYes, uint128 exactAmountIn, uint128 minAmountOut, uint256 deadline) external {
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+		IShareTokenWrapper shareTokenIn = IShareTokenWrapper(Currency.unwrap(swapYes ? poolKey.currency1 : poolKey.currency0));
+		IShareTokenWrapper shareTokenOut = IShareTokenWrapper(Currency.unwrap(swapYes ? poolKey.currency0 : poolKey.currency1));
+		shareTokenIn.transferFrom(msg.sender, address(this), exactAmountIn);
+		performExactInSwapInternal(poolKey, !swapYes, exactAmountIn, minAmountOut, deadline);
+		shareTokenOut.transfer(msg.sender, shareTokenOut.balanceOf(address(this)));
+	}
+
+	function performExactInSwapInternal(PoolKey memory poolKey, bool buyYes, uint128 amountIn, uint128 amountOutMinimum, uint256 deadline) internal {
 		bytes[] memory inputs = new bytes[](1);
 		bytes[] memory params = new bytes[](3);
 
@@ -286,7 +296,30 @@ contract AugurConstantProductRouter {
 		params[1] = abi.encode(buyYes ? poolKey.currency0 : poolKey.currency1, amountIn);
 		params[2] = abi.encode(buyYes ? poolKey.currency1 : poolKey.currency0, amountOutMinimum);
 
-		inputs[0] = abi.encode(SWAP_ACTIONS, params);
+		inputs[0] = abi.encode(SWAP_EXACT_IN_ACTIONS, params);
+
+		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
+	}
+
+	function swapExactOut(address augurMarketAddress, bool swapYes, uint128 exactAmountOut, uint128 maxAmountIn, uint256 deadline) external {
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+
+		bytes[] memory inputs = new bytes[](1);
+		bytes[] memory params = new bytes[](3);
+
+		params[0] = abi.encode(
+			IV4Router.ExactOutputSingleParams({
+				poolKey: poolKey,
+				zeroForOne: !swapYes,
+				amountOut: exactAmountOut,
+				amountInMaximum: maxAmountIn,
+				hookData: bytes("")
+			})
+		);
+		params[1] = abi.encode(swapYes ? poolKey.currency1 : poolKey.currency0, maxAmountIn);
+		params[2] = abi.encode(swapYes ? poolKey.currency0 : poolKey.currency1, exactAmountOut);
+
+		inputs[0] = abi.encode(SWAP_EXACT_OUT_ACTIONS, params);
 
 		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
 	}

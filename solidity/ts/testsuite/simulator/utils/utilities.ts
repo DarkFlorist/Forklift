@@ -563,20 +563,19 @@ export const exitPosition = async (client: WriteClient, daiToBuy: bigint, maxSha
 	})
 }
 
-// export const swap = async (client: WriteClient, inputShares: bigint, inputYes: boolean, minSharesOut: bigint = 0n, deadline = YEAR_2030) => {
-// 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
-// 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
-// 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
-// 	return await client.writeContract({
-// 		chain: mainnet,
-// 		abi: abi as Abi,
-// 		functionName: 'swapExactSharesForShares',
-// 		address: routerAddress,
-// 		args: [acpmAddress, inputShares, inputYes, minSharesOut, deadline]
-// 	})
-// }
+export const swapExactIn = async (client: WriteClient, inputShares: bigint, inputYes: boolean, minSharesOut: bigint = 0n, deadline = YEAR_2030) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'swapExactIn',
+		address: routerAddress,
+		args: [augurMarketAddress, inputYes, inputShares, minSharesOut, deadline]
+	})
+}
 
-// export const swapForExact = async (client: WriteClient, outputShares: bigint, inputYes: boolean, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
+// export const swapExactOut = async (client: WriteClient, outputShares: bigint, inputYes: boolean, maxSharesIn: bigint = QUINTILLION, deadline = YEAR_2030) => {
 // 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 // 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 // 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
