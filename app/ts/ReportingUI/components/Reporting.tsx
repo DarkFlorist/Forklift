@@ -1,5 +1,5 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond } from '../../utils/augurContractUtils.js'
+import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash } from '../../utils/augurContractUtils.js'
 import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
@@ -13,6 +13,7 @@ import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFrom
 import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurForkUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 import { Input } from '../../SharedUI/Input.js'
+import { assertNever } from '../../utils/errorHandling.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -395,40 +396,37 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		const parsedExtraInfo = getParsedExtraInfo(hotLoadingMarketData.extraInfo)
 		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData }
 		const currentMarketData = marketData.deepValue
-		if (hotLoadingMarketData.marketType === 'Yes/No' || hotLoadingMarketData.marketType === 'Categorical') {
-			const allPayoutNumerators = getAllPayoutNumeratorCombinations(hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
-			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
-			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
-			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
-			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			outcomeStakes.deepValue = stakes.map((repStake, index) => {
-				const payoutNumerators = allPayoutNumerators[index]
-				if (payoutNumerators === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ hotLoadingMarketData.outcomes.join(',') }]`)
-				return {
-					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
-					repStake,
-					status: index === winningIndex ? 'Winning' : 'Losing',
-					payoutNumerators,
-					alreadyContributedToOutcomeStake: alreadyContributedToOutcomes[index]?.stake
+
+		const getAllInterestingPayoutNumerators = async() => {
+			const reportingParticipants = await getReportingParticipantsForMarket(readClient, currentMarketData.marketAddress)
+			switch (hotLoadingMarketData.marketType) {
+				case 'Categorical':
+				case 'Yes/No': {
+					// its possible for Augur to have "malformed payout numerators" being reported. Such as you can report 80% yes and 20% no on Yes/No market.
+					// We get these (along with valid ones that exist in the data) with `getReportingParticipantsForMarket`
+					// we merge all valid ones with all existing ones to get all interesting (as in either reported ones, or ones that make sense to report for) reporting options
+					const allValidPayoutNumerators = getAllPayoutNumeratorCombinations(hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
+					const allPayoutNumeratorsWithDuplicates = [...allValidPayoutNumerators.map((numerator) => ({ size: 0n, stake: 0n, payoutNumerators: numerator })), ...reportingParticipants]
+					return aggregateByPayoutDistribution(allPayoutNumeratorsWithDuplicates)
 				}
-			})
-		} else {
-			// Scalar market
-			const reportingParticipants = await getReportingParticipantsForMarket(readClient, marketAddress.deepValue)
-			const allKnownPayoutNumerators = aggregateByPayoutDistribution(reportingParticipants)
-			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
-			const winningIndex = winningOption === undefined ? -1 : allKnownPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
-			outcomeStakes.deepValue = allKnownPayoutNumerators.map((info, index) => {
-				const payoutNumerators = info.payoutNumerators
-				return {
-					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
-					repStake: info.stake,
-					status: index === winningIndex ? 'Winning' : 'Losing',
-					payoutNumerators,
-					alreadyContributedToOutcomeStake: undefined, // TODO how to get?
-				}
-			})
+				case 'Scalar': return aggregateByPayoutDistribution(reportingParticipants)
+				default: assertNever(hotLoadingMarketData.marketType)
+			}
 		}
+		const allInterestingPayoutNumerators = await getAllInterestingPayoutNumerators()
+		const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
+		const winningIndex = winningOption === undefined ? -1 : allInterestingPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
+		outcomeStakes.deepValue = await Promise.all(allInterestingPayoutNumerators.map(async (info, index) => {
+			const payoutNumerators = info.payoutNumerators
+			const payoutHash = EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, hotLoadingMarketData.numTicks, hotLoadingMarketData.numOutcomes))
+			return {
+				outcomeName: getOutComeName(payoutNumerators, currentMarketData),
+				repStake: info.stake,
+				status: index === winningIndex ? 'Winning' : 'Losing',
+				payoutNumerators,
+				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(readClient, currentMarketData.marketAddress, payoutHash))?.stake
+			}
+		}))
 		disputeWindowAddress.deepValue = await getDisputeWindow(readClient, marketAddress.deepValue)
 		if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
 			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)

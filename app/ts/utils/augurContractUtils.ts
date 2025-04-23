@@ -90,7 +90,7 @@ export const derivePayoutDistributionHash = (payoutNumerators: readonly bigint[]
 	if (BigInt(payoutNumerators.length) !== numOutcomes) throw new Error('Malformed payout length')
 	if (!(payoutNumerators[0] === 0n || payoutNumerators[0] === numTicks)) throw new Error('Invalid report must be fully paid to Invalid')
 	const _sum = payoutNumerators.reduce((acc, val) => acc + val, 0n)
-	if (_sum !== numTicks) throw new Error('Malformed payout sum')
+	if (_sum !== numTicks) throw new Error(`Malformed payout sum. Numerators: ${ payoutNumerators.join(',') } ticks: ${ numTicks }`)
 	const encoded = encodePacked(['uint256[]'], [payoutNumerators])
 	return keccak256(encoded)
 }
@@ -334,12 +334,6 @@ export const getCrowdsourcerInfoByPayoutNumerator = async (readClient: ReadClien
 	})
 	if (BigInt(crowdsourcer) === 0n) return undefined
 	return await getCrowdsourcerInfo(readClient, crowdsourcer)
-}
-
-export const getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical = async (readClient: ReadClient, market: AccountAddress, numOutcomes: bigint, numTicks: EthereumQuantity) => {
-	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
-	const payoutDistributionHashes = allPayoutNumeratorCombinations.map((payoutNumerators) => EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)))
-	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getCrowdsourcerInfoByPayoutNumerator(readClient, market, payoutDistributionHash)))
 }
 
 export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
