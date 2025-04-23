@@ -7,9 +7,10 @@ import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUn
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
+import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -43,13 +44,14 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const forkingoutcomeStakes = useOptionalSignal<readonly MarketOutcomeOption[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 	const forkingRepBond = useOptionalSignal<EthereumQuantity>(undefined)
-	const selectedOutcome = useSignal<string | null>(null)
+	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const repV2ToMigrateToNewUniverse = useSignal<string>('')
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
 	const childUniverseAddress = useOptionalSignal<AccountAddress>(undefined)
 	const childUniverseUrl = useComputed(() => childUniverseAddress.deepValue === undefined ? '' : getUniverseUrl(childUniverseAddress.deepValue, 'migration'))
 	const parentUniverseUrl = useComputed(() => parentUniverse.deepValue === undefined ? '' : getUniverseUrl(parentUniverse.deepValue, 'migration'))
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
+	const canMigrate = useComputed(() => true)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -87,14 +89,10 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
-		const payoutNumerators = forkingoutcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
-		if (!payoutNumerators) throw new Error('Selected outcome not found')
-
+		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not selected')
 		if (repV2ToMigrateToNewUniverse.value.trim() === '') throw new Error ('Input missing')
 		const repV2ToMigrateToNewUniverseBigInt = decimalStringToBigint(repV2ToMigrateToNewUniverse.value, 18n)
-		if (selectedOutcome.value === null) throw new Error('Invalid input')
-
-		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, payoutNumerators, repV2ToMigrateToNewUniverseBigInt)
+		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, repV2ToMigrateToNewUniverseBigInt)
 	}
 
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
@@ -114,12 +112,10 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
-		const payoutNumerators = forkingoutcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
-		if (!payoutNumerators) throw new Error('Selected outcome not found')
-		if (selectedOutcome.value === null) throw new Error('Invalid input')
+		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('Selected outcome not found')
 		if (forkingMarketData.deepValue === undefined) throw new Error('Forking market missing')
 		const hotLoading = forkingMarketData.deepValue.hotLoadingMarketData
-		childUniverseAddress.deepValue = await getChildUniverse(writeClient, hotLoading.universe, payoutNumerators, hotLoading.numTicks, hotLoading.numOutcomes)
+		childUniverseAddress.deepValue = await getChildUniverse(writeClient, hotLoading.universe, selectedPayoutNumerators.deepValue, hotLoading.numTicks, hotLoading.numOutcomes)
 	}
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
@@ -142,7 +138,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
 				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }/>
-				<MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { forkingoutcomeStakes } selectedOutcome = { selectedOutcome }/>
+				<SelectUniverse marketData = { forkingMarketData } enabled = { canMigrate } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
 				<div style = 'margin-top: 0.5rem'>
