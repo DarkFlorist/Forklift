@@ -3,14 +3,14 @@ import { DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, PROXY_DEPLOYER_ADDRESS } from './
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { FORK_UTILS_ABI } from '../ABI/ForkUtils.js'
-import { AUGUR_FORK_UTILS_BYTECODE } from './augurForkUtilsContract.js'
+import { AUGUR_EXTRA_UTILITIES_BYTECODE } from './augurExtraUtilitiesContract.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
 
-export const getAugurForkUtilsAddress = () => getContractAddress({ bytecode: AUGUR_FORK_UTILS_BYTECODE, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
+export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: AUGUR_EXTRA_UTILITIES_BYTECODE, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
-export const deployAugurForkUtils = async (writeClient: WriteClient) => {
-	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: AUGUR_FORK_UTILS_BYTECODE })
+export const deployAugurExtraUtilities = async (writeClient: WriteClient) => {
+	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: AUGUR_EXTRA_UTILITIES_BYTECODE })
 	await writeClient.waitForTransactionReceipt({ hash })
 }
 
@@ -22,7 +22,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 		const page = await readClient.readContract({
 			abi: FORK_UTILS_ABI,
 			functionName: 'getAvailableDisputesFromForkedMarkets',
-			address: getAugurForkUtilsAddress(),
+			address: getAugurExtraUtilitiesAddress(),
 			args: [DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, account, offset, pageSize]
 		})
 		pages.push(...page[0])
@@ -36,7 +36,7 @@ export const forkReportingParticipants = async (writeClient: WriteClient, report
 	return await writeClient.writeContract({
 		abi: FORK_UTILS_ABI,
 		functionName: 'forkAndRedeemReportingParticipants',
-		address: getAugurForkUtilsAddress(),
+		address: getAugurExtraUtilitiesAddress(),
 		args: [reportingParticipants]
 	})
 }
@@ -57,7 +57,7 @@ export const getReportingParticipantsForMarket = async (readClient: ReadClient, 
 		const page = await readClient.readContract({
 			abi: FORK_UTILS_ABI,
 			functionName: 'getReportingParticipantsForMarket',
-			address: getAugurForkUtilsAddress(),
+			address: getAugurExtraUtilitiesAddress(),
 			args: [market, offset, currentPageSize]
 		})
 		pages.push(...page[0].filter((page) => page.size > 0n || page.stake > 0n))

@@ -3,7 +3,7 @@ import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
-import { deployAugurForkUtils, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurForkUtilities.js'
+import { deployAugurExtraUtilities, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 
 interface DisplayShareDataProps {
@@ -213,10 +213,10 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
 		return await redeemStake(writeClient, reportingParticipants, disputeWindows)
 	}
-	const deployForkUtils = async () => {
+	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('writeClient missing')
-		await deployAugurForkUtils(writeClient)
+		await deployAugurExtraUtilities(writeClient)
 	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
@@ -232,7 +232,7 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 	return <div class = 'subApplication'>
 		<p style = 'margin: 0;'>Claim Funds</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<button class = 'button is-primary' onClick = { deployForkUtils }>Deploy fork utils</button>
+			<button class = 'button is-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button>
 			<button class = 'button is-primary' onClick = { queryForData }>Query For Claims</button>
 			<DisplayShareData availaleShareData = { availaleShareData } selectedShares = { selectedShares }/>
 			<button class = 'button is-primary' onClick = { claimWinningShares }>Claim Winning shares</button>
