@@ -460,6 +460,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
 					<Input
 						style = 'height: fit-content;'
+						key = 'market-reporting-input'
 						class = 'input'
 						type = 'text'
 						width = '100%'

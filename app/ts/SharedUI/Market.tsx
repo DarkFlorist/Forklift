@@ -77,11 +77,11 @@ const Countdown = ({ end }: { end: bigint }) => {
 }
 
 export const Market = ({ marketData, universe, repBond, addressComponent, children }: MarketProps) => {
-	if (marketData.deepValue === undefined || repBond.deepValue === undefined) return <>
+	if (marketData.deepValue === undefined || repBond.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
 		</div>
-	</>
+	</div>
 	return <div>
 		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.hotLoadingMarketData.universe) ? <>
 			<div style = 'padding: 10px; background-color: red;'>
