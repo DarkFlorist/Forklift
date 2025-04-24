@@ -21,58 +21,60 @@ type ScalarInputProps = {
 export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
-	return <div style = { { display: 'grid', gridTemplateColumns: 'min-content min-content auto', gap: '0.5rem', alignItems: 'center' } }>
-		<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content', gap: '0.5rem' } }>
-			<BigIntSlider
-				min = { minValue }
-				max = { maxValue }
-				value = { value }
-				step = { numTicks }
-				disabled = { isSliderAndInputDisabled }
-			/>
-			<Input
-				class = 'input'
-				type = 'text'
-				placeholder = 'Allocation'
-				disabled = { isSliderAndInputDisabled }
-				value = { value }
-				sanitize = { (amount: string) => amount.trim() }
-				tryParse = { (amount: string | undefined) => {
-					if (amount === undefined) return { ok: false } as const
-					if (!isDecimalString(amount.trim())) return { ok: false } as const
-					const parsed = decimalStringToBigint(amount.trim(), 18n)
-					const scaledMin = minValue.value
-					const scaledMax = maxValue.value
-					if (parsed < scaledMin) return { ok: false }
-					if (parsed > scaledMax) return { ok: false }
-					if ((parsed / tradeInterval.value) * tradeInterval.value !== parsed) return { ok: false }
-					return { ok: true, value: parsed } as const
-				}}
-				serialize = { (amount: NonHexBigInt | undefined) => {
-					if (amount === undefined) return ''
-					return bigintToDecimalString(amount, 18n, 18)
-				} }
-			/>
-			<span>{ unit.value }</span>
-		</div>
-		<div>
-			<p> OR </p>
-		</div>
-		<div>
-			<label>
-				<input
-					type = 'checkbox'
-					class = 'custom-input'
-					name = 'Invalid'
-					disabled = { disabled }
-					checked = { invalid.value }
-					onChange = { (event ) => {
-						const target = event.target as HTMLInputElement
-						invalid.value = target.checked
+	return <div>
+		<div style = { { display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-around' } }>
+			<div style = { { display: 'grid', gridTemplateColumns: 'grid-template-columns: 6fr min-content 1fr;', gap: '0.5rem', alignItems: 'center' } }>
+				<BigIntSlider
+					min = { minValue }
+					max = { maxValue }
+					value = { value }
+					step = { numTicks }
+					disabled = { isSliderAndInputDisabled }
+				/>
+				<Input
+					class = 'input'
+					type = 'text'
+					placeholder = 'Allocation'
+					disabled = { isSliderAndInputDisabled }
+					value = { value }
+					sanitize = { (amount: string) => amount.trim() }
+					tryParse = { (amount: string | undefined) => {
+						if (amount === undefined) return { ok: false } as const
+						if (!isDecimalString(amount.trim())) return { ok: false } as const
+						const parsed = decimalStringToBigint(amount.trim(), 18n)
+						const scaledMin = minValue.value
+						const scaledMax = maxValue.value
+						if (parsed < scaledMin) return { ok: false }
+						if (parsed > scaledMax) return { ok: false }
+						if ((parsed / tradeInterval.value) * tradeInterval.value !== parsed) return { ok: false }
+						return { ok: true, value: parsed } as const
+					}}
+					serialize = { (amount: NonHexBigInt | undefined) => {
+						if (amount === undefined) return ''
+						return bigintToDecimalString(amount, 18n, 18)
 					} }
 				/>
-				{'Invalid'}
-			</label>
+				<div>{ unit.value }</div>
+			</div>
+			<div>
+				<span> OR </span>
+			</div>
+			<div>
+				<label class = 'custom-input-label'>
+					<input
+						type = 'checkbox'
+						class = 'custom-input'
+						name = 'Invalid'
+						disabled = { disabled }
+						checked = { invalid.value }
+						onChange = { (event ) => {
+							const target = event.target as HTMLInputElement
+							invalid.value = target.checked
+						} }
+					/>
+					<span>Invalid</span>
+				</label>
+			</div>
 		</div>
 		<span>{ `Range ${ bigintToDecimalString(minValue.value, 18n) } - ${ bigintToDecimalString(maxValue.value, 18n) } (increment: ${ bigintToDecimalString(tradeInterval.value, 18n) })` }</span>
 	</div>

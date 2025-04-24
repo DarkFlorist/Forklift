@@ -37,32 +37,40 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ outcomeStakes, se
 		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing, lastCompletedCrowdSourcer.deepValue))
 	})
 
-	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
-		outcomeStakes.deepValue.map((outcomeStake, index) => <>
-			<input
-				disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
-				type = 'radio'
-				class = 'custom-input'
-				name = 'selectedOutcome'
-				checked = { selectedOutcome.value === outcomeStake.outcomeName }
-				onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-			/>
-			<span>{ outcomeStake.outcomeName } ({ outcomeStake.status })</span>
-			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
-				<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
-				<span>
-					{ outcomeStake.status === 'Winning'
-						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
-						: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
-					}
-				</span>
-			</> }
-			<span>
-				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
-				</> }
-			</span>
-		</>)
+	return <div class = 'outcome-options'> {
+		outcomeStakes.deepValue.map((outcomeStake, index) => (
+			<div class = 'outcome-option' key = { outcomeStake.outcomeName }>
+				<input
+					disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
+					type = 'radio'
+					name = 'selectedOutcome'
+					class = 'custom-input'
+					checked = { selectedOutcome.value === outcomeStake.outcomeName }
+					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+				/>
+				<div class = 'outcome-info'>
+					<b>{ outcomeStake.outcomeName } ({ outcomeStake.status })</b>
+
+					{ totalStake.value !== 0n && (
+						<>
+							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
+							<span>
+								{ outcomeStake.status === 'Winning'
+									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
+									: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
+								}
+							</span>
+						</>
+					)}
+
+					{ outcomeStake.alreadyContributedToOutcomeStake !== undefined && (
+						<span class = 'outcome-contrib'>
+							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+						</span>
+					)}
+				</div>
+			</div>
+		))
 	} </div>
 }
 
