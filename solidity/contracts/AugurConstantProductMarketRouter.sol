@@ -31,7 +31,7 @@ contract AugurConstantProductRouter {
 	using CurrencyLibrary for uint256;
 
 	mapping(address => PoolKey) public marketIds;
-	PoolKey[] private marketList;
+	IMarket[] private marketList;
 	uint24 public constant feePips = 50_000; // 5% fee
 	int24 public constant tickSpacing = 1000; // NOTE: follows general fee -> tickSPacing convention but may need tweaking.
 	uint160 private constant startingPrice = 79228162514264337593543950336; // 1:1 pricing magic number. The startingPrice is expressed as sqrtPriceX96: floor(sqrt(token1 / token0) * 2^96)
@@ -45,7 +45,7 @@ contract AugurConstantProductRouter {
 	bytes private constant MINT_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR));
 	bytes private constant INCREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.INCREASE_LIQUIDITY), uint8(Actions.SETTLE_PAIR));
 	bytes private constant DECREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR));
-	bytes private constant BURN_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR)); // TODO Confirm this handles collecting fees
+	bytes private constant BURN_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR));
 
 	// Swap Commands
 	bytes private constant SWAP_COMMAND = abi.encodePacked(uint8(Commands.V4_SWAP));
@@ -75,7 +75,7 @@ contract AugurConstantProductRouter {
 		bytes[] memory params = new bytes[](2);
 
 		uint256 liquidity = getExpectedLiquidityInternal(poolId, tickLower, tickUpper, amountNo, amountYes);
-		params[0] = abi.encode(poolKey, tickLower, tickUpper, liquidity, amountNo, amountYes, address(this), "");
+		params[0] = abi.encode(poolKey, tickLower, tickUpper, liquidity, amountNo, amountYes, msg.sender, "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1);
 
 		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(MINT_LIQUIDITY_ACTIONS, params), deadline);
@@ -399,7 +399,7 @@ contract AugurConstantProductRouter {
 
 		IPoolManager(Constants.UNIV4_POOL_MANAGER).initialize(pool, startingPrice);
 		marketIds[address(market)] = pool;
-		marketList.push(pool);
+		marketList.push(market);
         return pool;
     }
 
@@ -444,15 +444,19 @@ contract AugurConstantProductRouter {
 		return marketList.length;
 	}
 
-	function getMarkets(int256 startIndex, uint256 pageSize) external view returns (PoolKey[] memory) {
+	function getMarkets(int256 startIndex, uint256 pageSize) external view returns (IMarket[] memory) {
 		uint256 marketsLength = marketList.length;
 		uint256 realStartIndex = startIndex < 0 ? marketsLength - 1 : uint256(startIndex);
-		PoolKey[] memory pageMarkets = new PoolKey[](pageSize);
+		IMarket[] memory pageMarkets = new IMarket[](pageSize);
 		for (uint256 i = 0; i < pageSize; i++) {
 			uint256 curIndex = realStartIndex - i;
 			pageMarkets[i] = marketList[curIndex];
 			if (curIndex <= 0) break;
 		}
 		return pageMarkets;
+	}
+
+	function getMarketIsValid(address augurMarketAddress) external view returns (bool) {
+		return marketIds[augurMarketAddress].fee != 0;
 	}
 }
