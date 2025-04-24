@@ -3,7 +3,7 @@ import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
-import { deployAugurExtraUtilities, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
+import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 
 interface DisplayShareDataProps {
@@ -30,6 +30,7 @@ const DisplayShareData = ({ availaleShareData, selectedShares }: DisplayShareDat
 					<label>
 						<input
 							type = 'checkbox'
+							class = 'custom-input'
 							name = 'selectedOutcome'
 							checked = { selectedShares.value.has(shareEntry.market) }
 							disabled = { shareEntry.payout === 0n }
@@ -71,6 +72,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 						<label>
 							<input
 								type = 'checkbox'
+								class = 'custom-input'
 								name = 'selectedOutcome'
 								checked = { selectedDisputes.value.has(disputeEntry.bond) }
 								disabled = { disputeEntry.amount === 0n }
@@ -113,6 +115,7 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 						<label>
 							<input
 								type = 'checkbox'
+								class = 'custom-input'
 								name = 'selectedOutcome'
 								checked = { selectedForkedCrowdSourcers.value.has(disputeEntry.bond) }
 								disabled = { disputeEntry.amount === 0n }
@@ -213,11 +216,6 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
 		return await redeemStake(writeClient, reportingParticipants, disputeWindows)
 	}
-	const deployAugurExtraUtilitiesButton = async () => {
-		const writeClient = maybeWriteClient.deepPeek()
-		if (writeClient === undefined) throw new Error('writeClient missing')
-		await deployAugurExtraUtilities(writeClient)
-	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
 	}
@@ -232,15 +230,14 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 	return <div class = 'subApplication'>
 		<p style = 'margin: 0;'>Claim Funds</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<button class = 'button is-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button>
-			<button class = 'button is-primary' onClick = { queryForData }>Query For Claims</button>
+			<button class = 'button button-primary' onClick = { queryForData }>Query For Claims</button>
 			<DisplayShareData availaleShareData = { availaleShareData } selectedShares = { selectedShares }/>
-			<button class = 'button is-primary' onClick = { claimWinningShares }>Claim Winning shares</button>
+			<button class = 'button button-primary' onClick = { claimWinningShares }>Claim Winning shares</button>
 			<DisplayDisputesData availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 			<DisplayReportsData availableReports = { availableReports } selectedReports = { selectedReports }/>
-			<button class = 'button is-primary' onClick = { claim }>Claim Participation tokens, winning initial reporter and dispute crowdsourcer bonds</button>
+			<button class = 'button button-primary' onClick = { claim }>Claim Participation tokens, winning initial reporter and dispute crowdsourcer bonds</button>
 			<ForkAndRedeemDisputeCrowdSourcers availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-			<button class = 'button is-primary' onClick = { claimForkDisputes }>Claim fork disputes</button>
+			<button class = 'button button-primary' onClick = { claimForkDisputes }>Claim fork disputes</button>
 		</div>
 	</div>
 }
