@@ -120,7 +120,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
 	return <div class = 'subApplication'>
-		<button class = 'button is-primary' onClick = { update }>Update data</button>
+		<button class = 'button button-primary' onClick = { update }>Update data</button>
 		<div class = 'panel'>
 			<div style = 'display: grid'>
 				<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
@@ -137,8 +137,9 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		</div>
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }/>
-				<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }>
+					<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+				</Market>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
 				<div style = 'margin-top: 0.5rem'>
@@ -156,8 +157,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 					</label>
 				</div>
 			</div>
-			<button class = 'button is-primary' onClick = { getChildUniverseButton }>Refresh child universe for the selection</button>
-			<button class = 'button is-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
+			<button class = 'button button-primary' onClick = { getChildUniverseButton }>Refresh child universe for the selection</button>
+			<button class = 'button button-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
 		</> : <></> }
 		{ isGenesisUniverseField.value ? <>
 			<div class = 'panel'>
@@ -166,8 +167,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 					<span><b>Your Reputation V1 Balance:</b>{ v1ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1` : '' }</span>
 				</div>
 			</div>
-			<button class = 'button is-primary' onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
-			<button class = 'button is-primary' onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
+			<button class = 'button button-primary' onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
+			<button class = 'button button-primary' onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
 		</> : <></> }
 	</div>
 }

@@ -42,6 +42,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ outcomeStakes, se
 			<input
 				disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
 				type = 'radio'
+				class = 'custom-input'
 				name = 'selectedOutcome'
 				checked = { selectedOutcome.value === outcomeStake.outcomeName }
 				onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
@@ -84,6 +85,7 @@ export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStake
 				<input
 					disabled = { disabled }
 					type = 'radio'
+					class = 'custom-input'
 					name = 'selectedOutcome'
 					checked = { selectedOutcome.value === outcomeStake.outcomeName }
 					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }

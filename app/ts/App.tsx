@@ -19,6 +19,7 @@ import { Migration } from './MigrationUI/components/Migration.js'
 import { getErc20TokenBalance } from './utils/erc20.js'
 import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokensUI.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
+import { deployAugurExtraUtilities, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -27,7 +28,7 @@ interface UniverseComponentProps {
 const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 	if (universe.deepValue === undefined) return <p> No universe selected</p>
 	const universeName = getUniverseName(universe.deepValue)
-	return <p style = 'color: gray; justify-self: left;'>Universe:<b>{ ` ${ universeName }` }</b></p>
+	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b></p>
 }
 
 interface UniverseForkingNoticeProps {
@@ -65,21 +66,27 @@ interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	loadingAccount: Signal<boolean>
+	children?: preact.ComponentChildren
 }
 
-const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount }: WalletComponentProps) => {
+const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount, children }: WalletComponentProps) => {
 	if (loadingAccount.value) return <></>
 	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
 	const connect = async () => {
 		updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
 	}
-	return accountAddress.value !== undefined ? (
-		<p style = 'color: gray; justify-self: right;'>{ `Connected with ${ accountAddress.value }` }</p>
-	) : (
-		<button class = 'button is-primary' style = 'justify-self: right;' onClick = { connect }>
-			{ `Connect wallet` }
-		</button>
-	)
+	return <div class = 'wallet-container'>
+		{ accountAddress.value !== undefined ? <>
+			<span class = 'wallet-connected-label'>
+				Connected with { accountAddress.value }
+			</span>
+			{ children }
+		</> : (
+			<button class = 'wallet-connect-button' onClick = { connect }>
+				Connect Wallet
+			</button>
+		) }
+	</div>
 }
 
 interface WalletBalancesProps {
@@ -93,7 +100,11 @@ const WalletBalances = ({ daiBalance, repBalance, ethBalance }: WalletBalancesPr
 	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
 	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } REP`)
 	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
-	return <div>{ balances.join(' - ') }</div>
+	return <div class = 'wallet-balances'>
+		{ balances.map((balance, i) => (
+			<span key = { i }>{ balance }</span>
+		)) }
+	</div>
 }
 
 interface TabsProps {
@@ -102,33 +113,51 @@ interface TabsProps {
 }
 
 const Tabs = ({ tabs, activeTab }: TabsProps) => {
+	const containerRef = useRef<HTMLDivElement>(null)
+	const innerRef = useRef<HTMLDivElement>(null)
+	const indicatorRef = useRef<HTMLDivElement>(null)
 	const handleTabClick = (index: number) => {
 		if (tabs[index] === undefined) throw new Error(`invalid Tab index: ${ index }`)
 		activeTab.value = index
 		window.location.hash = `#/${ tabs[index].path }`
 	}
 
+	useEffect(() => {
+		const inner = innerRef.current
+		const indicator = indicatorRef.current
+		const activeBtn = inner?.querySelector<HTMLButtonElement>('.tab-button.active')
+
+		if (inner && activeBtn && indicator) {
+			const innerBox = inner.getBoundingClientRect()
+			const buttonBox = activeBtn.getBoundingClientRect()
+
+			const offsetLeft = buttonBox.left - innerBox.left
+			const width = buttonBox.width
+
+			indicator.style.transform = `translateX(${ offsetLeft }px)`
+			indicator.style.width = `${ width }px`
+		}
+	})
+
 	return (
 		<div>
-			<div style = { { display: 'flex', gap: '10px', borderBottom: '2px solid #ccc' } }>
-				{ tabs.map((tab, index) => (
-					<button
-						key = { index }
-						onClick = { () => handleTabClick(index) }
-						style = { {
-							padding: '10px',
-							border: 'none',
-							background: activeTab.value === index ? '#ddd' : 'transparent',
-							cursor: 'pointer',
-							borderBottom: activeTab.value === index ? '2px solid black' : 'none'
-						}}
-					>
-						{ tab.title }
-					</button>
-				)) }
+			{/* use the ref on the container */}
+			<div class = 'tabs-container' ref = { containerRef }>
+				<div class = 'tabs-inner' ref = { innerRef }>
+					{ tabs.map((tab, index) => (
+						<button
+							key = { index }
+							class = { `tab-button ${ activeTab.value === index ? 'active' : '' }` }
+							onClick = { () => handleTabClick(index) }
+						>
+							{ tab.title }
+						</button>
+					)) }
+					<div class = 'tab-indicator' ref = { indicatorRef }></div>
+				</div>
 			</div>
-			<div style = { { padding: '10px' } }>
-				{ tabs[activeTab.value]?.component ?? null }
+			<div>
+				{ tabs[activeTab.value]?.component }
 			</div>
 		</div>
 	)
@@ -146,6 +175,7 @@ export function App() {
 	const areContractsDeployed = useSignal<boolean | undefined>(undefined)
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
 	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
+	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
 	const chainId = useSignal<number | undefined>(undefined)
 	const inputTimeoutRef = useRef<number | null>(null)
 	const universe = useOptionalSignal<AccountAddress>(undefined)
@@ -229,6 +259,9 @@ export function App() {
 				const fetchedAccount = await getAccounts()
 				updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
 				updateChainId()
+				if (maybeReadClient.deepValue != undefined) {
+					isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
+				}
 			} catch(e) {
 				setError(e)
 			} finally {
@@ -244,6 +277,13 @@ export function App() {
 			}
 		}
 	}, [])
+
+	const deployAugurExtraUtilitiesButton = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
+		await deployAugurExtraUtilities(writeClient)
+		isAugurExtraUtilitiesDeployedSignal.deepValue = true
+	}
 
 	useSignalEffect(() => {
 		const universeInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
@@ -264,40 +304,36 @@ export function App() {
 
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
-			<div style = 'display: flex; justify-content: space-between;'>
-				<UniverseComponent universe = { universe}/>
-				<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>
-			</div>
-			<div style = 'display: flex; justify-content: right;'>
-				<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>
+			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: auto auto auto;'>
+				<div class = 'augur-constant-product-market'>
+					<img src = 'favicon.svg' alt = 'Icon' />
+					<div>
+						<span>Augur Constant Product Market</span>
+						<UniverseComponent universe = { universe}/>
+					</div>
+				</div>
+				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ? <button class = 'button button-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button> : <div></div> }
+				<div style = 'display: flex; align-items: center;'>
+					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }>
+						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>
+					</WalletComponent>
+				</div>
 			</div>
 			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation }/>
-			<div style = 'display: block'>
-				<div class = 'augur-constant-product-market'>
-					<img src = 'favicon.svg' alt = 'Icon' style ='width: 60px;'/> Augur Constant Product Market
-				</div>
-				<p class = 'sub-title'>Swap Augur tokens!</p>
-			</div>
 		</div>
 		<Tabs tabs = { tabs } activeTab = { activeTab }/>
-		<div class = 'text-white/50 text-center'>
-			<div class = 'mt-8'>
+		<footer class = 'site-footer'>
+			<div>
 				Augur Constant Product Market by&nbsp;
-				<a class = 'text-white hover:underline' href='https://dark.florist'>
+				<a href = 'https://dark.florist' target = '_blank' rel = 'noopener noreferrer'>
 					Dark Florist
 				</a>
 			</div>
-			<div class = 'inline-grid'>
-				<a class = 'text-white hover:underline' href='https://discord.gg/BeFnJA5Kjb'>
-					Discord
-				</a>
-				<a class = 'text-white hover:underline' href='https://twitter.com/DarkFlorist'>
-					Twitter
-				</a>
-				<a class = 'text-white hover:underline' href='https://github.com/DarkFlorist'>
-					Github
-				</a>
-			</div>
-		</div>
+			<nav class = 'footer-links'>
+				<a href = 'https://discord.gg/BeFnJA5Kjb' target = '_blank'>Discord</a>
+				<a href = 'https://twitter.com/DarkFlorist' target = '_blank'>Twitter</a>
+				<a href = 'https://github.com/DarkFlorist' target = '_blank'>GitHub</a>
+			</nav>
+		</footer>
 	</main>
 }
