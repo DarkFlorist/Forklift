@@ -7,10 +7,10 @@ import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/t
 import { SomeTimeAgo } from './SomeTimeAgo.js'
 import { MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
+import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
-import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
+import { aggregateByPayoutDistribution, deployAugurExtraUtilities, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
@@ -26,7 +26,6 @@ interface ForkMigrationProps {
 
 export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, disabled, refreshData }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
-	if (disabled.value === true) return <></>
 	const initialReportReason = useSignal<string>('')
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const disavowCrowdsourcersButton = async () => {
@@ -63,10 +62,10 @@ export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, dis
 			</label>
 		</div>
 		<div style = 'margin-top: 1rem'>
-			<button class = 'button button-primary' onClick = { disavowCrowdsourcersButton } disabled = { disabled }>Disavow Crowdsourcers</button>
+			<button class = 'button is-primary' onClick = { disavowCrowdsourcersButton } disabled = { disabled }>Disavow Crowdsourcers</button>
 		</div>
 		<div style = 'margin-top: 1rem'>
-			<button class = 'button button-primary' onClick = { migrateThroughOneForkButton } disabled = { disabled }>Migrate Through One Fork</button>
+			<button class = 'button is-primary' onClick = { migrateThroughOneForkButton } disabled = { disabled }>Migrate Through One Fork</button>
 		</div>
 	</div>
 }
@@ -110,7 +109,6 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
 			if (minPrice === undefined || maxPrice === undefined) throw new Error('displayPrices is undefined')
 			if (!selectedScalarOutcomeInvalid.value && selectedScalarOutcome.deepValue === undefined) return undefined
-			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
 			const existingOutComestake = outcomeStakes.deepValue.find((outcome) => areEqualArrays(outcome.payoutNumerators, payoutNumerators))
 			const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
@@ -297,13 +295,13 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 						/>
 						{ maxStakeAmount.value === undefined || isDisabled.value ? <></> : <>
 							/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP
-							<button class = 'button button-primary' onClick = { setMaxStake }>Max</button>
+							<button class = 'button is-primary' onClick = { setMaxStake }>Max</button>
 							{ repBond.deepValue !== undefined && isInitialReporting.value ? `+ ${ bigintToDecimalString(repBond.deepValue,18n, 2) } (initial reporter bond)` : '' }
 						</> }
 					</div>
 				</div>
 				<div style = 'margin-top: 1rem'>
-					<button class = 'button button-primary' disabled = { (isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n) && !isInitialReporting.value || amountInput.deepValue === undefined } onClick = { handleReport }>Report</button>
+					<button class = 'button is-primary' disabled = { (isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n) && !isInitialReporting.value || amountInput.deepValue === undefined } onClick = { handleReport }>Report</button>
 				</div>
 			</div>
 		</div>
@@ -454,39 +452,41 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		await refreshData()
 	}
 
+	const deployAugurExtraUtilitiesButton = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
+		await deployAugurExtraUtilities(writeClient)
+	}
+
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<Market marketData = { marketData } universe = { universe } repBond = { repBond } addressComponent = { <>
-				<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
-					<Input
-						style = 'height: fit-content;'
-						class = 'input'
-						type = 'text'
-						width = '100%'
-						placeholder = 'Market address'
-						value = { marketAddress }
-						sanitize = { (addressString: string) => addressString }
-						tryParse = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return { ok: false } as const
-							const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-							if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-							return { ok: false } as const
-						}}
-						serialize = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.trim()
-						} }
-						invalidSignal = { isInvalidMarketAddress }
-					/>
-					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
-				</div>
-			</>}>
-				<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
-				<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
-				{ marketData.deepValue === undefined ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
-				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
-			</Market>
-
+			<Input
+				style = 'height: fit-content;'
+				class = 'input'
+				type = 'text'
+				width = '100%'
+				placeholder = 'Market address'
+				value = { marketAddress }
+				sanitize = { (addressString: string) => addressString }
+				tryParse = { (marketAddressString: string | undefined) => {
+					if (marketAddressString === undefined) return { ok: false } as const
+					const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+					if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+					return { ok: false } as const
+				}}
+				serialize = { (marketAddressString: string | undefined) => {
+					if (marketAddressString === undefined) return ''
+					return marketAddressString.trim()
+				} }
+				invalidSignal = { isInvalidMarketAddress }
+			/>
+			<button class = 'button is-primary' onClick = { refreshData }>Refresh Data</button>
+			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
+			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
+			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
+			<button class = 'button is-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button>
+			{ marketData.deepValue === undefined ? <> </> : <button class = 'button is-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
+			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
 		</div>
 	</div>
 }

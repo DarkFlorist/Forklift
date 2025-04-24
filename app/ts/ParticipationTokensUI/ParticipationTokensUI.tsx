@@ -55,9 +55,9 @@ export const ParticipationTokens = ({ maybeReadClient, maybeWriteClient, univers
 	return <div class = 'subApplication'>
 		<p style = 'margin: 0;'>Participation Tokens:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<button class = 'button button-primary' onClick = { update }>Update window</button>
+			<button class = 'button is-primary' onClick = { update }>Update window</button>
 			<DisputeWindow disputeWindowData = { disputeWindowData }/>
-			<button class = 'button button-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
+			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
 		</div>
 	</div>
 }

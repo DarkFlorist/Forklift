@@ -62,7 +62,6 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 			<label>
 				<input
 					type = 'checkbox'
-					class = 'custom-input'
 					name = 'Invalid'
 					disabled = { disabled }
 					checked = { invalid.value }

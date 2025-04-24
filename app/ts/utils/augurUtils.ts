@@ -94,16 +94,6 @@ export function getTradeInterval(displayRange: bigint, numTicks: bigint): bigint
 	return displayInterval * displayRange / numTicks / ( 10n ** 18n )
 }
 
-export const areValidScalarPayoutNumeratorOptions = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
-	if (invalid) return true
-	if (selectedScalarOutcome === undefined) return false
-	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	const scaled = (selectedScalarOutcome - minPrice) / tradeInterval
-	if (scaled > numTicks) return false
-	if (scaled < 0n) return false
-	return true
-}
-
 export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
 	if (invalid) return [numTicks, 0n, 0n] as const
 	if (selectedScalarOutcome === undefined) throw new Error('selectedScalarOutcome is undefined')

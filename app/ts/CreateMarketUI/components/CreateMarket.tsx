@@ -120,7 +120,7 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	}
 
 	return <div class = 'subApplication'>
-		<button class = 'button button-primary' onClick = { fetchMarketCreationInformation }>Refresh market creation data</button>
+		<button class = 'button is-primary' onClick = { fetchMarketCreationInformation }>Refresh market creation data</button>
 		<p style = 'margin: 0;'>Create Market:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
 			<p style = 'margin: 0;'>End Time (UTC): { maxiumMarketEndData.deepValue !== undefined ? <>(Latest allowed date { formatUnixTimestampISO(maxiumMarketEndData.deepValue) })</> : <></> }</p>
@@ -209,9 +209,9 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 					onInput = { e => handleTags(e.currentTarget.value) }
 				/>
 			</div>
-			<button class = 'button button-primary' onClick = { createMarket }>Create Market</button>
-			<button class = 'button button-primary' onClick = { approveRep }>Approve REP</button>
-			<button class = 'button button-primary' onClick = { approveDai }>Approve DAI</button>
+			<button class = 'button is-primary' onClick = { createMarket }>Create Market</button>
+			<button class = 'button is-primary' onClick = { approveRep }>Approve REP</button>
+			<button class = 'button is-primary' onClick = { approveDai }>Approve DAI</button>
 		</div>
 	</div>
 }

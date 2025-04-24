@@ -3,7 +3,7 @@ import { DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, PROXY_DEPLOYER_ADDRESS } from './
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { FORK_UTILS_ABI } from '../ABI/ForkUtils.js'
-import { AUGUR_EXTRA_UTILITIES_BYTECODE, AUGUR_EXTRA_UTILITIES_DEPLOYED_BYTECODE } from './augurExtraUtilitiesContract.js'
+import { AUGUR_EXTRA_UTILITIES_BYTECODE } from './augurExtraUtilitiesContract.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
 
@@ -12,11 +12,6 @@ export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode
 export const deployAugurExtraUtilities = async (writeClient: WriteClient) => {
 	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: AUGUR_EXTRA_UTILITIES_BYTECODE })
 	await writeClient.waitForTransactionReceipt({ hash })
-}
-
-export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
-	const deployedBytecode = await readClient.getCode({ address: getAugurExtraUtilitiesAddress() })
-	return deployedBytecode === AUGUR_EXTRA_UTILITIES_DEPLOYED_BYTECODE
 }
 
 export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
