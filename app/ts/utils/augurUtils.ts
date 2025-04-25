@@ -29,7 +29,7 @@ const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'C
 const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minPrice: bigint, maxPrice: bigint) => {
 	if (payoutNumerators[0] > 0n) return 'Invalid'
 	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) }${unit === undefined ? '' : unit }`
+	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
 }
 
 export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {

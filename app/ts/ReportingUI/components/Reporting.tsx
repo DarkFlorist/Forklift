@@ -303,7 +303,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				class = 'button button-primary'
 				disabled = { reportDisabled.value }
 				onClick = { handleReport }>
-				{ selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) }` : 'Report'}
+				{ selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) } REP` : 'Report'}
 			</button>
 		</div>
 	</div>

@@ -601,3 +601,87 @@ h3 {
 	border-radius: 0.5rem;
 	text-align: center;
 }
+
+.unit {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	max-width: 100px;
+	font-size: '0.9rem';
+	color: '#ccc';
+	flex-shrink: 0;
+}
+
+.note {
+	font-size: 0.75rem;
+	color: #888;
+	position: absolute;
+	bottom: 0.5rem;
+	left: 1rem;
+}
+
+.scalar-options-container {
+	display: flex;
+	align-items: stretch;
+	justify-content: center;
+	width: 100%;
+	gap: 1.5rem;
+	position: relative;
+	padding-bottom: 2.5rem;
+}
+
+.slider-input-info-container {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 1rem;
+	border: 1px solid #333;
+	border-radius: 0.5rem;
+	background: #1c1c2b;
+	flex: 1;
+	min-width: 0;
+}
+
+.slider-input-container {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.scalar-input {
+	max-width: 200px;
+	height: 2.5rem;
+	padding: 0 0.75rem;
+	flex-shrink: 0;
+}
+
+.or-divider {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1rem;
+	color: #888;
+}
+
+.invalid-check-box-container {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 1rem;
+	border: 1px solid #333;
+	border-radius: 0.5rem;
+	background: #1c1c2b;
+	flex-shrink: 0;
+}
+
+.invalid-check-box-container-inner {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+.invalid-tag {
+	color: #ccc
+}

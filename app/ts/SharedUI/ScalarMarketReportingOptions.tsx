@@ -22,45 +22,53 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
 	return <div>
-		<div style = { { display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-around' } }>
-			<div style = { { display: 'grid', gridTemplateColumns: 'grid-template-columns: 6fr min-content 1fr;', gap: '0.5rem', alignItems: 'center' } }>
-				<BigIntSlider
-					min = { minValue }
-					max = { maxValue }
-					value = { value }
-					step = { numTicks }
-					disabled = { isSliderAndInputDisabled }
-				/>
-				<Input
-					class = 'input'
-					type = 'text'
-					placeholder = 'Allocation'
-					disabled = { isSliderAndInputDisabled }
-					value = { value }
-					sanitize = { (amount: string) => amount.trim() }
-					tryParse = { (amount: string | undefined) => {
-						if (amount === undefined) return { ok: false } as const
-						if (!isDecimalString(amount.trim())) return { ok: false } as const
-						const parsed = decimalStringToBigint(amount.trim(), 18n)
-						const scaledMin = minValue.value
-						const scaledMax = maxValue.value
-						if (parsed < scaledMin) return { ok: false }
-						if (parsed > scaledMax) return { ok: false }
-						if ((parsed / tradeInterval.value) * tradeInterval.value !== parsed) return { ok: false }
-						return { ok: true, value: parsed } as const
-					}}
-					serialize = { (amount: NonHexBigInt | undefined) => {
-						if (amount === undefined) return ''
-						return bigintToDecimalString(amount, 18n, 18)
-					} }
-				/>
-				<div>{ unit.value }</div>
+		<div class = 'scalar-options-container'>
+			<div class = 'slider-input-info-container'>
+				<div class = 'slider-input-container'>
+					<BigIntSlider
+						min = { minValue }
+						max = { maxValue }
+						value = { value }
+						step = { numTicks }
+						disabled = { isSliderAndInputDisabled }
+					/>
+					<Input
+						class = 'input scalar-input'
+						type = 'text'
+						placeholder = 'Allocation'
+						disabled = { isSliderAndInputDisabled }
+						value = { value }
+						sanitize = { (amount: string) => amount.trim() }
+						tryParse = { (amount: string | undefined) => {
+							if (amount === undefined) return { ok: false } as const
+							if (!isDecimalString(amount.trim())) return { ok: false } as const
+							const parsed = decimalStringToBigint(amount.trim(), 18n)
+							const scaledMin = minValue.value
+							const scaledMax = maxValue.value
+							if (parsed < scaledMin) return { ok: false }
+							if (parsed > scaledMax) return { ok: false }
+							if ((parsed / tradeInterval.value) * tradeInterval.value !== parsed) return { ok: false }
+							return { ok: true, value: parsed } as const
+						} }
+						serialize = { (amount: NonHexBigInt | undefined) => {
+							if (amount === undefined) return ''
+							return bigintToDecimalString(amount, 18n, 18)
+						} }
+					/>
+					<div class = 'unit'> { unit.value } </div>
+				</div>
+
+				<span class = 'note'>
+					{ `Range ${ bigintToDecimalString(minValue.value, 18n) } - ${ bigintToDecimalString(maxValue.value, 18n) } (increment: ${ bigintToDecimalString(tradeInterval.value, 18n) })` }
+				</span>
 			</div>
-			<div>
-				<span> OR </span>
+
+			<div class = 'or-divider'>
+				OR
 			</div>
-			<div>
-				<label class = 'custom-input-label'>
+
+			<div class = 'invalid-check-box-container'>
+				<label class = 'custom-input-label invalid-check-box-container-inner' style = { { cursor: disabled ? 'not-allowed' : 'pointer' } }>
 					<input
 						type = 'checkbox'
 						class = 'custom-input'
@@ -72,11 +80,10 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 							invalid.value = target.checked
 						} }
 					/>
-					<span>Invalid</span>
+					<span class = 'invalid-tag'>Invalid</span>
 				</label>
 			</div>
 		</div>
-		<span>{ `Range ${ bigintToDecimalString(minValue.value, 18n) } - ${ bigintToDecimalString(maxValue.value, 18n) } (increment: ${ bigintToDecimalString(tradeInterval.value, 18n) })` }</span>
 	</div>
 }
 
@@ -90,10 +97,10 @@ export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsour
 	if (outcomeStakes.deepValue === undefined) return <></>
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
 	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
-		outcomeStakes.deepValue.map((outcomeStake) => <>
-			<span>{ outcomeStake.outcomeName } ({ outcomeStake.status })</span>
+		outcomeStakes.deepValue.map((outcomeStake) => <div class = 'reporting-round'>
+			<span><b>Option: { outcomeStake.outcomeName } ({ outcomeStake.status })</b></span>
 			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
-				<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
+				<span>Stake: { bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
 				<span>
 					{ outcomeStake.status === 'Winning'
 						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
@@ -106,6 +113,6 @@ export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsour
 				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
-		</>)
+		</div>)
 	} </div>
 }

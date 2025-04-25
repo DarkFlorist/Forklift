@@ -116,7 +116,7 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer,
 	)
 	if (disputeWindowInfo.deepValue === undefined) return <></>
 	if (marketData.deepValue === undefined) return <></>
-	const winningPayout = marketData.deepValue?.hotLoadingMarketData.winningPayout
+	const winningPayout = marketData.deepValue?.hotLoadingMarketData.winningPayout.length === 0 ? lastCompletedCrowdSourcer.deepValue?.payoutNumerators : marketData.deepValue?.hotLoadingMarketData.winningPayout
 	if (winningPayout === undefined) return <></>
 	const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
 	if (winningOptionName === undefined) return <></>
