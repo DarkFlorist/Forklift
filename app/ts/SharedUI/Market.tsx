@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { ExtraInfo } from '../CreateMarketUI/types/createMarketTypes.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { fetchHotLoadingMarketData, getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
-import { getOutComeName, getUniverseName } from '../utils/augurUtils.js'
+import { getOutComeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
 import { bigintToDecimalString, formatUnixTimestampISO } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
@@ -32,6 +32,45 @@ export const DisplayExtraInfo = ({ marketData }: DisplayExtraInfoProps) => {
 	return <>
 		<span>{ marketData.deepValue.parsedExtraInfo.longDescription }</span>
 	</>
+}
+
+interface MarketOutcomesProps {
+	marketData: OptionalSignal<MarketData>
+}
+
+export const MarketOutcomes = ({ marketData }: MarketOutcomesProps) => {
+	const hotData = marketData.deepValue?.hotLoadingMarketData
+	if (hotData === undefined) return <></>
+	switch(hotData.marketType) {
+		case 'Yes/No':
+		case 'Categorical': {
+			const marketType = hotData.marketType
+			const outcomeNames = Array.from({ length: Number(hotData.numOutcomes) }).map((_, index) => getYesNoCategoricalOutcomeName(index, marketType, hotData.outcomes))
+			console.log(outcomeNames)
+			console.log(hotData.numOutcomes)
+			return <>
+				<strong>{ hotData.marketType } Market</strong>
+				<ul>
+					{ outcomeNames.map((outcome) => <li key = { outcome }>{ outcome }</li>) }
+				</ul>
+			</>
+		}
+		case 'Scalar': {
+			const minValue = hotData.displayPrices[0] || 0n
+			const maxValue = hotData.displayPrices[1] || 0n
+			const tradeInterval = getTradeInterval(maxValue - minValue, hotData.numTicks)
+			const unit = marketData.deepValue?.parsedExtraInfo?._scalarDenomination || 'unknown'
+
+			return <>
+				<strong>Scalar market</strong>
+				A value between { bigintToDecimalString(minValue, 18n) } and { bigintToDecimalString(maxValue, 18n) }
+				<br />
+				Increment: { bigintToDecimalString(tradeInterval, 18n) }
+				<br />
+				Unit: "{ unit }"
+			</>
+		}
+	}
 }
 
 interface MarketStateProps {
@@ -173,6 +212,10 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 
 			<section className = 'description'>
 				<DisplayExtraInfo marketData = { marketData } />
+			</section>
+
+			<section className = 'market-outcomes detail'>
+				<MarketOutcomes marketData = { marketData } />
 			</section>
 
 			<section className = 'details-grid'>
