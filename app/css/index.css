@@ -76,6 +76,12 @@ input:disabled, textarea:disabled, select:disabled {
 	border-radius: 4px;
 	outline: none;
 }
+
+.invalid:focus {
+	border-color: #ef4444;
+	box-shadow: 0 0 0 3px #ef4444;
+}
+
 .bigint-slider {
 	position: relative;
 	background-color: #2e2e48;
@@ -528,7 +534,7 @@ h3 {
 	margin: 0px;
 }
 
-.reporting-panel input[type="text"] {
+.reporting-panel-input {
 	background-color: #1f2937; /* gray-800 */
 	border: 1px solid #4b5563; /* gray-600 */
 	color: #f9fafb;
@@ -538,7 +544,7 @@ h3 {
 	outline: none;
 }
 
-.reporting-panel input::placeholder {
+.reporting-panel-input input::placeholder {
 	color: #9ca3af;
 }
 

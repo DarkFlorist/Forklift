@@ -123,12 +123,16 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer,
 	const endDate = bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
 	return <SomeTimeAgo priorTimestamp = { endDate } countBackwards = { true } diffToText = {
 		(time: number) => {
-			if (time <= 0) return <>The market has resolved to "<b>{ winningOptionName }</b>"</>
+			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>
-			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <>Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) })</>
+			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) })
+			</p> </div>
 			const timeUntilNext = humanReadableDateDeltaFromTo(new Date(), bigintSecondsToDate(disputeWindowInfo.deepValue.startTime))
 			const nextWindowLength = humanReadableDateDeltaFromTo(bigintSecondsToDate(disputeWindowInfo.deepValue.startTime), bigintSecondsToDate(disputeWindowInfo.deepValue.endTime))
-			return <>Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })</>
+			return <div class = 'warning-box'> <p>
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+			</p> </div>
 		}
 	}/>
 }
@@ -149,9 +153,7 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 		<div className = 'market-card'>
 			{ addressComponent }
 			{ marketData.deepValue.hotLoadingMarketData.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
-				<div class = 'warning-box'>
-					<p> <ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo }/> </p>
-				</div>
+				<ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo }/>
 			</> }
 			<header className = 'market-header'>
 				<h1>{ marketData.deepValue.parsedExtraInfo?.description || marketData.deepValue.marketAddress }</h1>
@@ -173,7 +175,7 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 				<DisplayExtraInfo marketData = { marketData } />
 			</section>
 
-			<section className='details-grid'>
+			<section className = 'details-grid'>
 				{ [
 					['Owner', marketData.deepValue.hotLoadingMarketData.owner],
 					['Market Creator', marketData.deepValue.hotLoadingMarketData.marketCreator],

@@ -229,7 +229,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const numTicks = useComputed(() => marketData.deepValue?.hotLoadingMarketData.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
 
-	const ReportingComponent = () => {
+	const ReportingComponent = useComputed(() => {
 		if (marketData.deepValue === undefined) return <></>
 		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
@@ -239,17 +239,18 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		} else {
 			return <MarketReportingOptionsForYesNoAndCategorical outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport }/>
 		}
-	}
+	})
 
 	return <div class = 'reporting-panel'>
 		<h3>Market Reporting:</h3>
 		{ isDisabled.value && (<span><b>The reporting is closed for this round. Please check again in the next round.</b></span>)}
-		<ReportingComponent/>
+		{ ReportingComponent }
 		<div>
 			<label>
 				<span style = { { fontWeight: '500', display: 'block', marginBottom: '0.25rem' } }>Reason:</span>
 				<input
 					type = 'text'
+					class = 'reporting-panel-input'
 					value = { reason.value }
 					disabled = { isDisabled.value }
 					placeholder = 'Optional: Explain why you believe this outcome is correct'
@@ -266,7 +267,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				<span style = { { fontWeight: '500', display: 'block', marginBottom: '0.25rem' } }>Amount:</span>
 				<div style = { { display: 'flex', alignItems: 'center', gap: '0.5em' } }>
 					<Input
-						class = 'input'
+						class = 'input reporting-panel-input'
 						type = 'text'
 						placeholder = 'REP to stake'
 						disabled = { isDisabled.value }
@@ -284,6 +285,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 							return bigintToDecimalString(amount, 18n, 18)
 						}}
 					/>
+					<span class = 'unit'>REP</span>
 					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
 						<>
 							<span style = 'white-space: nowrap'>/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP</span>
