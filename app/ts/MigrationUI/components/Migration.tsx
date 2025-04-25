@@ -7,7 +7,7 @@ import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUn
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from '../../SharedUI/MarketReportingOptions.js'
+import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 

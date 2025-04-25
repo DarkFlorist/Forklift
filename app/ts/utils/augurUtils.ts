@@ -1,5 +1,5 @@
 import { MarketData } from '../SharedUI/Market.js'
-import { OutcomeStake } from '../SharedUI/MarketReportingOptions.js'
+import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
 import { GENESIS_UNIVERSE, MARKET_TYPES, YES_NO_OPTIONS } from './constants.js'
