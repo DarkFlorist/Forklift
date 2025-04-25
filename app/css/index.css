@@ -51,6 +51,7 @@ input, textarea, select {
 	font-size: 1rem;
 	outline: none;
 	background-color: #1f2937; /* gray-800 */
+	box-sizing: border-box;
 }
 
 input::placeholder, textarea::placeholder {
