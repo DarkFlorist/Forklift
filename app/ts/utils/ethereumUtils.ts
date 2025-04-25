@@ -48,6 +48,7 @@ export function stripTrailingZeros(data: Uint8Array): Uint8Array {
 }
 
 export function isDecimalString(value: string): boolean {
+	if (value.length === 0) return false
 	return /^\d*\.?\d*$/.test(value)
 }
 
