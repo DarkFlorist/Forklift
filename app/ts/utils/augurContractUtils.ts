@@ -62,7 +62,7 @@ export const buyParticipationTokens = async (writeClient: WriteClient, universe:
 	})
 }
 
-export const doInitialReport = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
+export const doInitialReport = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
 	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'doInitialReport',
@@ -81,7 +81,7 @@ export const finalizeMarket = async (writeClient: WriteClient, market: AccountAd
 }
 
 // see here: https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/Augur.sol#L243
-export const derivePayoutDistributionHash = (payoutNumerators: bigint[], numTicks: bigint, numOutcomes: bigint): `0x${ string }` => {
+export const derivePayoutDistributionHash = (payoutNumerators: readonly bigint[], numTicks: bigint, numOutcomes: bigint): `0x${ string }` => {
 	if (BigInt(payoutNumerators.length) !== numOutcomes) throw new Error('Malformed payout length')
 	if (!(payoutNumerators[0] === 0n || payoutNumerators[0] === numTicks)) throw new Error('Invalid report must be fully paid to Invalid')
 	const _sum = payoutNumerators.reduce((acc, val) => acc + val, 0n)
@@ -105,7 +105,7 @@ export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (readClien
 	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getStakeInOutcome(readClient, market, payoutDistributionHash)))
 }
 
-export const contributeToMarketDispute = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
+export const contributeToMarketDispute = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
 	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'contribute',
@@ -114,7 +114,7 @@ export const contributeToMarketDispute = async (writeClient: WriteClient, market
 	})
 }
 
-export const contributeToMarketDisputeOnTentativeOutcome = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
+export const contributeToMarketDisputeOnTentativeOutcome = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
 	return await writeClient.writeContract({
 		abi: MARKET_ABI,
 		functionName: 'contributeToTentative',
@@ -507,7 +507,7 @@ export const getParentUniverse = async (readClient: ReadClient, universe: Accoun
 	})
 }
 
-export const getChildUniverse = async (readClient: ReadClient, universe: AccountAddress, payoutNumerators: EthereumQuantity[], numTicks: bigint, numOutcomes: bigint) => {
+export const getChildUniverse = async (readClient: ReadClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[], numTicks: bigint, numOutcomes: bigint) => {
 	const PayoutDistributionHash = derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)
 	return await readClient.readContract({
 		abi: UNIVERSE_ABI,

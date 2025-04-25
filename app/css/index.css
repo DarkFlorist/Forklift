@@ -15,3 +15,35 @@
 	border-radius: 4px;
 	outline: none;
 }
+
+.bigint-slider {
+	position: relative;
+	background-color: #d1d5db; /* gray-300 */
+	border-radius: 9999px;
+	cursor: pointer;
+	align-self: center;
+	height: 12px;
+	width: 300px;
+}
+
+.bigint-slider-track {
+	position: absolute;
+	top: 0;
+	left: 0;
+	background-color: #3b82f6; /* blue-500 */
+	border-radius: 9999px;
+	height: 100%;
+}
+
+.bigint-slider-thumb {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 16px;
+	height: 16px;
+	background-color: #ffffff;
+	border: 2px solid #3b82f6;
+	border-radius: 9999px;
+	box-sizing: border-box;
+}
+

@@ -65,6 +65,13 @@ function ParsedInput<T>(model: ParsedInputModel<T>) {
 		})
 	})
 
+	useSignalEffect(() => {
+		const serialized = model.serialize(model.value.deepValue)
+		if (internalValue.peek() !== serialized && model.value.deepValue !== undefined) {
+			internalValue.value = serialized
+		}
+	})
+
 	function onChange(event: JSX.TargetedEvent<HTMLInputElement, Event>) {
 		if (!pendingOnChange.peek()) return
 		if (!model.onChange) return

@@ -9,6 +9,7 @@ export const ExtraInfo = funtypes.Intersect(
 		categories: funtypes.ReadonlyArray(funtypes.String),
 		tags: funtypes.ReadonlyArray(funtypes.String),
 		longDescription: funtypes.String,
-		template: funtypes.Unknown
+		template: funtypes.Unknown,
+		_scalarDenomination: funtypes.String,
 	})
 )

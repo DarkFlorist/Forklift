@@ -1,6 +1,6 @@
 import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
@@ -9,16 +9,11 @@ export type OutcomeStake = {
 	outcomeName: string
 	repStake: bigint
 	status: 'Winning' | 'Losing'
-	payoutNumerators: EthereumQuantity[]
-	alreadyContributedToOutcome: undefined | {
-		participantAddress: AccountAddress
-		payoutNumerators: readonly bigint[]
-		stake: bigint
-		size: bigint
-	}
+	payoutNumerators: readonly EthereumQuantity[]
+	alreadyContributedToOutcomeStake: undefined | bigint
 }
 
-type MarketReportingOptionsProps = {
+type MarketReportingOptionsForYesNoAndCategoricalProps = {
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
@@ -29,7 +24,7 @@ type MarketReportingOptionsProps = {
 	canInitialReport: Signal<boolean>
 }
 
-export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, lastCompletedCrowdSourcer, areOptionsDisabled, canInitialReport }: MarketReportingOptionsProps) => {
+export const MarketReportingOptionsForYesNoAndCategorical = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, lastCompletedCrowdSourcer, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -42,25 +37,6 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing, lastCompletedCrowdSourcer.deepValue))
 	})
 
-	if (totalStake.value === 0n) { // initial reporting
-		return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
-			outcomeStakes.deepValue.map((outcomeStake, index) => <>
-				<input
-					disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
-					type = 'radio'
-					name = 'selectedOutcome'
-					checked = { selectedOutcome.value === outcomeStake.outcomeName }
-					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-				/>
-			<span>{ outcomeStake.outcomeName }</span>
-			<span>
-				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
-				</> }
-			</span>
-			</>)
-		} </div>
-	}
 	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
 		outcomeStakes.deepValue.map((outcomeStake, index) => <>
 			<input
@@ -71,16 +47,18 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 				onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
 			/>
 			<span>{ outcomeStake.outcomeName } ({ outcomeStake.status })</span>
-			<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
+			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
+				<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
+				<span>
+					{ outcomeStake.status === 'Winning'
+						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
+						: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
+					}
+				</span>
+			</> }
 			<span>
-				{ outcomeStake.status === 'Winning'
-					? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
-					: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
-				}
-			</span>
-			<span>
-				{ outcomeStake.alreadyContributedToOutcome === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcome.stake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
 				</> }
 			</span>
 		</>)
@@ -89,16 +67,16 @@ export const MarketReportingOptions = ({ outcomeStakes, selectedOutcome, preempt
 
 export type MarketOutcomeOption = {
 	outcomeName: string
-	payoutNumerators: EthereumQuantity[]
+	payoutNumerators: readonly EthereumQuantity[]
 }
 
-type MarketReportingWithoutStakeProps = {
+type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeOption[]>
 	enabled?: Signal<boolean>
 }
 
-export const MarketReportingWithoutStake = ({ outcomeStakes, selectedOutcome, enabled }: MarketReportingWithoutStakeProps) => {
+export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, enabled }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	return outcomeStakes.deepValue.map((outcomeStake) => (
 		<span key = { outcomeStake.outcomeName }>
