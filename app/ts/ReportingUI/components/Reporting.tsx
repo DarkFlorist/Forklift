@@ -370,6 +370,10 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 
 	const finalizeDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingFinalization')
 	const migrationDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingForkMigration')
+	const showReporting = useComputed(() => {
+		const state = marketData.deepValue?.hotLoadingMarketData.reportingState
+		return state === 'CrowdsourcingDispute' || state === 'DesignatedReporting' || state === 'OpenReporting' || state === 'AwaitingNextWindow'
+	})
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -493,13 +497,14 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 					/>
 					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
 				</div>
-			</>}>
-				<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-				<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
-				{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
+			</> }>
+				{ showReporting.value === false ? <></> : <>
+					<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
+					<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
+					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
+				</> }
 				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
 			</Market>
-
 		</div>
 	</div>
 }

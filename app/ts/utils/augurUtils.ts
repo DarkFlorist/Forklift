@@ -18,11 +18,15 @@ export const isGenesisUniverse = (universeAddress: AccountAddress | undefined) =
 export const getAllPayoutNumeratorCombinations = (numOutcomes: bigint, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: Number(numOutcomes) }, (_, outcome) => Array.from({ length: Number(numOutcomes) }, (_, index) => index === outcome ? numTicks : 0n))
 
 type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
-const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
+export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
 	if (index === 0) return 'Invalid'
-	if (marketType === 'Yes/No') return YES_NO_OPTIONS[index]
+	if (marketType === 'Yes/No') {
+		const option = YES_NO_OPTIONS[index]
+		if (option === undefined) throw new Error('invalid outcome index')
+		return option
+	}
 	const outcomeName = outcomes[index - 1]
-	if (outcomeName === undefined) return undefined
+	if (outcomeName === undefined) throw new Error('invalid outcome index')
 	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
 }
 
