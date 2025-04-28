@@ -5,7 +5,7 @@ import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
-import { MarketReportingOptionsForYesNoAndCategorical, MarketReportingForYesNoAndCategoricalWithoutStake, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -14,6 +14,7 @@ import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
+import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -26,7 +27,7 @@ interface ForkMigrationProps {
 export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, canMigrate, refreshData }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	const initialReportReason = useSignal<string>('')
-	const selectedOutcome = useSignal<string | null>(null)
+	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const disavowCrowdsourcersButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('account missing')
@@ -39,15 +40,14 @@ export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, can
 		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('marketData missing')
 		if (outcomeStakes.deepValue === undefined) throw new Error('outcomeStakes missing')
-		const initialReportPayoutNumerators = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
-		if (!initialReportPayoutNumerators) throw new Error('Selected outcome not found')
-		await migrateThroughOneFork(writeClient, marketData.deepValue.marketAddress, initialReportPayoutNumerators, initialReportReason.peek())
+		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not found')
+		await migrateThroughOneFork(writeClient, marketData.deepValue.marketAddress, selectedPayoutNumerators.deepValue, initialReportReason.peek())
 		await refreshData()
 	}
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
 			<span><b>Market Fork Migration:</b></span>
-			<MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } enabled = { canMigrate }/>
+			<SelectUniverse marketData = { marketData } enabled = { canMigrate } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input

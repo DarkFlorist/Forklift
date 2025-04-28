@@ -11,6 +11,6 @@ export const ExtraInfo = funtypes.Intersect(
 		tags: funtypes.ReadonlyArray(funtypes.String),
 		longDescription: funtypes.String,
 		template: funtypes.Unknown,
-		_scalarDenomination: funtypes.Union(funtypes.String, funtypes.Literal(false)).withParser(LiteralConverterParserFactory<false | string, undefined>(false, undefined))
+		_scalarDenomination: funtypes.Union(funtypes.String, funtypes.Literal(false).withParser(LiteralConverterParserFactory<false | string, undefined>(false, undefined)))
 	})
 )
