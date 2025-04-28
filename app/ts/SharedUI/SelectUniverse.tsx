@@ -6,12 +6,12 @@ import { ScalarInput } from './ScalarMarketReportingOptions.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
-	enabled: Signal<boolean>
+	disabled: Signal<boolean>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeOption[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 }
 
-export function SelectUniverse({ marketData, enabled, outcomeStakes, selectedPayoutNumerators }: SelectUniverseProps) {
+export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators }: SelectUniverseProps) {
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
@@ -38,7 +38,7 @@ export function SelectUniverse({ marketData, enabled, outcomeStakes, selectedPay
 	})
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
-		return <ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination }/>
+		return <ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
 	}
-	return <MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } enabled = { enabled }/>
+	return <MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
 }

@@ -15,10 +15,12 @@ type ScalarInputProps = {
 	numTicks: Signal<bigint>
 	unit: Signal<string>
 	invalid: Signal<boolean>
+	disabled: Signal<boolean>
 }
 
-export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid }: ScalarInputProps) {
+export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
+	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
 	return <div style = { { display: 'grid', gridTemplateColumns: 'min-content min-content auto', gap: '0.5rem', alignItems: 'center' } }>
 		<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content', gap: '0.5rem' } }>
 			<BigIntSlider
@@ -26,13 +28,13 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 				max = { maxValue }
 				value = { value }
 				step = { numTicks }
-				disabled = { invalid }
+				disabled = { isSliderAndInputDisabled }
 			/>
 			<Input
 				class = 'input'
 				type = 'text'
 				placeholder = 'Allocation'
-				disabled = { invalid.value }
+				disabled = { isSliderAndInputDisabled }
 				value = { value }
 				sanitize = { (amount: string) => amount.trim() }
 				tryParse = { (amount: string | undefined) => {
@@ -61,6 +63,7 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 				<input
 					type = 'checkbox'
 					name = 'Invalid'
+					disabled = { disabled }
 					checked = { invalid.value }
 					onChange = { (event ) => {
 						const target = event.target as HTMLInputElement

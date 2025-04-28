@@ -51,7 +51,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const childUniverseUrl = useComputed(() => childUniverseAddress.deepValue === undefined ? '' : getUniverseUrl(childUniverseAddress.deepValue, 'migration'))
 	const parentUniverseUrl = useComputed(() => parentUniverse.deepValue === undefined ? '' : getUniverseUrl(parentUniverse.deepValue, 'migration'))
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
-	const canMigrate = useComputed(() => true)
+	const migrationDisabled = useComputed(() => false)
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -138,7 +138,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
 				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond }/>
-				<SelectUniverse marketData = { forkingMarketData } enabled = { canMigrate } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+				<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 				<DisplayForkValues forkValues = { forkValues }/>
 				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
 				<div style = 'margin-top: 0.5rem'>
