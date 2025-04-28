@@ -9,7 +9,7 @@ import { IAugur } from "./IAugur.sol";
 import { Constants } from "./Constants.sol";
 import { AddressToString } from "./AddressToString.sol";
 
-contract AugurConstantProduct is ERC20 {
+contract AugurConstantProduct {
 	using AddressToString for address;
 
 	IShareToken public shareToken;
@@ -31,52 +31,7 @@ contract AugurConstantProduct is ERC20 {
 		unlocked = 1;
 	}
 
-	constructor(IMarket market) ERC20(string(abi.encodePacked("ACPM-", address(market).addressToString())), address(market).addressToString()) {
-		augurMarketAddress = address(market);
-		shareToken = market.shareToken();
-		require(augur.getMarketType(market) == 0, "AugurCP: ACPM only supports Yes No Markets");
-		INVALID = shareToken.getTokenId(augurMarketAddress, 0);
-		NO = shareToken.getTokenId(augurMarketAddress, 1);
-		YES = shareToken.getTokenId(augurMarketAddress, 2);
-	}
-
-	function mint(address mintTo) lock external {
-		(uint256 poolNo, uint256 poolYes) = noYesShareBalances(address(this));
-		uint256 noIn = poolNo - noBalance;
-		uint256 yesIn = poolYes - yesBalance;
-
-		uint256 supply = totalSupply();
-		uint256 liquidity = 0;
-
-		if (supply == 0) {
-			liquidity = sqrt(noIn * yesIn); // CONSIDER: MINIMUM BALANCE handling?
-		} else {
-			uint256 liquidity1 = noIn * supply / noBalance;
-			uint256 liquidity2 = yesIn * supply / yesBalance;
-			liquidity = liquidity1 < liquidity2 ? liquidity1 : liquidity2;
-		}
-
-		_mint(mintTo, liquidity);
-
-		noBalance = poolNo;
-		yesBalance = poolYes;
-	}
-
-	function burn(address sharesTo) lock external returns (uint256 noShare, uint256 yesShare) {
-		uint256 poolSupply = totalSupply();
-		(uint256 poolNo, uint256 poolYes) = noYesShareBalances(address(this));
-
-		uint256 liquidity = balanceOf(address(this));
-
-		_burn(address(this), liquidity);
-
-		noShare = poolNo * liquidity / poolSupply;
-		yesShare = poolYes * liquidity / poolSupply;
-
-		shareTransfer(address(this), sharesTo, noShare, yesShare);
-
-		noBalance = poolNo - noShare;
-		yesBalance = poolYes - yesShare;
+	constructor() {
 	}
 
 	function swap(address to, uint256 noSharesOut, uint256 yesSharesOut) lock external {
