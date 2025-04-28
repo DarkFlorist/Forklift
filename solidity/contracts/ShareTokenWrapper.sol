@@ -15,7 +15,7 @@ contract ShareTokenWrapper is ERC20 {
 
 	bool private initialized = false;
 
-    constructor() ERC20("","") {}
+	constructor() ERC20("","") {}
 
 	function initialize(IMarket market, bool _isYes) external {
 		require(!initialized, "AugurCP: Already initialized");

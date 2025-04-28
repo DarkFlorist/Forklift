@@ -400,20 +400,23 @@ contract AugurConstantProductRouter {
 		IPoolManager(Constants.UNIV4_POOL_MANAGER).initialize(pool, startingPrice);
 		marketIds[address(market)] = pool;
 		marketList.push(market);
-        return pool;
+		return pool;
     }
 
 	function createShareToken(address market, uint8 count) private returns (address shareTokenWrapperAddress) {
 		{
-            bytes32 _salt = keccak256(abi.encodePacked(market, count));
-            bytes memory _deploymentData = abi.encodePacked(type(ShareTokenWrapper).creationCode);
-            assembly {
-                shareTokenWrapperAddress := create2(0x0, add(0x20, _deploymentData), mload(_deploymentData), _salt)
-                if iszero(extcodesize(shareTokenWrapperAddress)) {
-                    revert(0, 0)
-                }
-            }
-        }
+			bytes32 _salt = keccak256(abi.encodePacked(market, count));
+			bytes memory _deploymentData = abi.encodePacked(type(ShareTokenWrapper).creationCode);
+			assembly {
+				shareTokenWrapperAddress := create2(0x0, add(0x20, _deploymentData), mload(_deploymentData), _salt)
+				if iszero(extcodesize(shareTokenWrapperAddress)) {
+					mstore(0x00, 0x20) // offset
+					mstore(0x20, 0x17) // length
+					mstore(0x40, 0x6372656174655368617265546F6B656E204661696C6564) // message ("createShareToken Failed")
+					revert(0x00, 0x60)
+				}
+			}
+		}
 	}
 
 	function quoteExactInputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) external returns (uint256, uint256) {
