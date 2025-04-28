@@ -13,12 +13,21 @@ import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
 import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
-import { UNIVERSE_ABI } from '../ABI/Universe.js'
+import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 import { encodePacked, keccak256 } from 'viem'
 
 export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	await writeClient.writeContract({
+		address: universe,
+		abi: AUGUR_UNIVERSE_ABI,
+		functionName: 'createYesNoMarket',
+		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
+	})
+}
+
+export const estimateGasCreateYesNoMarket = async (universe: AccountAddress, readClient: ReadClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
+	return await readClient.estimateContractGas({
 		address: universe,
 		abi: AUGUR_UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
@@ -479,13 +488,14 @@ export const getReputationTokenForUniverse = async (readClient: ReadClient, univ
 	})
 }
 
+// there's a bug in this method that it doesn't return the max end date, but max end date + 1
 export const getMaximumMarketEndDate = async (readClient: ReadClient) => {
-	return await readClient.readContract({
+	return (await readClient.readContract({
 		abi: AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE,
 		functionName: 'getMaximumMarketEndDate',
 		address: AUGUR_CONTRACT,
 		args: []
-	})
+	}) - 1n)
 }
 
 export const isKnownUniverse = async (readClient: ReadClient, universe: AccountAddress) => {
@@ -521,6 +531,24 @@ export const getRepBond = async (readClient: ReadClient, market: AccountAddress)
 		abi: MARKET_ABI,
 		functionName: 'repBond',
 		address: market,
+		args: []
+	})
+}
+
+export const getValidityBond = async (client: ReadClient, universe: AccountAddress) => {
+	return await client.readContract({
+		abi: UNIVERSE_ABI_SHORT,
+		functionName: 'getOrCacheValidityBond',
+		address: universe,
+		args: []
+	})
+}
+
+export const getMarketRepBondForNewMarket = async (client: ReadClient, universe: AccountAddress) => {
+	return await client.readContract({
+		abi: UNIVERSE_ABI_SHORT,
+		functionName: 'getOrCacheMarketRepBond',
+		address: universe,
 		args: []
 	})
 }

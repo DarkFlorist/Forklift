@@ -299,9 +299,6 @@ input[type="checkbox"].custom-input:checked::before {
 	cursor: pointer;
 	transition: background-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast);
 }
-.button-small {
-	padding: 5px;
-}
 .button-primary:hover {
 	background-color: hsl(168, 100%, 55%);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -769,4 +766,8 @@ h3 {
 .styled-select option {
 	padding: 10px;
 	font-size: 14px;
+}
+
+.button-small {
+	padding: 5px;
 }

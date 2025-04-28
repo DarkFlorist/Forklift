@@ -1,3 +1,36 @@
+export const UNIVERSE_ABI_SHORT = [
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "getOrCacheValidityBond",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "getOrCacheMarketRepBond",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+] as const
+
 export const UNIVERSE_ABI = [
 	{
 		"inputs": [
