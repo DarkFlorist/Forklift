@@ -37,10 +37,9 @@ export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: 
 	switch(marketData.hotLoadingMarketData.marketType) {
 		case 'Categorical':
 		case 'Yes/No': {
-			if (payoutNumerators.length !== 3 || payoutNumerators[0] === undefined || payoutNumerators[1] === undefined || payoutNumerators[2] === undefined) return malformedOutcomeName
 			var indexOfMaxValue = indexOfMax(payoutNumerators)
 			if (indexOfMaxValue === undefined) return malformedOutcomeName
-			if (payoutNumerators.filter((numerator) => numerator > 0).length > 0) return malformedOutcomeName
+			if (payoutNumerators.filter((numerator) => numerator > 0).length > 1) return malformedOutcomeName
 			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketData.hotLoadingMarketData.marketType, marketData.hotLoadingMarketData.outcomes)
 			if (name === undefined) return malformedOutcomeName
 			return name
@@ -80,7 +79,7 @@ export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake:
 
 	const requiredStakeForTheRound = requiredStake(totalStake, outcomeStake.repStake)
 	if (isSlowReporting) return outcomeStake.status === 'Losing' ? requiredStakeForTheRound - alreadyContributed : 0n
-	return (outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - totalStake - preemptiveDisputeCrowdsourcerStake) - alreadyContributed
+	return (outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake) - alreadyContributed
 }
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/Augur.sol#L321
