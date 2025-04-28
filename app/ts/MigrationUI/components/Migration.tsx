@@ -2,7 +2,7 @@ import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js
 import { AccountAddress, EthereumQuantity } from '../../types/types.js'
 import { fetchHotLoadingMarketData, getChildUniverse, getForkValues, getParentUniverse, getRepBond, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
-import { MARKET_TYPES, REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
+import { REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
@@ -77,10 +77,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 			const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
 			forkingMarketData.deepValue = { marketAddress: universeForkingInformation.deepValue.forkingMarket, parsedExtraInfo, hotLoadingMarketData: newMarketData }
 			forkingRepBond.deepValue = await getRepBond(readClient, universeForkingInformation.deepValue.forkingMarket)
-
-			const marketType = MARKET_TYPES[forkingMarketData.deepValue.hotLoadingMarketData.marketType]
-			if (marketType === undefined) throw new Error('invalid marketType')
-			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(marketType, forkingMarketData.deepValue.hotLoadingMarketData.numOutcomes, forkingMarketData.deepValue.hotLoadingMarketData.numTicks, forkingMarketData.deepValue.hotLoadingMarketData.outcomes)
+			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.hotLoadingMarketData.marketType, forkingMarketData.deepValue.hotLoadingMarketData.numOutcomes, forkingMarketData.deepValue.hotLoadingMarketData.numTicks, forkingMarketData.deepValue.hotLoadingMarketData.outcomes)
 			forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 		}
 	}

@@ -2,7 +2,6 @@ import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond } from '../../utils/augurContractUtils.js'
 import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
-import { MARKET_TYPES, REPORTING_STATES } from '../../utils/constants.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { SomeTimeAgo } from './SomeTimeAgo.js'
@@ -94,19 +93,8 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const reason = useSignal<string>('')
 	const amountInput = useOptionalSignal<EthereumQuantity>(undefined)
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
-	const isInitialReporting = useComputed(() => {
-		if (marketData.deepValue == undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'OpenReporting' || state === 'DesignatedReporting') return true
-		return false
-	})
-	const canInitialReport = useComputed(() => {
-		if (marketData.deepValue == undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'OpenReporting') return true
-		if (state === 'DesignatedReporting' && marketData.deepValue.hotLoadingMarketData.designatedReporter === maybeWriteClient.deepValue?.account.address) return true
-		return false
-	})
+	const isInitialReporting = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'OpenReporting' || marketData.deepValue?.hotLoadingMarketData.reportingState === 'DesignatedReporting')
+	const canInitialReport = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'OpenReporting' || (marketData.deepValue?.hotLoadingMarketData.reportingState === 'DesignatedReporting' && marketData.deepValue.hotLoadingMarketData.designatedReporter === maybeWriteClient.deepValue?.account.address))
 
 	const areOptionsDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
 
@@ -114,7 +102,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		if (marketData.deepValue === undefined) return undefined
 		if (forkValues.deepValue === undefined) return undefined
 		if (outcomeStakes.deepValue === undefined) return undefined
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			const numTicks = marketData.deepValue.hotLoadingMarketData.numTicks
 			const minPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[0]
 			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
@@ -173,7 +161,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		if (outcomeStakes.deepValue === undefined) throw new Error ('Outcome stakes missing')
 		if (marketData.deepValue === undefined) throw new Error ('market data missing')
 		if (amountInput.deepValue === undefined) throw new Error ('Input missing')
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			const numTicks = marketData.deepValue.hotLoadingMarketData.numTicks
 			const minPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[0]
 			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
@@ -247,7 +235,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 
 	const ReportingComponent = () => {
 		if (marketData.deepValue === undefined) return <></>
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
 				<ReportedScalarInputs outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer }/>
 				<ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination }/>
@@ -331,7 +319,7 @@ export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHist
 		<div style = 'display: grid'>
 			{ reportingHistory.deepValue.map((round) => {
 				if (marketData.deepValue === undefined) return <></>
-				const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
+				const marketType = marketData.deepValue.hotLoadingMarketData.marketType
 				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
 				const outcomeName = getOutComeName(round.payoutNumerators, marketData.deepValue)
 				return <span><b>{ round.type }{ 'Round ' }{ round.round }</b>{ ': ' }
@@ -365,19 +353,8 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 	const repBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 
-	const canFinalize = useComputed(() => {
-		if (marketData.deepValue === undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'AwaitingFinalization') return true
-		return false
-	})
-
-	const canMigrate = useComputed(() => {
-		if (marketData.deepValue === undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'AwaitingForkMigration') return true
-		return false
-	})
+	const canFinalize = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'AwaitingFinalization')
+	const canMigrate = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'AwaitingForkMigration')
 
 	const getParsedExtraInfo = (extraInfo: string) => {
 		try {
@@ -413,22 +390,20 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		clear()
 		if (marketAddress.deepValue === undefined) throw new Error('market not defined')
-		const newMarketData = await fetchHotLoadingMarketData(readClient, marketAddress.deepValue)
-		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, marketAddress.deepValue, newMarketData.disputeRound)
-		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
-		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData: newMarketData }
+		const hotLoadingMarketData = await fetchHotLoadingMarketData(readClient, marketAddress.deepValue)
+		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, marketAddress.deepValue, hotLoadingMarketData.disputeRound)
+		const parsedExtraInfo = getParsedExtraInfo(hotLoadingMarketData.extraInfo)
+		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData }
 		const currentMarketData = marketData.deepValue
-		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
-			const allPayoutNumerators = getAllPayoutNumeratorCombinations(marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
+		if (hotLoadingMarketData.marketType === 'Yes/No' || hotLoadingMarketData.marketType === 'Categorical') {
+			const allPayoutNumerators = getAllPayoutNumeratorCombinations(hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
 			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
 			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
-			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
+			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
+			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
 			outcomeStakes.deepValue = stakes.map((repStake, index) => {
-				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
-				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
 				const payoutNumerators = allPayoutNumerators[index]
-				if (payoutNumerators === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ currentMarketData.hotLoadingMarketData.outcomes.join(',') }]`)
+				if (payoutNumerators === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ hotLoadingMarketData.outcomes.join(',') }]`)
 				return {
 					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
 					repStake,
@@ -443,10 +418,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			const allKnownPayoutNumerators = aggregateByPayoutDistribution(reportingParticipants)
 			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
 			const winningIndex = winningOption === undefined ? -1 : allKnownPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
-
 			outcomeStakes.deepValue = allKnownPayoutNumerators.map((info, index) => {
-				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
-				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
 				const payoutNumerators = info.payoutNumerators
 				return {
 					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
@@ -467,9 +439,10 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		}
 		repBond.deepValue = await getRepBond(readClient, marketAddress.deepValue)
 		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (!(state === 'PreReporting' || state === 'OpenReporting' || state === 'DesignatedReporting')) {
-			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, newMarketData.disputeRound)
+		if (!(hotLoadingMarketData.reportingState === 'PreReporting'
+			|| hotLoadingMarketData.reportingState === 'OpenReporting'
+			|| hotLoadingMarketData.reportingState === 'DesignatedReporting')) {
+			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, hotLoadingMarketData.disputeRound)
 		}
 	}
 
