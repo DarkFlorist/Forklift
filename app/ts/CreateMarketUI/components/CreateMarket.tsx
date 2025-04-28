@@ -118,7 +118,6 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	}
 	function handleAffiliateFee(value: string) {
 		if (!isNumeric(value)) throw new Error('Affiliate fee is not numeric')
-		console.log('affiliate fee', value)
 		affiliateFeeDivisor.deepValue = Number(value)
 	}
 	function handleDescription(value: string) {
@@ -249,7 +248,7 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 				<textarea
 					class = 'input'
 					placeholder = 'This market resolves...'
-					style = { { minHeight: '600px', resize: 'vertical' } }
+					style = { { minHeight: '100px', height: '200px',resize: 'vertical' } }
 					value = { longDescription.value }
 					onInput = { e => handleLongDescription(e.currentTarget.value) }
 				/>
