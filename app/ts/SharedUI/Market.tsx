@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'preact/hooks'
 import { ExtraInfo } from '../CreateMarketUI/types/createMarketTypes.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
-import { fetchHotLoadingMarketData } from '../utils/augurContractUtils.js'
-import { getUniverseName } from '../utils/augurUtils.js'
+import { fetchHotLoadingMarketData, getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
+import { getOutComeName, getUniverseName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
 import { bigintToDecimalString, formatUnixTimestampISO } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { bigintSecondsToDate, humanReadableDateDeltaFromTo } from '../utils/utils.js'
+import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../utils/utils.js'
 import { JSX } from 'preact/jsx-runtime'
+import { useComputed } from '@preact/signals'
+import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 
 export type MarketData = {
 	marketAddress: `0x${ string }`
@@ -32,17 +34,38 @@ export const DisplayExtraInfo = ({ marketData }: DisplayExtraInfoProps) => {
 	</>
 }
 
-export const MarketState = ({ marketData }: DisplayExtraInfoProps) => {
+interface MarketStateProps {
+	marketData: OptionalSignal<MarketData>
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
+}
+
+export const MarketState = ({ marketData, lastCompletedCrowdSourcer, forkValues }: MarketStateProps) => {
 	const data = marketData.deepValue?.hotLoadingMarketData
 	if (data === undefined) return ''
 	const state = data.reportingState
+
+	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined
+		&& forkValues.deepValue !== undefined
+		&& lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing
+	)
+
 	switch(state) {
 		case 'AwaitingFinalization': return 'Awaiting For Finalization'
 		case 'AwaitingForkMigration': return 'Awaiting For Fork Migration'
 		case 'AwaitingNextWindow': return `Disputing Round: ${ data.disputeRound }: Awaiting For Next The Reporting Window`
-		case 'CrowdsourcingDispute': return `Disputing Round: ${ data.disputeRound }: Awaiting For Possible Disputes`
-		case 'DesignatedReporting': return 'Awaiting For Designated Reporter'
-		case 'Finalized': return 'Finalized'
+		case 'CrowdsourcingDispute': {
+			if (isSlowReporting.value) return <>Disputing Slow Round: { data.disputeRound }</>
+			return <>Disputing Speed Round: { data.disputeRound }</>
+		}
+		case 'DesignatedReporting': return 'Awaiting For Designated Reporter To Report'
+		case 'Finalized': {
+			if (marketData.deepValue === undefined) return 'Finalized'
+			const winningPayout = marketData.deepValue.hotLoadingMarketData.winningPayout
+			const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
+			if (winningOptionName === undefined) return 'Finalized'
+			return `Finalized as ${ winningOptionName }`
+		}
 		case 'Forking': return 'Forking'
 		case 'OpenReporting': return 'Awaiting For Anyone To Report'
 		case 'PreReporting': return 'Reporting Not Started'
@@ -56,6 +79,9 @@ interface MarketProps {
 	repBond: OptionalSignal<EthereumQuantity>
 	addressComponent?: JSX.Element
 	children?: preact.ComponentChildren
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
+	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 }
 
 const Countdown = ({ end }: { end: bigint }) => {
@@ -76,7 +102,42 @@ const Countdown = ({ end }: { end: bigint }) => {
 	return <span className='countdown'>{ timeLeft }</span>
 }
 
-export const Market = ({ marketData, universe, repBond, addressComponent, children }: MarketProps) => {
+interface ResolvingToProps {
+	marketData: OptionalSignal<MarketData>
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
+	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
+}
+
+const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer, forkValues}: ResolvingToProps) => {
+	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined
+		&& forkValues.deepValue !== undefined
+		&& lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing
+	)
+	if (disputeWindowInfo.deepValue === undefined) return <></>
+	if (marketData.deepValue === undefined) return <></>
+	const winningPayout = marketData.deepValue?.hotLoadingMarketData.winningPayout.length === 0 ? lastCompletedCrowdSourcer.deepValue?.payoutNumerators : marketData.deepValue?.hotLoadingMarketData.winningPayout
+	if (winningPayout === undefined) return <></>
+	const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
+	if (winningOptionName === undefined) return <></>
+	const endDate = bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
+	return <SomeTimeAgo priorTimestamp = { endDate } countBackwards = { true } diffToText = {
+		(time: number) => {
+			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName }</b>"</p>
+			if (disputeWindowInfo.deepValue === undefined) return <></>
+			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) })
+			</p> </div>
+			const timeUntilNext = humanReadableDateDeltaFromTo(new Date(), bigintSecondsToDate(disputeWindowInfo.deepValue.startTime))
+			const nextWindowLength = humanReadableDateDeltaFromTo(bigintSecondsToDate(disputeWindowInfo.deepValue.startTime), bigintSecondsToDate(disputeWindowInfo.deepValue.endTime))
+			return <div class = 'warning-box'> <p>
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+			</p> </div>
+		}
+	}/>
+}
+
+export const Market = ({ marketData, universe, repBond, addressComponent, children, lastCompletedCrowdSourcer, forkValues, disputeWindowInfo }: MarketProps) => {
 	if (marketData.deepValue === undefined || repBond.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
@@ -84,16 +145,20 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 	</div>
 	return <div>
 		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.hotLoadingMarketData.universe) ? <>
-			<div style = 'padding: 10px; background-color: red;'>
+			<div class = 'error-box'>
 				<p> This Market is for universe { getUniverseName(marketData.deepValue.hotLoadingMarketData.universe) } while you are on universe { getUniverseName(universe.deepValue) }!</p>
 			</div>
 		</> : <></> }
+
 		<div className = 'market-card'>
 			{ addressComponent }
+			{ marketData.deepValue.hotLoadingMarketData.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
+				<ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo }/>
+			</> }
 			<header className = 'market-header'>
 				<h1>{ marketData.deepValue.parsedExtraInfo?.description || marketData.deepValue.marketAddress }</h1>
 				<div className = 'status-bar'>
-					<span className = 'state'>{ <MarketState marketData = { marketData } /> }</span>
+					<span className = 'state'>{ <MarketState marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } /> }</span>
 					<Countdown end = { marketData.deepValue.hotLoadingMarketData.endTime } />
 				</div>
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto auto', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' } }>
@@ -105,11 +170,12 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 					</div>
 				</div>
 			</header>
+
 			<section className = 'description'>
 				<DisplayExtraInfo marketData = { marketData } />
 			</section>
 
-			<section className='details-grid'>
+			<section className = 'details-grid'>
 				{ [
 					['Owner', marketData.deepValue.hotLoadingMarketData.owner],
 					['Market Creator', marketData.deepValue.hotLoadingMarketData.marketCreator],
