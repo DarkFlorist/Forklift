@@ -627,6 +627,11 @@ h3 {
 	left: 1rem;
 }
 
+.note-text {
+	font-size: 0.75rem;
+	color: #888;
+}
+
 .scalar-options-container {
 	display: flex;
 	align-items: stretch;
@@ -698,4 +703,63 @@ h3 {
 	padding-left: 1.5rem;
 	margin: 0;
 	padding-inline-start: 20px;
+}
+
+.create-market {
+	width: 100%;
+	max-width: 900px;
+	margin: 2rem auto;
+	padding: 2rem;
+	background: #1e1e2f;
+	border-radius: 1rem;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.refresh-button {
+	align-self: flex-start
+}
+
+.form-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 1rem;
+}
+
+.form-group {
+	display: flex;
+	flex-direction: column;
+}
+
+.form-group label {
+	font-size: 0.875rem;
+	color: #bbb;
+	margin-bottom: 0.25rem;
+}
+
+.form-group .note {
+	font-size: 0.75rem;
+	color: #888;
+	margin-left: 0.5rem;
+}
+
+.button-group {
+	display: flex;
+	gap: 1rem;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.styled-select {
+	width: 100%;
+	overflow-y: auto;
+	padding: 8px;
+	font-size: 14px;
+}
+
+.styled-select option {
+	padding: 10px;
+	font-size: 14px;
 }

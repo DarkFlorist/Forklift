@@ -181,6 +181,7 @@ export function App() {
 	const universe = useOptionalSignal<AccountAddress>(undefined)
 	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
 	const reputationTokenAddress = useOptionalSignal<AccountAddress>(undefined)
+	const account = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
 
 	const ethBalance = useOptionalSignal<EthereumQuantity>(undefined)
@@ -251,6 +252,7 @@ export function App() {
 		isWindowEthereum.value = true
 		window.ethereum.on('accountsChanged', (accounts) => {
 			updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
+			account.deepValue = accounts[0]
 		})
 		window.ethereum.on('chainChanged', async () => { updateChainId() })
 		const fetchAccount = async () => {
@@ -258,6 +260,7 @@ export function App() {
 				loadingAccount.value = true
 				const fetchedAccount = await getAccounts()
 				updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
+				account.deepValue = fetchedAccount
 				updateChainId()
 				if (maybeReadClient.deepValue != undefined) {
 					isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
