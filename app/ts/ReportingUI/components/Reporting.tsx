@@ -10,7 +10,7 @@ import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
-import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurForkUtilities.js'
+import { aggregateByPayoutDistribution, deployAugurExtraUtilities, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
@@ -452,6 +452,12 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		await refreshData()
 	}
 
+	const deployAugurExtraUtilitiesButton = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
+		await deployAugurExtraUtilities(writeClient)
+	}
+
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
 			<Input
@@ -478,6 +484,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
 			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
 			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
+			<button class = 'button is-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button>
 			{ marketData.deepValue === undefined ? <> </> : <button class = 'button is-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
 			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
 		</div>
