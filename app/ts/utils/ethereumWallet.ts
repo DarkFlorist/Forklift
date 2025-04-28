@@ -17,7 +17,7 @@ export const getAccounts = async () => {
 
 export const createReadClient = (accountAddress: AccountAddress | undefined) => {
 	if (window.ethereum === undefined || accountAddress === undefined) {
-		return createPublicClient({ chain: mainnet, transport: http('https://ethereum.dark.florist', { batch: { wait: 100 } }) })
+		return createPublicClient({ chain: mainnet, transport: http('https://ethereum.dark.florist', { batch: { wait: 100 } }), cacheTime: 10_000 })
 	}
 	return createWalletClient({ chain: mainnet, transport: custom(window.ethereum) }).extend(publicActions)
 }
@@ -25,7 +25,7 @@ export const createReadClient = (accountAddress: AccountAddress | undefined) => 
 export const createWriteClient = (accountAddress: AccountAddress) => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
 	if (accountAddress === undefined) throw new Error('no accountAddress!')
-	return createWalletClient({ account: accountAddress, chain: mainnet, transport: custom(window.ethereum) }).extend(publicActions)
+	return createWalletClient({ account: accountAddress, chain: mainnet, transport: custom(window.ethereum), cacheTime: 10_000 }).extend(publicActions)
 }
 
 export type ReadClient = ReturnType<typeof createReadClient> | ReturnType<typeof createWriteClient>

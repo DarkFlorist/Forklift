@@ -11,7 +11,7 @@ import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
-import { addressString, bigintToDecimalString, formatUnixTimestampISO, getEthereumBalance } from './utils/ethereumUtils.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
 import { getReputationTokenForUniverse, getUniverseForkingInformation, isKnownUniverse } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
@@ -19,7 +19,7 @@ import { Migration } from './MigrationUI/components/Migration.js'
 import { getErc20TokenBalance } from './utils/erc20.js'
 import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokensUI.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
-import { deployAugurExtraUtilities, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
+import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -51,7 +51,7 @@ const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNo
 						</>
 						return <>
 							The Universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is forking.
-							The fork ends in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }).
+							The fork ends in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
 							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
 						</>
 					}
@@ -168,6 +168,13 @@ const updateWalletSignals = (maybeReadClient: OptionalSignal<ReadClient>, maybeW
 	maybeWriteClient.deepValue = account === undefined ? undefined : createWriteClient(account)
 }
 
+const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Signal<bigint>}) => {
+	const time = useComputed(() => formatUnixTimestampIsoDate(currentTimeInBigIntSeconds.value))
+	return <div class = 'time'>
+		<span>{ time }</span>
+	</div>
+}
+
 export function App() {
 	const errorString = useOptionalSignal<string>(undefined)
 	const loadingAccount = useSignal<boolean>(false)
@@ -183,6 +190,7 @@ export function App() {
 	const reputationTokenAddress = useOptionalSignal<AccountAddress>(undefined)
 	const account = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
+	const currentTimeInBigIntSeconds = useSignal<bigint>(BigInt(Math.floor(Date.now() / 1000)))
 
 	const ethBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const repBalance = useOptionalSignal<EthereumQuantity>(undefined)
@@ -193,9 +201,9 @@ export function App() {
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <DeployContract maybeWriteClient = { maybeWriteClient } areContractsDeployed = { areContractsDeployed }/> },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/> },
-		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal }/> },
+		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Participation Tokens', path: 'participation-tokens', component: <ParticipationTokens maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe }/> }
 	] as const
 
@@ -218,6 +226,17 @@ export function App() {
 			//TODO: rather show 404
 			universe.deepValue = addressString(BigInt(DEFAULT_UNIVERSE))
 		}
+	})
+
+	useEffect(() => {
+		const id = setInterval(async () => {
+			if (maybeReadClient.deepValue) {
+				currentTimeInBigIntSeconds.value = await getCurrentBlockTimeInBigIntSeconds(maybeReadClient.deepValue)
+			} else {
+				currentTimeInBigIntSeconds.value = BigInt((new Date()).getSeconds() * 1000)
+			}
+		}, 5000)
+		return () => clearInterval(id)
 	})
 
 	useEffect(() => { pathSignal.value = window.location.hash }, [])
@@ -319,6 +338,7 @@ export function App() {
 				<div style = 'display: flex; align-items: center;'>
 					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>
+						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
 				</div>
 			</div>

@@ -14,7 +14,7 @@ export function humanReadableDateDelta(secondsDiff: number) {
 	else return `${ Math.floor(secondsDiff + 0.5) } seconds`
 }
 
-export const humanReadableDateDeltaFromTo = (from: Date, to: Date) => humanReadableDateDelta(Number(dateToBigintSeconds(to) - dateToBigintSeconds(from)))
+export const humanReadableDateDeltaFromTo = (from: bigint, to: bigint) => humanReadableDateDelta(Number(to - from))
 
 export const min = (left: bigint, right: bigint) => left < right ? left : right
 export const max = (left: bigint, right: bigint) => left > right ? left : right
