@@ -484,6 +484,13 @@ input[type="checkbox"].custom-input:checked::before {
 	font-size: 13px;
 }
 
+.time {
+	display: flex;
+	justify-content: flex-end;
+	color: #bbb;
+	font-size: 13px;
+}
+
 .app {
 	background: rgba(0, 0, 0, 0.75);
 }

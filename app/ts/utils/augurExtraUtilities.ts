@@ -92,3 +92,5 @@ export const aggregateByPayoutDistribution = ( pages: { size: bigint; stake: big
 	}
 	return Array.from(map.values())
 }
+
+export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient) => (await readClient.getBlock()).timestamp

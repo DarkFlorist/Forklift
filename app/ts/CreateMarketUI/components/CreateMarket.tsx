@@ -3,7 +3,7 @@ import { createYesNoMarket, getMaximumMarketEndDate } from '../../utils/augurCon
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
+import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
@@ -145,7 +145,7 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 					End Time (UTC){ ' ' }
 					{ maximumMarketEndData.deepValue !== undefined && (
 						<span class = 'note-text'>
-							(Latest allowed date { formatUnixTimestampISO(maximumMarketEndData.deepValue) })
+							(Latest allowed date { formatUnixTimestampIso(maximumMarketEndData.deepValue) })
 						</span>
 					) }
 				</label>

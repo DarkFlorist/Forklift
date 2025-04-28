@@ -352,9 +352,10 @@ interface ReportingProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
 	reputationTokenAddress: OptionalSignal<AccountAddress>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: ReportingProps) => {
+export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, currentTimeInBigIntSeconds }: ReportingProps) => {
 	const marketAddress = useOptionalSignal<AccountAddress>(undefined)
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
@@ -472,7 +473,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<Market marketData = { marketData } universe = { universe } repBond = { repBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } addressComponent = { <>
+			<Market marketData = { marketData } universe = { universe } repBond = { repBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
 					<Input
 						style = 'height: fit-content;'

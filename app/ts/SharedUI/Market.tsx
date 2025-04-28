@@ -4,11 +4,11 @@ import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { fetchHotLoadingMarketData, getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { getOutComeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
-import { bigintToDecimalString, formatUnixTimestampISO } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../utils/utils.js'
 import { JSX } from 'preact/jsx-runtime'
-import { useComputed } from '@preact/signals'
+import { Signal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 
 export type MarketData = {
@@ -121,24 +121,25 @@ interface MarketProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-const Countdown = ({ end }: { end: bigint }) => {
+const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | undefined>, currentTimeInBigIntSeconds: Signal<bigint> }) => {
 	const [timeLeft, setTimeLeft] = useState('')
-
 	useEffect(() => {
 		const timer = setInterval(() => {
-			if (bigintSecondsToDate(end).getTime() - Date.now() <= 0) {
+			if (end.value === undefined) return
+			if (bigintSecondsToDate(end.value).getTime() - Date.now() <= 0) {
 				setTimeLeft('The Market Has Ended')
 				clearInterval(timer)
 				return
 			}
-			setTimeLeft(humanReadableDateDeltaFromTo(new Date(), bigintSecondsToDate(end)))
+			setTimeLeft(humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, end.value))
 		}, 1000)
 		return () => clearInterval(timer)
-	}, [ end ])
+	}, [end, currentTimeInBigIntSeconds])
 
-	return <span className='countdown'>{ timeLeft }</span>
+	return <span className = 'countdown'>{ timeLeft }</span>
 }
 
 interface ResolvingToProps {
@@ -146,9 +147,10 @@ interface ResolvingToProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer, forkValues}: ResolvingToProps) => {
+const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer, forkValues, currentTimeInBigIntSeconds }: ResolvingToProps) => {
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined
 		&& forkValues.deepValue !== undefined
 		&& lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing
@@ -165,23 +167,24 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer,
 			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>
 			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) })
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
 			</p> </div>
-			const timeUntilNext = humanReadableDateDeltaFromTo(new Date(), bigintSecondsToDate(disputeWindowInfo.deepValue.startTime))
-			const nextWindowLength = humanReadableDateDeltaFromTo(bigintSecondsToDate(disputeWindowInfo.deepValue.startTime), bigintSecondsToDate(disputeWindowInfo.deepValue.endTime))
+			const timeUntilNext = humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, disputeWindowInfo.deepValue.startTime)
+			const nextWindowLength = humanReadableDateDeltaFromTo(disputeWindowInfo.deepValue.startTime, disputeWindowInfo.deepValue.endTime)
 			return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+				Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
 			</p> </div>
 		}
 	}/>
 }
 
-export const Market = ({ marketData, universe, repBond, addressComponent, children, lastCompletedCrowdSourcer, forkValues, disputeWindowInfo }: MarketProps) => {
+export const Market = ({ marketData, universe, repBond, addressComponent, children, lastCompletedCrowdSourcer, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
 	if (marketData.deepValue === undefined || repBond.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
 		</div>
 	</div>
+	const endTime = useComputed(() => marketData.deepValue?.hotLoadingMarketData.endTime)
 	return <div>
 		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.hotLoadingMarketData.universe) ? <>
 			<div class = 'error-box'>
@@ -192,20 +195,20 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 		<div className = 'market-card'>
 			{ addressComponent }
 			{ marketData.deepValue.hotLoadingMarketData.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
-				<ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo }/>
+				<ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</> }
 			<header className = 'market-header'>
 				<h1>{ marketData.deepValue.parsedExtraInfo?.description || marketData.deepValue.marketAddress }</h1>
 				<div className = 'status-bar'>
 					<span className = 'state'>{ <MarketState marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } /> }</span>
-					<Countdown end = { marketData.deepValue.hotLoadingMarketData.endTime } />
+					<Countdown end = { endTime } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 				</div>
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto auto', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' } }>
 					<div>
 						<span>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n, 2) } DAI Open Interest</span>
 					</div>
 					<div>
-						{ formatUnixTimestampISO(marketData.deepValue.hotLoadingMarketData.endTime) }
+						{ formatUnixTimestampIso(marketData.deepValue.hotLoadingMarketData.endTime) }
 					</div>
 				</div>
 			</header>

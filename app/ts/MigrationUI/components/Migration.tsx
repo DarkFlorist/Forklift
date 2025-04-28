@@ -5,7 +5,7 @@ import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO } from '../../utils/ethereumUtils.js'
+import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
@@ -19,6 +19,7 @@ interface MigrationProps {
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 	pathSignal: Signal<string>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
 interface GetForkValuesProps {
@@ -37,7 +38,7 @@ export const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
 
 const GENESIS_REPUTATION_V2_TOKEN_ADDRESS = '0x221657776846890989a759BA2973e427DfF5C9bB'
 
-export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal }: MigrationProps) => {
+export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const v1ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
@@ -136,15 +137,15 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 				<span><b>Parent Universe Address:</b><a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { parentUniverse.value }</a></span>
 				<span><b>Reputation V2 Address For The Universe:</b>{ reputationTokenAddress.deepValue }</span>
 				<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
-				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampISO(universeForkingInformation.deepValue.forkEndTime) }</span>
-				<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < new Date().getUTCSeconds() ? 'Yes' : 'No' }</span>
+				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }</span>
+				<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No' }</span>
 				<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket }</span>
 				<span><b>Your Reputation V2 Balance:</b>{ v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REP` : '' }</span>
 			</div>
 		</div>
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo }>
+				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 					<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 				</Market>
 				<DisplayForkValues forkValues = { forkValues }/>
