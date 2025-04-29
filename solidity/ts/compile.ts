@@ -22,34 +22,28 @@ async function exists(path: string) {
 	}
 }
 
-const contractList = [
-	'AugurConstantProductMarket.sol',
-	'AugurConstantProductMarketRouter.sol',
-	'IAugurConstantProduct.sol',
-	'Context.sol',
-	'draft-IERC6093.sol',
-	'ERC20.sol',
-	'IERC20.sol',
-	'IERC20Metadata.sol',
-	'IOwnable.sol',
-	'ITyped.sol',
-	'IERC1155.sol',
-	'IShareToken.sol',
-	'IMarket.sol',
-	'IAugur.sol',
-	'Constants.sol',
-	'AugurConstantProductMarketFactory.sol',
-	'ContractExists.sol',
-	'AddressToString.sol'
-]
-
-const sources = await contractList.reduce(async (acc, curr) => {
-	const value = { content: await fs.readFile(`contracts/${curr}`, 'utf8') }
-	acc.then(obj => obj[curr] = value);
-	return acc
-}, Promise.resolve(<{ [key: string]: { content: string } }>{}))
+const getAllFiles = async (dirPath: string, fileList: string[] = []): Promise<string[]> => {
+	const files = await fs.readdir(dirPath);
+	for (const file of files) {
+	  const filePath = path.join(dirPath, file);
+	  const stat = await fs.stat(filePath);
+	  if (stat.isDirectory()) {
+		await getAllFiles(filePath, fileList);
+	  } else {
+		fileList.push(filePath);
+	  }
+	}
+	return fileList;
+  }
 
 const compileAugurConstantProductMarket = async () => {
+	const files = await getAllFiles('contracts')
+	const sources = await files.reduce(async (acc, curr) => {
+		const value = { content: await fs.readFile(curr, 'utf8') }
+		acc.then(obj => obj[curr] = value);
+		return acc
+	}, Promise.resolve(<{ [key: string]: { content: string } }>{}))
+
 	const input = {
 		language: 'Solidity',
 		sources,

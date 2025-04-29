@@ -10,6 +10,12 @@ export const AUGUR_UNIVERSE_ADDRESS = 0x49244BD018Ca9fd1f06ecC07B9E9De773246e5AA
 // export const UNISWAP_V3_NFT_ROUTER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88n
 // export const SUSHISWAP_FACTORY_ADDRESS = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Acn
 export const NULL_ADDRESS = 0x0000000000000000000000000000000000000000n
+export const UNIV4_POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90n;
+export const UNIV4_POSITION_MANAGER = 0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9en;
+export const UNIV4_ROUTER = 0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Afn;
+export const UNIV4_QUOTER = 0x52F0E24D1c21C8A0cB1e5a5dD6198556BD9E1203n;
+export const SHARE_TOKEN = 0x9e4799ff2023819b1272eee430eadf510eDF85f0n;
+export const PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3n;
 
 export const Multicall3ABI = [
 	'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
@@ -123,3 +129,6 @@ export const CANNOT_SIMULATE_OFF_LEGACY_BLOCK = 'Cannot simulate off a legacy bl
 
 export const NEW_BLOCK_ABORT = 'New Block Abort'
 export const QUINTILLION = 10n**18n
+
+export const UNIV4_MIN_TICK = -8000
+export const UNIV4_MAX_TICK = 8000
