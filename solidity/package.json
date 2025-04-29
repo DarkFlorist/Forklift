@@ -4,7 +4,7 @@
 	"description": "Augur-Constant-Product-Market-Contracts",
 	"scripts": {
 		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
-		"compile": "tsc && node ./js/compile.js",
+		"compile": "tsc ./ts/compile.ts && node ./js/compile.js",
 		"test": "npx tsc && node --test $npm_config_testargs"
 	},
 	"keywords": [],
