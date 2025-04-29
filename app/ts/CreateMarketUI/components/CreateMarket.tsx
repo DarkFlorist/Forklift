@@ -1,12 +1,14 @@
-import { useSignal } from '@preact/signals'
+import { useComputed, useSignal } from '@preact/signals'
 import { createYesNoMarket, getMaximumMarketEndDate } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { AccountAddress, EthereumAddress, EthereumQuantity, NonHexBigInt } from '../../types/types.js'
+import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { addressString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
+import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
-import { dateToBigintSeconds } from '../../utils/utils.js'
+import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
+import { useEffect } from 'preact/hooks'
+import { Input } from '../../SharedUI/Input.js'
 
 interface CreateYesNoMarketProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -36,45 +38,65 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 
 export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
-	const marketCreatorFee = useSignal<string>('')
-	const affiliateValidator = useSignal<string>('0x0000000000000000000000000000000000000000')
-	const affiliateFeeDivisor = useSignal<string>('')
-	const designatedReporterAddress = useSignal<string>('')
+	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
+	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
+	const affiliateFeeDivisor = useOptionalSignal<number>(0)
+	const designatedReporterAddress = useOptionalSignal<AccountAddress>(undefined)
 	const description = useSignal<string>('')
 	const longDescription = useSignal<string>('')
-	const categories = useSignal<string>('')
-	const tags = useSignal<string>('')
-	const maxiumMarketEndData = useOptionalSignal<bigint>(undefined)
+	const categories = useOptionalSignal<readonly string[]>(undefined)
+	const tags = useOptionalSignal<readonly string[]>(undefined)
+	const maximumMarketEndData = useOptionalSignal<bigint>(undefined)
 
 	const fetchMarketCreationInformation = async () => {
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) throw new Error('missing account')
-		maxiumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
+		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
 	}
+	useEffect(() => {
+		designatedReporterAddress.deepValue = maybeWriteClient.deepValue?.account.address
+	}, [maybeWriteClient.deepValue?.account.address])
+	useEffect(() => {
+		fetchMarketCreationInformation()
+	}, [])
+	useEffect(() => {
+		fetchMarketCreationInformation()
+	}, [maybeReadClient, maybeWriteClient.deepValue?.account.address, universe, reputationTokenAddress])
+
+	const createMarketDisabled = useComputed(() => {
+		if (universe.deepValue === undefined) return true
+		if (!isValidDate(endTime.value)) return true
+		const seconds = dateToBigintSeconds(new Date(endTime.value))
+		if (maximumMarketEndData.deepValue === undefined) return true
+		if (seconds > maximumMarketEndData.deepValue) return true
+		if (affiliateValidator.deepValue === undefined) return true
+		if (affiliateFeeDivisor.deepValue === undefined) return true
+		if (designatedReporterAddress.deepValue === undefined) return true
+		if (description.value.length === 0) return true
+		if (longDescription.value.length === 0) return true
+		if (longDescription.value.length < description.value.length) return true
+		if (feePerCashInAttoCash.deepValue === undefined) return true
+		return false
+	})
 
 	const createMarket = async () => {
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
-		console.log(endTime.value)
-		if (!isDecimalString(marketCreatorFee.value)) throw new Error('missing feePerCashInAttoCash')
-		const parsedFeePerCashInAttoCash = decimalStringToBigint(marketCreatorFee.value, 16n) //16n instead of 18n as we are converting from percentage
-		const parsedAffiliateValidator = EthereumAddress.safeParse(affiliateValidator.value)
-		const parsedAffiliateFeeDivisor = NonHexBigInt.safeParse(affiliateFeeDivisor.value)
-		const parsedDesignatedReporterAddress = EthereumQuantity.safeParse(designatedReporterAddress.value)
 		if (!isValidDate(endTime.value)) throw new Error('missing endTime')
 		const marketEndTimeUnixTimeStamp = dateToBigintSeconds(new Date(endTime.value))
-		if (!parsedAffiliateValidator.success) throw new Error('missing affiliateValidator')
-		if (!parsedAffiliateFeeDivisor.success) throw new Error('missing affiliateFeeDivisor')
-		if (!parsedDesignatedReporterAddress.success) throw new Error('missing designatedReporterAddress')
+		if (affiliateValidator.deepValue === undefined) throw new Error('missing affiliateValidator')
+		if (affiliateFeeDivisor.deepValue === undefined) throw new Error('missing affiliateFeeDivisor')
+		if (designatedReporterAddress.deepValue === undefined) throw new Error('missing designatedReporterAddress')
 		if (description.value.length === 0) throw new Error('missing description')
+		if (feePerCashInAttoCash.deepValue === undefined) throw new Error('missing feePerCashInAttoCash')
 		const extraInfoString = JSON.stringify({
 			description: description.value,
 			longDescription: longDescription.value,
-			categories: categories.value.split(',').map((category) => category.trim()).filter((category) => category.length > 0),
-			tags: categories.value.split(',').map((tag) => tag.trim()).filter((tag) => tag.length > 0)
+			categories: categories.deepValue?.filter((element) => element.length > 0) || [],
+			tags: tags.deepValue?.filter((element) => element.length > 0) || []
 		})
-		await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, parsedFeePerCashInAttoCash, addressString(parsedAffiliateValidator.value), parsedAffiliateFeeDivisor.value, addressString(parsedDesignatedReporterAddress.value), extraInfoString)
+		await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
 	}
 
 	const approveRep = async () => {
@@ -94,17 +116,9 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	function handleEndTimeInput(value: string) {
 		endTime.value = value
 	}
-	function handleMarketCreatorFee(value: string) {
-		marketCreatorFee.value = value
-	}
-	function handleAffiliateValidator(value: string) {
-		affiliateValidator.value = value
-	}
 	function handleAffiliateFee(value: string) {
-		affiliateFeeDivisor.value = value
-	}
-	function handleDesignatedReporterAddress(value: string) {
-		designatedReporterAddress.value = value
+		if (!isNumeric(value)) throw new Error('Affiliate fee is not numeric')
+		affiliateFeeDivisor.deepValue = Number(value)
 	}
 	function handleDescription(value: string) {
 		description.value = value
@@ -112,106 +126,193 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	function handleLongDescription(value: string) {
 		longDescription.value = value
 	}
-	function handleTags(value: string) {
-		tags.value = value
-	}
-	function handleCategories(value: string) {
-		categories.value = value
-	}
 
-	return <div class = 'subApplication'>
-		<button class = 'button is-primary' onClick = { fetchMarketCreationInformation }>Refresh market creation data</button>
-		<p style = 'margin: 0;'>Create Market:</p>
-		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<p style = 'margin: 0;'>End Time (UTC): { maxiumMarketEndData.deepValue !== undefined ? <>(Latest allowed date { formatUnixTimestampISO(maxiumMarketEndData.deepValue) })</> : <></> }</p>
-			<input
-				style = 'height: fit-content;'
-				class = 'input'
-				type = 'date'
-				width = '100%'
-				placeholder = '01/01/2024'
-				value = { endTime.value }
-				onInput = { e => handleEndTimeInput(e.currentTarget.value) }
-			/>
-			<p style = 'margin: 0;'>Market Creator Fee (%):</p>
-			<input
-				style = 'height: fit-content;'
-				class = 'input'
-				type = 'text'
-				width = '100%'
-				placeholder = '1'
-				value = { marketCreatorFee.value }
-				onInput = { e => handleMarketCreatorFee(e.currentTarget.value) }
-			/>
-			<div>
-				<p style = 'margin: 0;'>Affiliate Validator Address:</p>
+	return <section class = 'create-market'>
+		<div class = 'form-grid'>
+			<div class = 'form-group'>
+				<label>Title</label>
 				<input
-					style = 'height: fit-content;'
-					class = 'input'
-					type = 'text'
-					width = '100%'
-					placeholder = '0x...'
-					value = { affiliateValidator.value }
-					onInput = { e => handleAffiliateValidator(e.currentTarget.value) }
-				/>
-				<p style = 'margin: 0;'>Affiliate Fee (%):</p>
-				<select onInput = { e => handleAffiliateFee(e.currentTarget.value) }>
-					{ affiliateFeeOptions.map((fee) => (
-						<option key = { fee.id } value = { fee.id }>
-							{ fee.name }
-						</option>
-					)) }
-				</select>
-			</div>
-			<p style = 'margin: 0;'>Designated Reporter Address:</p>
-			<input
-				style = 'height: fit-content;'
-				class = 'input'
-				type = 'text'
-				width = '100%'
-				placeholder = '0x...'
-				value = { designatedReporterAddress.value }
-				onInput = { e => handleDesignatedReporterAddress(e.currentTarget.value) }
-			/>
-			<div>
-				<p style = 'margin: 0;'>Description:</p>
-				<input
-					style = 'height: fit-content; width: 100%'
 					class = 'input'
 					type = 'text'
 					placeholder = 'How many goats...'
 					value = { description.value }
 					onInput = { e => handleDescription(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'>Long description:</p>
+			</div>
+
+			<div class = 'form-group'>
+				<label>
+					End Time (UTC){ ' ' }
+					{ maximumMarketEndData.deepValue !== undefined && (
+						<span class = 'note-text'>
+							(Latest allowed date { formatUnixTimestampIso(maximumMarketEndData.deepValue) })
+						</span>
+					) }
+				</label>
+				<input
+					class = 'input'
+					type = 'date'
+					value = { endTime.value }
+					onInput = { e => handleEndTimeInput(e.currentTarget.value) }
+				/>
+			</div>
+
+			<div class = 'form-group'>
+				<label>Market Creator Fee (%)</label>
+				<Input
+					class = 'input reporting-panel-input'
+					type = 'text'
+					placeholder = '0'
+					disabled = { useSignal(false) }
+					value = { feePerCashInAttoCash }
+					sanitize = { (amount: string) => amount.trim() }
+					tryParse = { (amount: string | undefined) => {
+						if (amount === undefined) return { ok: false } as const
+						if (!isDecimalString(amount.trim())) return { ok: false } as const
+						const parsed = decimalStringToBigint(amount.trim(), 16n)
+						if (parsed < 0n) return { ok: false } as const
+						if (parsed > 100n * 10n ** 16n) return { ok: false } as const
+						return { ok: true, value: parsed } as const
+					}}
+					serialize = { (amount: EthereumQuantity | undefined) => {
+						if (amount === undefined) return ''
+						return bigintToDecimalString(amount, 16n, 16)
+					}}
+					invalidSignal = { useSignal<boolean>(false) }
+				/>
+			</div>
+
+			<div class = 'form-group'>
+				<label>Affiliate Validator Address</label>
+				<Input
+					style = 'height: fit-content;'
+					key = 'affiliateValidator-address'
+					class = 'input'
+					type = 'text'
+					width = '100%'
+					placeholder = '0x...'
+					value = { affiliateValidator }
+					sanitize = { (addressString: string) => addressString }
+					tryParse = { (marketAddressString: string | undefined) => {
+						if (marketAddressString === undefined) return { ok: false } as const
+						const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+						if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+						return { ok: false } as const
+					}}
+					serialize = { (marketAddressString: string | undefined) => {
+						if (marketAddressString === undefined) return ''
+						return marketAddressString.trim()
+					} }
+					invalidSignal = { useSignal<boolean>(false) }
+				/>
+			</div>
+
+			<div class = 'form-group'>
+				<label>Affiliate Fee (%)</label>
+				<select class = 'styled-select' onInput = { e => handleAffiliateFee(e.currentTarget.value) } value = { affiliateFeeOptions.find(f => f.id === affiliateFeeDivisor.deepValue)?.id }>
+					{ affiliateFeeOptions.map(fee => (
+						<option key = { fee.id } value = { fee.id }>
+							{ fee.name }
+						</option>
+					)) }
+				</select>
+			</div>
+
+			<div class = 'form-group'>
+				<label>Designated Reporter Address</label>
+				<Input
+					style = 'height: fit-content;'
+					key = 'designated-reporter-address'
+					class = 'input'
+					type = 'text'
+					width = '100%'
+					placeholder = '0x...'
+					value = { designatedReporterAddress }
+					sanitize = { (addressString: string) => addressString }
+					tryParse = { (marketAddressString: string | undefined) => {
+						if (marketAddressString === undefined) return { ok: false } as const
+						const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+						if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+						return { ok: false } as const
+					}}
+					serialize = { (marketAddressString: string | undefined) => {
+						if (marketAddressString === undefined) return ''
+						return marketAddressString.trim()
+					} }
+					invalidSignal = { useSignal<boolean>(false) }
+				/>
+			</div>
+
+			<div class = 'form-group'>
+				<label>Long Description</label>
 				<textarea
-					style = 'height: fit-content; width: 100%'
+					class = 'input'
 					placeholder = 'This market resolves...'
+					style = { { minHeight: '100px', height: '200px',resize: 'vertical' } }
 					value = { longDescription.value }
 					onInput = { e => handleLongDescription(e.currentTarget.value) }
 				/>
-				<p style = 'margin: 0;'>Categories (comma separated):</p>
-				<input
-					style = 'height: fit-content; width: 100%'
+			</div>
+
+			<div class = 'form-group'>
+				<label>Categories (comma separated)</label>
+				<Input
+					style = 'height: fit-content;'
+					key = 'designated-reporter-address'
 					class = 'input'
 					type = 'text'
-					placeholder = 'cryptocurrency, goats...'
-					value = { categories.value }
-					onInput = { e => handleCategories(e.currentTarget.value) }
-				/>
-				<p style = 'margin: 0;'>Tags (comma separated):</p>
-				<input
-					style = 'height: fit-content; width: 100%'
-					class = 'input'
-					type = 'text'
-					placeholder = 'cryptocurrency, goats...'
-					value = { tags.value }
-					onInput = { e => handleTags(e.currentTarget.value) }
+					width = '100%'
+					placeholder = 'Cryptocurrency, goats'
+					value = { categories }
+					sanitize = { (addressString: string) => addressString }
+					tryParse = { (maybeStringSeparatedArray: string | undefined) => {
+						if (maybeStringSeparatedArray === undefined) return { ok: false } as const
+						const categories = maybeStringSeparatedArray.split(',').map((element) => element.trim())
+						return { ok: true, value: categories } as const
+					}}
+					serialize = { (marketAddressString: readonly string[] | undefined) => {
+						if (marketAddressString === undefined) return ''
+						return marketAddressString.join(', ')
+					} }
+					invalidSignal = { useSignal<boolean>(false) }
 				/>
 			</div>
-			<button class = 'button is-primary' onClick = { createMarket }>Create Market</button>
-			<button class = 'button is-primary' onClick = { approveRep }>Approve REP</button>
-			<button class = 'button is-primary' onClick = { approveDai }>Approve DAI</button>
+
+			<div class = 'form-group'>
+				<label>Tags (comma separated)</label>
+				<Input
+					style = 'height: fit-content;'
+					key = 'designated-reporter-address'
+					class = 'input'
+					type = 'text'
+					width = '100%'
+					placeholder = 'Tardigrades, Eggs'
+					value = { tags }
+					sanitize = { (addressString: string) => addressString }
+					tryParse = { (maybeStringSeparatedArray: string | undefined) => {
+						if (maybeStringSeparatedArray === undefined) return { ok: false } as const
+						const categories = maybeStringSeparatedArray.split(',').map((element) => element.trim())
+						return { ok: true, value: categories } as const
+					}}
+					serialize = { (marketAddressString: readonly string[] | undefined) => {
+						if (marketAddressString === undefined) return ''
+						return marketAddressString.join(', ')
+					} }
+					invalidSignal = { useSignal<boolean>(false) }
+				/>
+			</div>
 		</div>
-	</div>
+
+		<div class = 'button-group'>
+			<button class = 'button button-primary' onClick = { createMarket } disabled = { createMarketDisabled.value }>
+				Create Market
+			</button>
+			<button class = 'button button-primary' onClick = { approveRep }>
+				Approve REP
+			</button>
+			<button class = 'button button-primary' onClick = { approveDai }>
+				Approve DAI
+			</button>
+		</div>
+	</section>
 }

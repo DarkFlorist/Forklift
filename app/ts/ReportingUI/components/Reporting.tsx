@@ -1,32 +1,32 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getStakesOnAllOutcomesOnYesNoMarketOrCategorical, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond } from '../../utils/augurContractUtils.js'
-import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampISO, isDecimalString } from '../../utils/ethereumUtils.js'
+import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchHotLoadingMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getLastCompletedCrowdSourcer, getRepBond, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash } from '../../utils/augurContractUtils.js'
+import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
 import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
-import { MARKET_TYPES, REPORTING_STATES } from '../../utils/constants.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
-import { SomeTimeAgo } from './SomeTimeAgo.js'
-import { MarketReportingOptionsForYesNoAndCategorical, MarketReportingForYesNoAndCategoricalWithoutStake, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome } from '../../utils/augurUtils.js'
+import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
-import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../../utils/utils.js'
-import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurForkUtilities.js'
+import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
 import { Input } from '../../SharedUI/Input.js'
+import { assertNever } from '../../utils/errorHandling.js'
+import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	maybeWriteClient: OptionalSignal<WriteClient>
-	canMigrate: Signal<boolean>
+	disabled: Signal<boolean>
 	refreshData: () => Promise<void>
 }
 
-export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, canMigrate, refreshData }: ForkMigrationProps) => {
+export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, disabled, refreshData }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
+	if (disabled.value === true) return <></>
 	const initialReportReason = useSignal<string>('')
-	const selectedOutcome = useSignal<string | null>(null)
+	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const disavowCrowdsourcersButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('account missing')
@@ -39,19 +39,18 @@ export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, can
 		if (writeClient === undefined) throw new Error('account missing')
 		if (marketData.deepValue === undefined) throw new Error('marketData missing')
 		if (outcomeStakes.deepValue === undefined) throw new Error('outcomeStakes missing')
-		const initialReportPayoutNumerators = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
-		if (!initialReportPayoutNumerators) throw new Error('Selected outcome not found')
-		await migrateThroughOneFork(writeClient, marketData.deepValue.marketAddress, initialReportPayoutNumerators, initialReportReason.peek())
+		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not found')
+		await migrateThroughOneFork(writeClient, marketData.deepValue.marketAddress, selectedPayoutNumerators.deepValue, initialReportReason.peek())
 		await refreshData()
 	}
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
 			<span><b>Market Fork Migration:</b></span>
-			<MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } enabled = { canMigrate }/>
+			<SelectUniverse marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input
-					disabled = { !canMigrate.value }
+					disabled = { disabled }
 					type = 'text'
 					value = { initialReportReason.value }
 					onChange = { (event) => {
@@ -62,10 +61,10 @@ export const ForkMigration = ({ marketData, maybeWriteClient, outcomeStakes, can
 			</label>
 		</div>
 		<div style = 'margin-top: 1rem'>
-			<button class = 'button is-primary' onClick = { disavowCrowdsourcersButton } disabled = { !canMigrate.value }>Disavow Crowdsourcers</button>
+			<button class = 'button button-primary' onClick = { disavowCrowdsourcersButton } disabled = { disabled }>Disavow Crowdsourcers</button>
 		</div>
 		<div style = 'margin-top: 1rem'>
-			<button class = 'button is-primary' onClick = { migrateThroughOneForkButton } disabled = { !canMigrate.value }>Migrate Through One Fork</button>
+			<button class = 'button button-primary' onClick = { migrateThroughOneForkButton } disabled = { disabled }>Migrate Through One Fork</button>
 		</div>
 	</div>
 }
@@ -94,32 +93,45 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const reason = useSignal<string>('')
 	const amountInput = useOptionalSignal<EthereumQuantity>(undefined)
 	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined && forkValues.deepValue !== undefined && lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
-	const isInitialReporting = useComputed(() => {
-		if (marketData.deepValue == undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'OpenReporting' || state === 'DesignatedReporting') return true
-		return false
-	})
-	const canInitialReport = useComputed(() => {
-		if (marketData.deepValue == undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'OpenReporting') return true
-		if (state === 'DesignatedReporting' && marketData.deepValue.hotLoadingMarketData.designatedReporter === maybeWriteClient.deepValue?.account.address) return true
-		return false
-	})
+	const isInitialReporting = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'OpenReporting' || marketData.deepValue?.hotLoadingMarketData.reportingState === 'DesignatedReporting')
+	const canInitialReport = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState === 'OpenReporting' || (marketData.deepValue?.hotLoadingMarketData.reportingState === 'DesignatedReporting' && marketData.deepValue.hotLoadingMarketData.designatedReporter === maybeWriteClient.deepValue?.account.address))
 
 	const areOptionsDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
+
+	const selectedOutcomeName = useComputed(() => {
+		if (marketData.deepValue === undefined) return undefined
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
+			const numTicks = marketData.deepValue.hotLoadingMarketData.numTicks
+			const minPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[0]
+			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
+			if (minPrice === undefined || maxPrice === undefined) return undefined
+			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
+			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
+			return getOutComeName(payoutNumerators, marketData.deepValue)
+		} else {
+			if (outcomeStakes.deepValue === undefined) return undefined
+			if (selectedOutcome.value === null) return undefined
+			const outcomeStake = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)
+			if (!outcomeStake) return undefined
+			return outcomeStake.outcomeName
+		}
+	})
+	const reportDisabled = useComputed(() => (isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n)
+		&& !isInitialReporting.value
+		|| amountInput.deepValue === undefined
+	)
 
 	const maxStakeAmount = useComputed(() => {
 		if (marketData.deepValue === undefined) return undefined
 		if (forkValues.deepValue === undefined) return undefined
 		if (outcomeStakes.deepValue === undefined) return undefined
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			const numTicks = marketData.deepValue.hotLoadingMarketData.numTicks
 			const minPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[0]
 			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
 			if (minPrice === undefined || maxPrice === undefined) throw new Error('displayPrices is undefined')
 			if (!selectedScalarOutcomeInvalid.value && selectedScalarOutcome.deepValue === undefined) return undefined
+			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
 			const existingOutComestake = outcomeStakes.deepValue.find((outcome) => areEqualArrays(outcome.payoutNumerators, payoutNumerators))
 			const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
@@ -173,7 +185,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		if (outcomeStakes.deepValue === undefined) throw new Error ('Outcome stakes missing')
 		if (marketData.deepValue === undefined) throw new Error ('market data missing')
 		if (amountInput.deepValue === undefined) throw new Error ('Input missing')
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			const numTicks = marketData.deepValue.hotLoadingMarketData.numTicks
 			const minPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[0]
 			const maxPrice = marketData.deepValue?.hotLoadingMarketData.displayPrices[1]
@@ -204,34 +216,6 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		}
 	}
 
-	const ResolvingTo = () => {
-		if (outcomeStakes.deepValue === undefined) return <></>
-		if (disputeWindowInfo.deepValue === undefined) return <></>
-		const winningOption = outcomeStakes.deepValue.find((outcome) => outcome.status === 'Winning')
-		if (winningOption === undefined) return <></>
-		const endDate = bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
-		return <div style = 'margin-top: 1rem'>
-			<SomeTimeAgo priorTimestamp = { endDate } countBackwards = { true } diffToText = {
-				(time: number) => {
-					if (disputeWindowInfo.deepValue === undefined) return <></>
-					if (time <= 0) return <>The market has resolved to "<b>{ winningOption.outcomeName }</b>".</>
-					if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <>Resolving To "<b>{ winningOption.outcomeName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.endTime) }).</>
-					const timeUntilNext = humanReadableDateDeltaFromTo(new Date(), bigintSecondsToDate(disputeWindowInfo.deepValue.startTime))
-					const nextWindowLength = humanReadableDateDeltaFromTo(bigintSecondsToDate(disputeWindowInfo.deepValue.startTime), bigintSecondsToDate(disputeWindowInfo.deepValue.endTime))
-					return <>Resolving To "<b>{ winningOption.outcomeName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampISO(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength }).</>
-				}
-			}/>
-		</div>
-	}
-
-	const TotalRepStaked = () => {
-		if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
-		return <div style = 'display: grid; margin-top: 1rem'>
-			<span><b>Total Rep staked:</b>{ ' ' }{ bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2) } REP</span>
-			<span><b>Forking Augur after:</b>{ ' ' }{ bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2) } REP is staked within one round</span>
-		</div>
-	}
-
 	const setMaxStake = () => {
 		if (maxStakeAmount.value === undefined) {
 			amountInput.deepValue = 0n
@@ -245,101 +229,120 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const numTicks = useComputed(() => marketData.deepValue?.hotLoadingMarketData.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
 
-	const ReportingComponent = () => {
+	const ReportingComponent = useComputed(() => {
 		if (marketData.deepValue === undefined) return <></>
-		if (MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType] === 'Scalar') {
+		if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
 				<ReportedScalarInputs outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer }/>
-				<ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination }/>
+				<ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOptionsDisabled } />
 			</div>
 		} else {
 			return <MarketReportingOptionsForYesNoAndCategorical outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport }/>
 		}
-	}
+	})
 
-	return (
-		<div class = 'panel'>
-			<div style = 'display: grid'>
-			<span><b>Market Reporting ({ isInitialReporting.value ? 'Initial reporting' : (isSlowReporting.value ? 'Slow reporting' : 'Fast reporting') }):</b></span>
-			{ isDisabled.value ? <span><b>The reporting is closed for this round. Please check again in the next round.</b></span> : <></>}
-				<ReportingComponent/>
-				<TotalRepStaked/>
-				<ResolvingTo/>
-				<div style = 'margin-top: 1rem'>
-					<label>
-						Reason:{' '}
-						<input
-							type = 'text'
-							value = { reason.value }
-							disabled = { isDisabled.value }
-							style = { 'width: 100%' }
-							placeholder = 'Optional: Explain why you believe this outcome is correct'
-							onChange = { (event) => {
-								const target = event.target as HTMLInputElement
-								reason.value = target.value
-							} }
-						/>
-					</label>
-				</div>
-				<div style = 'margin-top: 0.5rem'>
-					<div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content max-content', gap: '0.5rem' } }>
-						{ 'Amount: ' }
-						<Input
-							style = 'height: fit-content;'
-							class = 'input'
-							type = 'text'
-							width = '100%'
-							placeholder = 'REP to stake'
-							disabled = { isDisabled.value }
-							value = { amountInput }
-							sanitize = { (amount: string) => amount.trim() }
-							tryParse = { (amount: string | undefined) => {
-								if (amount === undefined) return { ok: false } as const
-								if (!isDecimalString(amount.trim())) return { ok: false } as const
-								const parsed = decimalStringToBigint(amount.trim(), 18n)
-								return { ok: true, value: parsed } as const
-							}}
-							serialize = { (amount: EthereumQuantity | undefined) => {
-								if (amount === undefined) return ''
-								return bigintToDecimalString(amount, 18n, 18)
-							} }
-						/>
-						{ maxStakeAmount.value === undefined || isDisabled.value ? <></> : <>
-							/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP
-							<button class = 'button is-primary' onClick = { setMaxStake }>Max</button>
-							{ repBond.deepValue !== undefined && isInitialReporting.value ? `+ ${ bigintToDecimalString(repBond.deepValue,18n, 2) } (initial reporter bond)` : '' }
-						</> }
-					</div>
-				</div>
-				<div style = 'margin-top: 1rem'>
-					<button class = 'button is-primary' disabled = { (isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n) && !isInitialReporting.value || amountInput.deepValue === undefined } onClick = { handleReport }>Report</button>
-				</div>
-			</div>
+	return <div class = 'reporting-panel'>
+		<h3>Market Reporting:</h3>
+		{ isDisabled.value && (<span><b>The reporting is closed for this round. Please check again in the next round.</b></span>)}
+		{ ReportingComponent }
+		<div>
+			<label>
+				<span style = { { fontWeight: '500', display: 'block', marginBottom: '0.25rem' } }>Reason:</span>
+				<input
+					type = 'text'
+					class = 'reporting-panel-input'
+					value = { reason.value }
+					disabled = { isDisabled.value }
+					placeholder = 'Optional: Explain why you believe this outcome is correct'
+					onChange = { (event) => {
+						const target = event.target as HTMLInputElement
+						reason.value = target.value
+					} }
+				/>
+			</label>
 		</div>
-	)
+
+		<div>
+			<label>
+				<span style = { { fontWeight: '500', display: 'block', marginBottom: '0.25rem' } }>Amount:</span>
+				<div style = { { display: 'flex', alignItems: 'center', gap: '0.5em' } }>
+					<Input
+						class = 'input reporting-panel-input'
+						type = 'text'
+						placeholder = 'REP to stake'
+						disabled = { isDisabled.value }
+						style = { { maxWidth: '300px' } }
+						value = { amountInput }
+						sanitize = { (amount: string) => amount.trim() }
+						tryParse = { (amount: string | undefined) => {
+							if (amount === undefined) return { ok: false } as const
+							if (!isDecimalString(amount.trim())) return { ok: false } as const
+							const parsed = decimalStringToBigint(amount.trim(), 18n)
+							return { ok: true, value: parsed } as const
+						}}
+						serialize = { (amount: EthereumQuantity | undefined) => {
+							if (amount === undefined) return ''
+							return bigintToDecimalString(amount, 18n, 18)
+						}}
+					/>
+					<span class = 'unit'>REP</span>
+					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
+						<>
+							<span style = 'white-space: nowrap'>/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP</span>
+							<button class = 'button button-primary button-small' onClick = { setMaxStake }>Max</button>
+							{ repBond.deepValue !== undefined && isInitialReporting.value && (
+								<span style = 'white-space: nowrap'>+ { bigintToDecimalString(repBond.deepValue, 18n, 2) } (initial reporter bond)</span>
+							)}
+						</>
+					)}
+				</div>
+			</label>
+		</div>
+
+		<div>
+			<button
+				style = { { width: '100%' } }
+				class = 'button button-primary'
+				disabled = { reportDisabled.value }
+				onClick = { handleReport }>
+				{ selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) } REP` : 'Report'}
+			</button>
+		</div>
+	</div>
 }
 
 interface ReportingHistoryProps {
 	reportingHistory: OptionalSignal<readonly ReportingHistoryElement[]>
 	marketData: OptionalSignal<MarketData>
+	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 }
-export const ReportingHistory = ({ reportingHistory, marketData }: ReportingHistoryProps) => {
+export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, forkValues }: ReportingHistoryProps) => {
 	if (reportingHistory.deepValue === undefined) return <></>
 	if (marketData.deepValue === undefined) return <></>
-	return <div class = 'panel'>
-		<span><b>Reporting history for the market</b></span>
-		<div style = 'display: grid'>
-			{ reportingHistory.deepValue.map((round) => {
-				if (marketData.deepValue === undefined) return <></>
-				const marketType = MARKET_TYPES[marketData.deepValue.hotLoadingMarketData.marketType]
-				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
-				const outcomeName = getOutComeName(round.payoutNumerators, marketData.deepValue)
-				return <span><b>{ round.type }{ 'Round ' }{ round.round }</b>{ ': ' }
-					{ outcomeName }
-					{ ' Stake: ' }{ bigintToDecimalString(round.stake, 18n, 2) }{ ' ' }REP
-					{ ' Size: ' }{ bigintToDecimalString(round.size, 18n, 2) }{ ' ' }REP
-				</span>
-			})}
+	if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
+
+	return <div class = 'reporting-history'>
+		<h3>Reporting History:</h3>
+
+		{ reportingHistory.deepValue.map((round) => {
+			if (marketData.deepValue === undefined) return <></>
+
+			const marketType = marketData.deepValue.hotLoadingMarketData.marketType
+			if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.hotLoadingMarketData.marketType }`)
+			const outcomeName = getOutComeName(round.payoutNumerators, marketData.deepValue)
+
+			return <div class = 'reporting-round'>
+				<span><b>{ round.type } Round { round.round }</b></span>
+				<span>Outcome: { outcomeName }</span>
+				<span>Stake: { bigintToDecimalString(round.stake, 18n, 2) } REP</span>
+				<span>Size: { bigintToDecimalString(round.size, 18n, 2) } REP</span>
+			</div>
+		})}
+
+		<div class = 'reporting-summary'>
+			<span><b>Total REP Staked:</b> { bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2) } REP</span>
+			<span><b>Forking Augur After:</b> { bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2) } REP staked within one round</span>
 		</div>
 	</div>
 }
@@ -349,9 +352,10 @@ interface ReportingProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
 	reputationTokenAddress: OptionalSignal<AccountAddress>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress }: ReportingProps) => {
+export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, currentTimeInBigIntSeconds }: ReportingProps) => {
 	const marketAddress = useOptionalSignal<AccountAddress>(undefined)
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
@@ -365,18 +369,11 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 	const repBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 
-	const canFinalize = useComputed(() => {
-		if (marketData.deepValue === undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'AwaitingFinalization') return true
-		return false
-	})
-
-	const canMigrate = useComputed(() => {
-		if (marketData.deepValue === undefined) return false
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (state === 'AwaitingForkMigration') return true
-		return false
+	const finalizeDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingFinalization')
+	const migrationDisabled = useComputed(() => marketData.deepValue?.hotLoadingMarketData.reportingState !== 'AwaitingForkMigration')
+	const showReporting = useComputed(() => {
+		const state = marketData.deepValue?.hotLoadingMarketData.reportingState
+		return state === 'CrowdsourcingDispute' || state === 'DesignatedReporting' || state === 'OpenReporting' || state === 'AwaitingNextWindow'
 	})
 
 	const getParsedExtraInfo = (extraInfo: string) => {
@@ -413,50 +410,42 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		clear()
 		if (marketAddress.deepValue === undefined) throw new Error('market not defined')
-		const newMarketData = await fetchHotLoadingMarketData(readClient, marketAddress.deepValue)
-		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, marketAddress.deepValue, newMarketData.disputeRound)
-		const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
-		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData: newMarketData }
+		const hotLoadingMarketData = await fetchHotLoadingMarketData(readClient, marketAddress.deepValue)
+		lastCompletedCrowdSourcer.deepValue = await getLastCompletedCrowdSourcer(readClient, marketAddress.deepValue, hotLoadingMarketData.disputeRound)
+		const parsedExtraInfo = getParsedExtraInfo(hotLoadingMarketData.extraInfo)
+		marketData.deepValue = { marketAddress: marketAddress.deepValue, parsedExtraInfo, hotLoadingMarketData }
 		const currentMarketData = marketData.deepValue
-		if (MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Yes/No' || MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType] === 'Categorical') {
-			const allPayoutNumerators = getAllPayoutNumeratorCombinations(marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
-			const winningIndex = winningOption === undefined ? -1 : allPayoutNumerators.findIndex((option) => areEqualArrays(option, winningOption))
-			const stakes = await getStakesOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			const alreadyContributedToOutcomes = await getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical(readClient, marketAddress.deepValue, marketData.deepValue.hotLoadingMarketData.numOutcomes, marketData.deepValue.hotLoadingMarketData.numTicks)
-			outcomeStakes.deepValue = stakes.map((repStake, index) => {
-				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
-				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
-				const payoutNumerators = allPayoutNumerators[index]
-				if (payoutNumerators === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ currentMarketData.hotLoadingMarketData.outcomes.join(',') }]`)
-				return {
-					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
-					repStake,
-					status: index === winningIndex ? 'Winning' : 'Losing',
-					payoutNumerators,
-					alreadyContributedToOutcomeStake: alreadyContributedToOutcomes[index]?.stake
-				}
-			})
-		} else {
-			// Scalar market
-			const reportingParticipants = await getReportingParticipantsForMarket(readClient, marketAddress.deepValue)
-			const allKnownPayoutNumerators = aggregateByPayoutDistribution(reportingParticipants)
-			const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
-			const winningIndex = winningOption === undefined ? -1 : allKnownPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
 
-			outcomeStakes.deepValue = allKnownPayoutNumerators.map((info, index) => {
-				const marketType = MARKET_TYPES[currentMarketData.hotLoadingMarketData.marketType]
-				if (marketType === undefined) throw new Error(`Invalid market type Id: ${ currentMarketData.hotLoadingMarketData.marketType }`)
-				const payoutNumerators = info.payoutNumerators
-				return {
-					outcomeName: getOutComeName(payoutNumerators, currentMarketData),
-					repStake: info.stake,
-					status: index === winningIndex ? 'Winning' : 'Losing',
-					payoutNumerators,
-					alreadyContributedToOutcomeStake: undefined, // TODO how to get?
+		const getAllInterestingPayoutNumerators = async() => {
+			const reportingParticipants = await getReportingParticipantsForMarket(readClient, currentMarketData.marketAddress)
+			switch (hotLoadingMarketData.marketType) {
+				case 'Categorical':
+				case 'Yes/No': {
+					// its possible for Augur to have "malformed payout numerators" being reported. Such as you can report 80% yes and 20% no on Yes/No market.
+					// We get these (along with valid ones that exist in the data) with `getReportingParticipantsForMarket`
+					// we merge all valid ones with all existing ones to get all interesting (as in either reported ones, or ones that make sense to report for) reporting options
+					const allValidPayoutNumerators = getAllPayoutNumeratorCombinations(hotLoadingMarketData.numOutcomes, hotLoadingMarketData.numTicks)
+					const allPayoutNumeratorsWithDuplicates = [...allValidPayoutNumerators.map((numerator) => ({ size: 0n, stake: 0n, payoutNumerators: numerator })), ...reportingParticipants]
+					return aggregateByPayoutDistribution(allPayoutNumeratorsWithDuplicates)
 				}
-			})
+				case 'Scalar': return aggregateByPayoutDistribution(reportingParticipants)
+				default: assertNever(hotLoadingMarketData.marketType)
+			}
 		}
+		const allInterestingPayoutNumerators = await getAllInterestingPayoutNumerators()
+		const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
+		const winningIndex = winningOption === undefined ? -1 : allInterestingPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
+		outcomeStakes.deepValue = await Promise.all(allInterestingPayoutNumerators.map(async (info, index) => {
+			const payoutNumerators = info.payoutNumerators
+			const payoutHash = EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, hotLoadingMarketData.numTicks, hotLoadingMarketData.numOutcomes))
+			return {
+				outcomeName: getOutComeName(payoutNumerators, currentMarketData),
+				repStake: info.stake,
+				status: index === winningIndex ? 'Winning' : 'Losing',
+				payoutNumerators,
+				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(readClient, currentMarketData.marketAddress, payoutHash))?.stake
+			}
+		}))
 		disputeWindowAddress.deepValue = await getDisputeWindow(readClient, marketAddress.deepValue)
 		if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
 			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
@@ -467,9 +456,10 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		}
 		repBond.deepValue = await getRepBond(readClient, marketAddress.deepValue)
 		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
-		const state = REPORTING_STATES[marketData.deepValue.hotLoadingMarketData.reportingState]
-		if (!(state === 'PreReporting' || state === 'OpenReporting' || state === 'DesignatedReporting')) {
-			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, newMarketData.disputeRound)
+		if (!(hotLoadingMarketData.reportingState === 'PreReporting'
+			|| hotLoadingMarketData.reportingState === 'OpenReporting'
+			|| hotLoadingMarketData.reportingState === 'DesignatedReporting')) {
+			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, hotLoadingMarketData.disputeRound)
 		}
 	}
 
@@ -483,32 +473,39 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<Input
-				style = 'height: fit-content;'
-				class = 'input'
-				type = 'text'
-				width = '100%'
-				placeholder = 'Market address'
-				value = { marketAddress }
-				sanitize = { (addressString: string) => addressString }
-				tryParse = { (marketAddressString: string | undefined) => {
-					if (marketAddressString === undefined) return { ok: false } as const
-					const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-					if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-					return { ok: false } as const
-				}}
-				serialize = { (marketAddressString: string | undefined) => {
-					if (marketAddressString === undefined) return ''
-					return marketAddressString.trim()
-				} }
-				invalidSignal = { isInvalidMarketAddress }
-			/>
-			<button class = 'button is-primary' onClick = { refreshData }>Refresh Data</button>
-			<Market marketData = { marketData } universe = { universe } repBond = { repBond }/>
-			<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory }/>
-			<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
-			{ marketData.deepValue === undefined ? <> </> : <button class = 'button is-primary' onClick = { finalizeMarketButton } disabled = { !canFinalize.value }>Finalize Market</button> }
-			<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } canMigrate = { canMigrate } refreshData = { refreshData }/>
+			<Market marketData = { marketData } universe = { universe } repBond = { repBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
+				<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
+					<Input
+						style = 'height: fit-content;'
+						key = 'market-reporting-input'
+						class = 'input'
+						type = 'text'
+						width = '100%'
+						placeholder = 'Market address'
+						value = { marketAddress }
+						sanitize = { (addressString: string) => addressString }
+						tryParse = { (marketAddressString: string | undefined) => {
+							if (marketAddressString === undefined) return { ok: false } as const
+							const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+							if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+							return { ok: false } as const
+						}}
+						serialize = { (marketAddressString: string | undefined) => {
+							if (marketAddressString === undefined) return ''
+							return marketAddressString.trim()
+						} }
+						invalidSignal = { isInvalidMarketAddress }
+					/>
+					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
+				</div>
+			</> }>
+				{ showReporting.value === false ? <></> : <>
+					<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
+					<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } repBond = { repBond } refreshData = { refreshData }/>
+					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
+				</> }
+				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
+			</Market>
 		</div>
 	</div>
 }

@@ -2,7 +2,7 @@ import { MarketData } from '../SharedUI/Market.js'
 import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
-import { GENESIS_UNIVERSE, MARKET_TYPES, YES_NO_OPTIONS } from './constants.js'
+import { GENESIS_UNIVERSE, YES_NO_OPTIONS } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
 import { indexOfMax } from './utils.js'
@@ -18,32 +18,33 @@ export const isGenesisUniverse = (universeAddress: AccountAddress | undefined) =
 export const getAllPayoutNumeratorCombinations = (numOutcomes: bigint, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: Number(numOutcomes) }, (_, outcome) => Array.from({ length: Number(numOutcomes) }, (_, index) => index === outcome ? numTicks : 0n))
 
 type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
-const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
+export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
 	if (index === 0) return 'Invalid'
-	if (marketType === 'Yes/No') return YES_NO_OPTIONS[index]
+	if (marketType === 'Yes/No') {
+		const option = YES_NO_OPTIONS[index]
+		if (option === undefined) throw new Error('invalid outcome index')
+		return option
+	}
 	const outcomeName = outcomes[index - 1]
-	if (outcomeName === undefined) return undefined
+	if (outcomeName === undefined) throw new Error('invalid outcome index')
 	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
 }
 
 const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minPrice: bigint, maxPrice: bigint) => {
 	if (payoutNumerators[0] > 0n) return 'Invalid'
 	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) }${unit === undefined ? '' : unit }`
+	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
 }
 
 export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
 	const malformedOutcomeName = `Malformed Outcome (${ payoutNumerators.join(', ') })`
-	const marketType = MARKET_TYPES[marketData.hotLoadingMarketData.marketType]
-	if (marketType === undefined) throw new Error('unknown market type')
-	switch(marketType) {
+	switch(marketData.hotLoadingMarketData.marketType) {
 		case 'Categorical':
 		case 'Yes/No': {
-			if (payoutNumerators.length !== 3 || payoutNumerators[0] === undefined || payoutNumerators[1] === undefined || payoutNumerators[2] === undefined) return malformedOutcomeName
 			var indexOfMaxValue = indexOfMax(payoutNumerators)
 			if (indexOfMaxValue === undefined) return malformedOutcomeName
-			if (payoutNumerators.filter((numerator) => numerator > 0).length > 0) return malformedOutcomeName
-			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketType, marketData.hotLoadingMarketData.outcomes)
+			if (payoutNumerators.filter((numerator) => numerator > 0).length > 1) return malformedOutcomeName
+			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketData.hotLoadingMarketData.marketType, marketData.hotLoadingMarketData.outcomes)
 			if (name === undefined) return malformedOutcomeName
 			return name
 		}
@@ -52,7 +53,7 @@ export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: 
 			if (marketData.hotLoadingMarketData.displayPrices[0] === undefined || marketData.hotLoadingMarketData.displayPrices[1] === undefined) return malformedOutcomeName
 			return getScalarOutComeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.hotLoadingMarketData.numTicks, marketData.hotLoadingMarketData.displayPrices[0], marketData.hotLoadingMarketData.displayPrices[1])
 		}
-		default: assertNever(marketType)
+		default: assertNever(marketData.hotLoadingMarketData.marketType)
 	}
 }
 
@@ -74,15 +75,13 @@ export const requiredStake = (allStake: bigint, stakeInOutcome: bigint) => (2n *
 
 export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake: bigint, isSlowReporting: boolean, preemptiveDisputeCrowdsourcerStake: bigint, disputeThresholdForDisputePacing: bigint, lastCompletedCrowdSourcer: Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>) => {
 	const alreadyContributed = outcomeStake.alreadyContributedToOutcomeStake || 0n
-
 	// there's a bug in https://github.com/AugurProject/augur/blob/master/packages/augur-core/src/contracts/reporting/Market.sol#L383 that results the total stake calculation being wrong. This happens only when prestaking on speed rounds. The bug causes size and stake deviate from each other
-	if (!isSlowReporting && lastCompletedCrowdSourcer !== undefined && lastCompletedCrowdSourcer.size !== lastCompletedCrowdSourcer.stake && outcomeStake.status === 'Winning') {
-		return disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake - alreadyContributed
-	}
-
+	const isBuggySpeedRound = (!isSlowReporting && lastCompletedCrowdSourcer !== undefined && lastCompletedCrowdSourcer.size !== lastCompletedCrowdSourcer.stake && outcomeStake.status === 'Winning')
+	if (isBuggySpeedRound || totalStake === 0n) return disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake - alreadyContributed
 	const requiredStakeForTheRound = requiredStake(totalStake, outcomeStake.repStake)
 	if (isSlowReporting) return outcomeStake.status === 'Losing' ? requiredStakeForTheRound - alreadyContributed : 0n
-	return (outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - totalStake - preemptiveDisputeCrowdsourcerStake) - alreadyContributed
+	const targetStake = outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake
+	return targetStake - alreadyContributed
 }
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/Augur.sol#L321
@@ -97,6 +96,16 @@ export function getTradeInterval(displayRange: bigint, numTicks: bigint): bigint
 		displayInterval = displayInterval * 10n
 	}
 	return displayInterval * displayRange / numTicks / ( 10n ** 18n )
+}
+
+export const areValidScalarPayoutNumeratorOptions = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
+	if (invalid) return true
+	if (selectedScalarOutcome === undefined) return false
+	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
+	const scaled = (selectedScalarOutcome - minPrice) / tradeInterval
+	if (scaled > numTicks) return false
+	if (scaled < 0n) return false
+	return true
 }
 
 export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {

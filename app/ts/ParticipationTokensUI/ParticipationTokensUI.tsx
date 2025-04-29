@@ -1,6 +1,6 @@
 import { AccountAddress } from '../types/types.js'
 import { buyParticipationTokens, fetchHotLoadingCurrentDisputeWindowData } from '../utils/augurContractUtils.js'
-import { bigintToDecimalString, formatUnixTimestampISO } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 
@@ -20,8 +20,8 @@ export const DisputeWindow = ({ disputeWindowData }: DisputeWindowProps) => {
 	return <div class = 'panel'>
 		<div style = 'display: grid'>
 			<span><b>Dispute Window:</b>{ disputeWindowData.deepValue.disputeWindow }</span>
-			<span><b>Start Time:</b>{ formatUnixTimestampISO(disputeWindowData.deepValue.startTime) }</span>
-			<span><b>End Time:</b>{ formatUnixTimestampISO(disputeWindowData.deepValue.endTime) }</span>
+			<span><b>Start Time:</b>{ formatUnixTimestampIso(disputeWindowData.deepValue.startTime) }</span>
+			<span><b>End Time:</b>{ formatUnixTimestampIso(disputeWindowData.deepValue.endTime) }</span>
 			<span><b>Fees:</b>{ bigintToDecimalString(disputeWindowData.deepValue.fees, 18n, 2) } DAI</span>
 			<span><b>Purchased:</b>{ disputeWindowData.deepValue.purchased } Participation Tokens</span>
 		</div>
@@ -55,9 +55,9 @@ export const ParticipationTokens = ({ maybeReadClient, maybeWriteClient, univers
 	return <div class = 'subApplication'>
 		<p style = 'margin: 0;'>Participation Tokens:</p>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<button class = 'button is-primary' onClick = { update }>Update window</button>
+			<button class = 'button button-primary' onClick = { update }>Update window</button>
 			<DisputeWindow disputeWindowData = { disputeWindowData }/>
-			<button class = 'button is-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
+			<button class = 'button button-primary' onClick = { buyParticipationTokensButton }>Buy 10 Particiption Tokens</button>
 		</div>
 	</div>
 }

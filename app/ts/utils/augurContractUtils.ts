@@ -1,7 +1,7 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
 import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
@@ -27,12 +27,17 @@ export const createYesNoMarket = async (universe: AccountAddress, writeClient: W
 }
 
 export const fetchHotLoadingMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
-	return await readClient.readContract({
+	const hotLoadingMarketData = await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
 		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
 	})
+	const marketType = MARKET_TYPES[hotLoadingMarketData.marketType]
+	if (marketType === undefined) throw new Error(`unknown market type: ${ hotLoadingMarketData.marketType }`)
+	const reportingState = REPORTING_STATES[hotLoadingMarketData.reportingState]
+	if (reportingState === undefined) throw new Error(`unknown reporting state type: ${ hotLoadingMarketData.reportingState }`)
+	return { ...hotLoadingMarketData, marketType, reportingState }
 }
 
 export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {
@@ -85,7 +90,7 @@ export const derivePayoutDistributionHash = (payoutNumerators: readonly bigint[]
 	if (BigInt(payoutNumerators.length) !== numOutcomes) throw new Error('Malformed payout length')
 	if (!(payoutNumerators[0] === 0n || payoutNumerators[0] === numTicks)) throw new Error('Invalid report must be fully paid to Invalid')
 	const _sum = payoutNumerators.reduce((acc, val) => acc + val, 0n)
-	if (_sum !== numTicks) throw new Error('Malformed payout sum')
+	if (_sum !== numTicks) throw new Error(`Malformed payout sum. Numerators: ${ payoutNumerators.join(',') } ticks: ${ numTicks }`)
 	const encoded = encodePacked(['uint256[]'], [payoutNumerators])
 	return keccak256(encoded)
 }
@@ -329,12 +334,6 @@ export const getCrowdsourcerInfoByPayoutNumerator = async (readClient: ReadClien
 	})
 	if (BigInt(crowdsourcer) === 0n) return undefined
 	return await getCrowdsourcerInfo(readClient, crowdsourcer)
-}
-
-export const getAlreadyContributedCrowdSourcerInfoOnAllOutcomesOnYesNoMarketOrCategorical = async (readClient: ReadClient, market: AccountAddress, numOutcomes: bigint, numTicks: EthereumQuantity) => {
-	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
-	const payoutDistributionHashes = allPayoutNumeratorCombinations.map((payoutNumerators) => EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)))
-	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getCrowdsourcerInfoByPayoutNumerator(readClient, market, payoutDistributionHash)))
 }
 
 export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
