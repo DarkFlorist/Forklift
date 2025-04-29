@@ -38,22 +38,22 @@ const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint
 
 export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
 	const malformedOutcomeName = `Malformed Outcome (${ payoutNumerators.join(', ') })`
-	switch(marketData.hotLoadingMarketData.marketType) {
+	switch(marketData.marketType) {
 		case 'Categorical':
 		case 'Yes/No': {
 			var indexOfMaxValue = indexOfMax(payoutNumerators)
 			if (indexOfMaxValue === undefined) return malformedOutcomeName
 			if (payoutNumerators.filter((numerator) => numerator > 0).length > 1) return malformedOutcomeName
-			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketData.hotLoadingMarketData.marketType, marketData.hotLoadingMarketData.outcomes)
+			const name = getYesNoCategoricalOutcomeName(indexOfMaxValue, marketData.marketType, marketData.outcomes)
 			if (name === undefined) return malformedOutcomeName
 			return name
 		}
 		case 'Scalar': {
 			if (payoutNumerators.length !== 3 || payoutNumerators[0] === undefined || payoutNumerators[1] === undefined || payoutNumerators[2] === undefined) return malformedOutcomeName
-			if (marketData.hotLoadingMarketData.displayPrices[0] === undefined || marketData.hotLoadingMarketData.displayPrices[1] === undefined) return malformedOutcomeName
-			return getScalarOutComeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.hotLoadingMarketData.numTicks, marketData.hotLoadingMarketData.displayPrices[0], marketData.hotLoadingMarketData.displayPrices[1])
+			if (marketData.displayPrices[0] === undefined || marketData.displayPrices[1] === undefined) return malformedOutcomeName
+			return getScalarOutComeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.numTicks, marketData.displayPrices[0], marketData.displayPrices[1])
 		}
-		default: assertNever(marketData.hotLoadingMarketData.marketType)
+		default: assertNever(marketData.marketType)
 	}
 }
 

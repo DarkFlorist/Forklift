@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
-import { ExtraInfo } from '../CreateMarketUI/types/createMarketTypes.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
-import { fetchHotLoadingMarketData, getDisputeWindowInfo, getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
+import { AccountAddress } from '../types/types.js'
+import { fetchMarketData, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
 import { getOutComeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
 import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
@@ -11,11 +10,7 @@ import { JSX } from 'preact/jsx-runtime'
 import { Signal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 
-export type MarketData = {
-	marketAddress: `0x${ string }`
-	parsedExtraInfo: ExtraInfo | undefined
-	hotLoadingMarketData: Awaited<ReturnType<typeof fetchHotLoadingMarketData>>
-}
+export type MarketData = Awaited<ReturnType<typeof fetchMarketData>>
 
 interface DisplayExtraInfoProps {
 	marketData: OptionalSignal<MarketData>
@@ -26,7 +21,7 @@ export const DisplayExtraInfo = ({ marketData }: DisplayExtraInfoProps) => {
 	if (marketData.deepValue.parsedExtraInfo === undefined) {
 		return <>
 			<span>ERROR! Failed to parse Extra data, this market is likely invalid. Unparsed extra data:</span>
-			<span>{ marketData.deepValue.hotLoadingMarketData.extraInfo }</span>
+			<span>{ marketData.deepValue.extraInfo }</span>
 		</>
 	}
 	return <>
@@ -39,26 +34,24 @@ interface MarketOutcomesProps {
 }
 
 export const MarketOutcomes = ({ marketData }: MarketOutcomesProps) => {
-	const hotData = marketData.deepValue?.hotLoadingMarketData
-	if (hotData === undefined) return <></>
-	switch(hotData.marketType) {
+	if (marketData.deepValue === undefined) return <></>
+	switch(marketData.deepValue.marketType) {
 		case 'Yes/No':
 		case 'Categorical': {
-			const marketType = hotData.marketType
-			const outcomeNames = Array.from({ length: Number(hotData.numOutcomes) }).map((_, index) => getYesNoCategoricalOutcomeName(index, marketType, hotData.outcomes))
-			console.log(outcomeNames)
-			console.log(hotData.numOutcomes)
+			const marketType = marketData.deepValue.marketType
+			const outcomes = marketData.deepValue.outcomes
+			const outcomeNames = Array.from({ length: Number(marketData.deepValue.numOutcomes) }).map((_, index) => getYesNoCategoricalOutcomeName(index, marketType, outcomes))
 			return <>
-				<strong>{ hotData.marketType } Market</strong>
+				<strong>{ marketData.deepValue.marketType } Market</strong>
 				<ul>
 					{ outcomeNames.map((outcome) => <li key = { outcome }>{ outcome }</li>) }
 				</ul>
 			</>
 		}
 		case 'Scalar': {
-			const minValue = hotData.displayPrices[0] || 0n
-			const maxValue = hotData.displayPrices[1] || 0n
-			const tradeInterval = getTradeInterval(maxValue - minValue, hotData.numTicks)
+			const minValue = marketData.deepValue.displayPrices[0] || 0n
+			const maxValue = marketData.deepValue.displayPrices[1] || 0n
+			const tradeInterval = getTradeInterval(maxValue - minValue, marketData.deepValue.numTicks)
 			const unit = marketData.deepValue?.parsedExtraInfo?._scalarDenomination || 'unknown'
 
 			return <>
@@ -76,17 +69,16 @@ export const MarketOutcomes = ({ marketData }: MarketOutcomesProps) => {
 interface MarketStateProps {
 	marketData: OptionalSignal<MarketData>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 }
 
-export const MarketState = ({ marketData, lastCompletedCrowdSourcer, forkValues }: MarketStateProps) => {
-	const data = marketData.deepValue?.hotLoadingMarketData
+export const MarketState = ({ marketData, forkValues }: MarketStateProps) => {
+	const data = marketData.deepValue
 	if (data === undefined) return ''
 	const state = data.reportingState
 
-	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined
+	const isSlowReporting = useComputed(() => marketData.deepValue?.lastCompletedCrowdSourcer !== undefined
 		&& forkValues.deepValue !== undefined
-		&& lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing
+		&& marketData.deepValue.lastCompletedCrowdSourcer.size >= forkValues.deepValue.disputeThresholdForDisputePacing
 	)
 
 	switch(state) {
@@ -100,7 +92,7 @@ export const MarketState = ({ marketData, lastCompletedCrowdSourcer, forkValues 
 		case 'DesignatedReporting': return 'Awaiting For Designated Reporter To Report'
 		case 'Finalized': {
 			if (marketData.deepValue === undefined) return 'Finalized'
-			const winningPayout = marketData.deepValue.hotLoadingMarketData.winningPayout
+			const winningPayout = marketData.deepValue.winningPayout
 			const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
 			if (winningOptionName === undefined) return 'Finalized'
 			return `Finalized as ${ winningOptionName }`
@@ -115,11 +107,9 @@ export const MarketState = ({ marketData, lastCompletedCrowdSourcer, forkValues 
 interface MarketProps {
 	marketData: OptionalSignal<MarketData>
 	universe: OptionalSignal<AccountAddress>
-	repBond: OptionalSignal<EthereumQuantity>
 	addressComponent?: JSX.Element
 	children?: preact.ComponentChildren
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
 }
@@ -145,19 +135,18 @@ const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | u
 interface ResolvingToProps {
 	marketData: OptionalSignal<MarketData>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer, forkValues, currentTimeInBigIntSeconds }: ResolvingToProps) => {
-	const isSlowReporting = useComputed(() => lastCompletedCrowdSourcer.deepValue !== undefined
+const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInBigIntSeconds }: ResolvingToProps) => {
+	const isSlowReporting = useComputed(() => marketData.deepValue?.lastCompletedCrowdSourcer !== undefined
 		&& forkValues.deepValue !== undefined
-		&& lastCompletedCrowdSourcer.deepValue.size >= forkValues.deepValue.disputeThresholdForDisputePacing
+		&& marketData.deepValue?.lastCompletedCrowdSourcer.size >= forkValues.deepValue.disputeThresholdForDisputePacing
 	)
 	if (disputeWindowInfo.deepValue === undefined) return <></>
 	if (marketData.deepValue === undefined) return <></>
-	const winningPayout = marketData.deepValue?.hotLoadingMarketData.winningPayout.length === 0 ? lastCompletedCrowdSourcer.deepValue?.payoutNumerators : marketData.deepValue?.hotLoadingMarketData.winningPayout
+	const winningPayout = marketData.deepValue?.winningPayout.length === 0 ? marketData.deepValue.lastCompletedCrowdSourcer?.payoutNumerators : marketData.deepValue?.winningPayout
 	if (winningPayout === undefined) return <></>
 	const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
 	if (winningOptionName === undefined) return <></>
@@ -178,37 +167,36 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, lastCompletedCrowdSourcer,
 	}/>
 }
 
-export const Market = ({ marketData, universe, repBond, addressComponent, children, lastCompletedCrowdSourcer, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
-	if (marketData.deepValue === undefined || repBond.deepValue === undefined) return <div>
+export const Market = ({ marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
+	if (marketData.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
 		</div>
 	</div>
-	const endTime = useComputed(() => marketData.deepValue?.hotLoadingMarketData.endTime)
+	const endTime = useComputed(() => marketData.deepValue?.endTime)
 	return <div>
-		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.hotLoadingMarketData.universe) ? <>
+		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.universe) ? <>
 			<div class = 'error-box'>
-				<p> This Market is for universe { getUniverseName(marketData.deepValue.hotLoadingMarketData.universe) } while you are on universe { getUniverseName(universe.deepValue) }!</p>
+				<p> This Market is for universe { getUniverseName(marketData.deepValue.universe) } while you are on universe { getUniverseName(universe.deepValue) }!</p>
 			</div>
 		</> : <></> }
-
 		<div className = 'market-card'>
 			{ addressComponent }
-			{ marketData.deepValue.hotLoadingMarketData.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
-				<ResolvingTo marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+			{ marketData.deepValue.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
+				<ResolvingTo marketData = { marketData } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</> }
 			<header className = 'market-header'>
 				<h1>{ marketData.deepValue.parsedExtraInfo?.description || marketData.deepValue.marketAddress }</h1>
 				<div className = 'status-bar'>
-					<span className = 'state'>{ <MarketState marketData = { marketData } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } /> }</span>
+					<span className = 'state'>{ <MarketState marketData = { marketData } forkValues = { forkValues } /> }</span>
 					<Countdown end = { endTime } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 				</div>
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto auto', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' } }>
 					<div>
-						<span>{ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.openInterest, 18n, 2) } DAI Open Interest</span>
+						<span>{ bigintToDecimalString(marketData.deepValue.openInterest, 18n, 2) } DAI Open Interest</span>
 					</div>
 					<div>
-						{ formatUnixTimestampIso(marketData.deepValue.hotLoadingMarketData.endTime) }
+						{ formatUnixTimestampIso(marketData.deepValue.endTime) }
 					</div>
 				</div>
 			</header>
@@ -223,16 +211,19 @@ export const Market = ({ marketData, universe, repBond, addressComponent, childr
 
 			<section className = 'details-grid'>
 				{ [
-					['Owner', marketData.deepValue.hotLoadingMarketData.owner],
-					['Market Creator', marketData.deepValue.hotLoadingMarketData.marketCreator],
-					['Designated Reporter', marketData.deepValue.hotLoadingMarketData.designatedReporter],
+					...marketData.deepValue.owner === marketData.deepValue.marketCreator && marketData.deepValue.marketCreator === marketData.deepValue.designatedReporter ?
+						['Owner/Creator/Reporter', marketData.deepValue.owner]
+					: [
+						['Market Owner', marketData.deepValue.owner],
+						['Market Creator', marketData.deepValue.marketCreator],
+						['Designated Reporter', marketData.deepValue.designatedReporter],
+					],
+					['Fee', marketData.deepValue.feeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.feeDivisor)).toFixed(2) }%` ],
+					['Reporting Fee', marketData.deepValue.reportingFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.reportingFeeDivisor)).toFixed(2) }%` ],
+					['Affiliate Fee', marketData.deepValue.affiliateFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.affiliateFeeDivisor)).toFixed(2) }%` ],
 
-					['Fee', marketData.deepValue.hotLoadingMarketData.feeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.feeDivisor)).toFixed(2) }%` ],
-					['Reporting Fee', marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.reportingFeeDivisor)).toFixed(2) }%` ],
-					['Affiliate Fee', marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.hotLoadingMarketData.affiliateFeeDivisor)).toFixed(2) }%` ],
-
-					['Validity Bond', `${ bigintToDecimalString(marketData.deepValue.hotLoadingMarketData.validityBond, 18n, 2) } DAI`],
-					['Rep Bond', `${ bigintToDecimalString(repBond.deepValue, 18n, 2) } REP `],
+					['Validity Bond', `${ bigintToDecimalString(marketData.deepValue.validityBond, 18n, 2) } DAI`],
+					['Rep Bond', `${ bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } REP `],
 
 					['Categories', (marketData.deepValue.parsedExtraInfo?.categories || []).join(', ')],
 					['Tags', (marketData.deepValue.parsedExtraInfo?.tags || []).join(', ')],
