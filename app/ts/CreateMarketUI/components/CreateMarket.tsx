@@ -66,7 +66,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
 			<div style = { { alignContent: 'center' } }>
-				Allowed DAI: { bigintToDecimalStringWithUnknown(allowedRep.deepValue, 18n, 2) } DAI (required: { bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)
+				Allowed DAI: { bigintToDecimalStringWithUnknown(allowedDai.deepValue, 18n, 2) } DAI (required: { bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)
 			</div>
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
@@ -88,7 +88,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 						return bigintToDecimalString(amount, 18n, 18)
 					}}
 				/>
-				<span class = 'unit'>REP</span>
+				<span class = 'unit'>DAI</span>
 				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxDaiAllowance }>Max</button>
 			</div>
 			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetDaiAllowance } onClick = { approveDai }>
@@ -118,7 +118,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 						return bigintToDecimalString(amount, 18n, 18)
 					}}
 				/>
-				<span class = 'unit'>DAI</span>
+				<span class = 'unit'>REP</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
 			</div>
 			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetRepAllowance } onClick = { approveRep }>
@@ -127,6 +127,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		</div>
 	</div>
 }
+
 interface CostsParams {
 	marketCreationCostDai: OptionalSignal<bigint>
 	marketCreationCostRep: OptionalSignal<bigint>
