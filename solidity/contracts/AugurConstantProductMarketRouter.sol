@@ -17,7 +17,6 @@ import { Commands } from "./uniswap/libraries/Commands.sol";
 import { IShareTokenWrapper } from "./IShareTokenWrapper.sol";
 import { IPoolManager } from './uniswap/interfaces/IPoolManager.sol';
 import { IHooks } from './uniswap/interfaces/IHooks.sol';
-import { ShareTokenWrapper } from './ShareTokenWrapper.sol';
 import { TickMath } from "./uniswap/libraries/TickMath.sol";
 import { LiquidityAmounts } from "./uniswap/libraries/LiquidityAmounts.sol";
 import { StateLibrary } from "./uniswap/libraries/StateLibrary.sol";
@@ -27,12 +26,14 @@ import { IUniversalRouter } from './uniswap/interfaces/IUniversalRouter.sol';
 import { IV4Quoter } from './uniswap/interfaces/IV4Quoter.sol';
 import { BeforeSwapDelta, BeforeSwapDeltaLibrary } from "./uniswap/types/BeforeSwapDelta.sol";
 import { BalanceDelta } from "./uniswap/types/BalanceDelta.sol";
+import { IShareTokenWrapperFactory } from "./IShareTokenWrapperFactory.sol";
 
 contract AugurConstantProductRouter {
 	using CurrencyLibrary for uint256;
 
 	mapping(address => PoolKey) public marketIds;
 	IMarket[] private marketList;
+	mapping(address => uint256[]) public lpTokenIds;
 	uint24 public constant initialFeePips = 50_000; // 5% fee
 	int24 public constant tickSpacing = 1000; // NOTE: follows general fee -> tickSPacing convention but may need tweaking.
 	uint160 private constant startingPrice = 79228162514264337593543950336; // 1:1 pricing magic number. The startingPrice is expressed as sqrtPriceX96: floor(sqrt(token1 / token0) * 2^96)
@@ -40,38 +41,27 @@ contract AugurConstantProductRouter {
 	IShareToken public shareToken = IShareToken(Constants.SHARE_TOKEN);
 	IERC20 public dai = IERC20(Constants.DAI_ADDRESS);
 	IAugur public constant augur = IAugur(Constants.AUGUR_ADDRESS);
+	IShareTokenWrapperFactory public shareTokenWrapperFactory;
 	uint128 private constant numTicks = 1000;
-
-	// Liquidity Actions
-	bytes private constant MINT_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR));
-	bytes private constant INCREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.INCREASE_LIQUIDITY), uint8(Actions.SETTLE_PAIR));
-	bytes private constant DECREASE_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR));
-	bytes private constant BURN_LIQUIDITY_ACTIONS = abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR));
-
-	// Swap Commands
-	bytes private constant SWAP_COMMAND = abi.encodePacked(uint8(Commands.V4_SWAP));
-
-	// Swap actions
-	bytes private constant SWAP_EXACT_IN_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
-	bytes private constant SWAP_EXACT_OUT_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_OUT_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
+	bool public isInitialized = false;
 
 	// Hook Permissions
 	struct Permissions {
-        bool beforeInitialize;
-        bool afterInitialize;
-        bool beforeAddLiquidity;
-        bool afterAddLiquidity;
-        bool beforeRemoveLiquidity;
-        bool afterRemoveLiquidity;
-        bool beforeSwap;
-        bool afterSwap;
-        bool beforeDonate;
-        bool afterDonate;
-        bool beforeSwapReturnDelta;
-        bool afterSwapReturnDelta;
-        bool afterAddLiquidityReturnDelta;
-        bool afterRemoveLiquidityReturnDelta;
-    }
+		bool beforeInitialize;
+		bool afterInitialize;
+		bool beforeAddLiquidity;
+		bool afterAddLiquidity;
+		bool beforeRemoveLiquidity;
+		bool afterRemoveLiquidity;
+		bool beforeSwap;
+		bool afterSwap;
+		bool beforeDonate;
+		bool afterDonate;
+		bool beforeSwapReturnDelta;
+		bool afterSwapReturnDelta;
+		bool afterAddLiquidityReturnDelta;
+		bool afterRemoveLiquidityReturnDelta;
+	}
 
 	// Hook fee flags
 	uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
@@ -80,6 +70,12 @@ contract AugurConstantProductRouter {
 	constructor() {
 		dai.approve(Constants.SHARE_TOKEN, 2**256-1);
 		dai.approve(Constants.AUGUR_ADDRESS, 2**256-1);
+	}
+
+	function initialize(IShareTokenWrapperFactory _shareTokenWrapperFactory) external {
+		require(!isInitialized, "AugurCP: Already initialized");
+		isInitialized = true;
+		shareTokenWrapperFactory = _shareTokenWrapperFactory;
 	}
 
 	function mintLiquidity(address augurMarketAddress, uint256 setsToBuy, int24 tickLower, int24 tickUpper, uint128 amountNo, uint128 amountYes, uint256 deadline) external {
@@ -95,13 +91,15 @@ contract AugurConstantProductRouter {
 		yesShareToken.wrap(setsToBuy);
 		noShareToken.wrap(setsToBuy);
 
+		lpTokenIds[augurMarketAddress].push(IPositionManager(Constants.UNIV4_POSITION_MANAGER).nextTokenId());
+
 		bytes[] memory params = new bytes[](2);
 
 		uint256 liquidity = getExpectedLiquidityInternal(poolId, tickLower, tickUpper, amountNo, amountYes);
 		params[0] = abi.encode(poolKey, tickLower, tickUpper, liquidity, amountNo, amountYes, msg.sender, "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1);
 
-		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(MINT_LIQUIDITY_ACTIONS, params), deadline);
+		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR)), params), deadline);
 
 		if (setsToBuy != amountYes) yesShareToken.transfer(msg.sender, setsToBuy - amountYes);
 		if (setsToBuy != amountNo) noShareToken.transfer(msg.sender, setsToBuy - amountNo);
@@ -128,7 +126,7 @@ contract AugurConstantProductRouter {
 		params[0] = abi.encode(tokenId, liquidity, amountNo, amountYes, "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1);
 
-		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(INCREASE_LIQUIDITY_ACTIONS, params), deadline);
+		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.INCREASE_LIQUIDITY), uint8(Actions.SETTLE_PAIR)), params), deadline);
 
 		if (setsToBuy != amountYes) yesShareToken.transfer(msg.sender, setsToBuy - amountYes);
 		if (setsToBuy != amountNo) noShareToken.transfer(msg.sender, setsToBuy - amountNo);
@@ -164,7 +162,7 @@ contract AugurConstantProductRouter {
 		params[0] = abi.encode(tokenId, liquidity, amountNoMin, amountYesMin, "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1, address(this));
 
-		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(DECREASE_LIQUIDITY_ACTIONS, params), deadline);
+		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR)), params), deadline);
 
 		settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
 	}
@@ -180,7 +178,7 @@ contract AugurConstantProductRouter {
 		params[0] = abi.encode(tokenId, amountNoMin, amountYesMin, "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1, address(this));
 
-		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(BURN_LIQUIDITY_ACTIONS, params), deadline);
+		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR)), params), deadline);
 
 		settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
 	}
@@ -319,9 +317,9 @@ contract AugurConstantProductRouter {
 		params[1] = abi.encode(buyYes ? poolKey.currency0 : poolKey.currency1, amountIn);
 		params[2] = abi.encode(buyYes ? poolKey.currency1 : poolKey.currency0, amountOutMinimum);
 
-		inputs[0] = abi.encode(SWAP_EXACT_IN_ACTIONS, params);
+		inputs[0] = abi.encode(abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL)), params);
 
-		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
+		IUniversalRouter(Constants.UNIV4_ROUTER).execute(abi.encodePacked(uint8(Commands.V4_SWAP)), inputs, deadline);
 	}
 
 	function swapExactOut(address augurMarketAddress, bool swapYes, uint128 exactAmountOut, uint128 maxAmountIn, uint256 deadline) external {
@@ -348,10 +346,10 @@ contract AugurConstantProductRouter {
 		params[1] = abi.encode(swapYes ? poolKey.currency1 : poolKey.currency0, maxAmountIn);
 		params[2] = abi.encode(swapYes ? poolKey.currency0 : poolKey.currency1, exactAmountOut);
 
-		inputs[0] = abi.encode(SWAP_EXACT_OUT_ACTIONS, params);
+		inputs[0] = abi.encode(abi.encodePacked(uint8(Actions.SWAP_EXACT_OUT_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL)), params);
 
 		shareTokenIn.transferFrom(msg.sender, address(this), sharesInNeeded);
-		IUniversalRouter(Constants.UNIV4_ROUTER).execute(SWAP_COMMAND, inputs, deadline);
+		IUniversalRouter(Constants.UNIV4_ROUTER).execute(abi.encodePacked(uint8(Commands.V4_SWAP)), inputs, deadline);
 		shareTokenOut.transfer(msg.sender, shareTokenOut.balanceOf(address(this)));
 	}
 
@@ -373,8 +371,8 @@ contract AugurConstantProductRouter {
 	function createACPM(IMarket market) public returns (PoolKey memory) {
 		require(marketIds[address(market)].fee != DYNAMIC_FEE_FLAG, string(abi.encodePacked("ACPM for market already exists. PoolId: ", PoolIdLibrary.toId(marketIds[address(market)]))));
 
-		address shareTokenWrapperAddress0 = createShareToken(address(market), 0);
-		address shareTokenWrapperAddress1 = createShareToken(address(market), 1);
+		address shareTokenWrapperAddress0 = shareTokenWrapperFactory.createShareToken(address(market), 0);
+		address shareTokenWrapperAddress1 = shareTokenWrapperFactory.createShareToken(address(market), 1);
 
 		// We ensure that currency0 is always No and currency1 is always Yes
 		bool oneGreater = uint160(shareTokenWrapperAddress0) < uint160(shareTokenWrapperAddress1);
@@ -409,22 +407,6 @@ contract AugurConstantProductRouter {
 		return pool;
     }
 
-	function createShareToken(address market, uint8 count) private returns (address shareTokenWrapperAddress) {
-		{
-			bytes32 _salt = keccak256(abi.encodePacked(market, count));
-			bytes memory _deploymentData = abi.encodePacked(type(ShareTokenWrapper).creationCode);
-			assembly {
-				shareTokenWrapperAddress := create2(0x0, add(0x20, _deploymentData), mload(_deploymentData), _salt)
-				if iszero(extcodesize(shareTokenWrapperAddress)) {
-					mstore(0x00, 0x20) // offset
-					mstore(0x20, 0x17) // length
-					mstore(0x40, 0x6372656174655368617265546F6B656E204661696C6564) // message ("createShareToken Failed")
-					revert(0x00, 0x60)
-				}
-			}
-		}
-	}
-
 	function quoteExactInputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) external returns (uint256, uint256) {
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
@@ -453,6 +435,22 @@ contract AugurConstantProductRouter {
 		return marketList.length;
 	}
 
+	function getUserLpTokenIdsForMarket(address augurMarketAddress, address user) external view returns (uint256[] memory) {
+		uint256[] memory marketLpTokenIds = lpTokenIds[augurMarketAddress];
+		uint256 length = 0;
+		for (uint256 i = 0; i < marketLpTokenIds.length; i++) {
+			if (IPositionManager(Constants.UNIV4_POSITION_MANAGER).ownerOf(marketLpTokenIds[i]) == user) length++;
+		}
+		uint256[] memory userLpTokenIds = new uint256[](length);
+		for (uint256 i = 0; i < marketLpTokenIds.length; i++) {
+			if (IPositionManager(Constants.UNIV4_POSITION_MANAGER).ownerOf(marketLpTokenIds[i]) == user) {
+				userLpTokenIds[length -1] = marketLpTokenIds[i];
+				length--;
+			}
+		}
+		return userLpTokenIds;
+	}
+
 	function getMarkets(int256 startIndex, uint256 pageSize) external view returns (IMarket[] memory) {
 		uint256 marketsLength = marketList.length;
 		uint256 realStartIndex = startIndex < 0 ? marketsLength - 1 : uint256(startIndex);
@@ -463,10 +461,6 @@ contract AugurConstantProductRouter {
 			if (curIndex <= 0) break;
 		}
 		return pageMarkets;
-	}
-
-	function getMarketIsValid(address augurMarketAddress) external view returns (bool) {
-		return marketIds[augurMarketAddress].fee != 0;
 	}
 
 	function beforeSwap(

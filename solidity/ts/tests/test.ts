@@ -2,7 +2,7 @@ import { describe, beforeEach, test } from 'node:test'
 import { getMockedEthSimulateWindowEthereum, MockWindowEthereum } from '../testsuite/simulator/MockWindowEthereum.js'
 import { createWriteClient } from '../testsuite/simulator/utils/viem.js'
 import { SHARE_TOKEN, TEST_ADDRESSES, UNIV4_MAX_TICK, UNIV4_MIN_TICK, UNIV4_POOL_MANAGER, UNIV4_POSITION_MANAGER, YEAR_2030 } from '../testsuite/simulator/utils/constants.js'
-import { deployAugurConstantProductMarket, approveCash, getCashAllowance, setERC1155Approval, setupTestAccounts, getAugurConstantProductMarketRouterAddress, getMarketAddress, getMarketIsValid, getPoolLiquidityBalance, getCashBalance, mintLiquidity, getNextPositionManagerToken, getExpectedLiquidity, getShareBalances, decreaseLiquidity, getReportingFee, burnLiquidity, increaseLiquidity, expectedSharesAfterSwap, enterPosition, expectedSharesNeededForSwap, exitPosition, swapExactIn, swapExactOut, getNumMarkets, getMarkets } from '../testsuite/simulator/utils/utilities.js'
+import { deployAugurConstantProductMarket, approveCash, getCashAllowance, setERC1155Approval, setupTestAccounts, getAugurConstantProductMarketRouterAddress, getMarketAddress, getPoolLiquidityBalance, getCashBalance, mintLiquidity, getNextPositionManagerToken, getExpectedLiquidity, getShareBalances, decreaseLiquidity, getReportingFee, burnLiquidity, increaseLiquidity, expectedSharesAfterSwap, enterPosition, expectedSharesNeededForSwap, exitPosition, swapExactIn, swapExactOut, getNumMarkets, getMarkets, getLpTokens, getMarketIsValid } from '../testsuite/simulator/utils/utilities.js'
 import assert from 'node:assert'
 import { addressString } from '../testsuite/simulator/utils/bigint.js'
 
@@ -429,6 +429,12 @@ describe('Contract Test Suite', () => {
 		const lpBalance2 = await getPoolLiquidityBalance(liquidityProviderClient2, positionTokenId2)
 		const lpDaiBalance1 = await getCashBalance(liquidityProviderClient1)
 		const lpDaiBalance2 = await getCashBalance(liquidityProviderClient2)
+
+		const lp1TokenIds = await getLpTokens(liquidityProviderClient1)
+		assert.deepEqual(lp1TokenIds, [positionTokenId1])
+
+		const lp2TokenIds = await getLpTokens(liquidityProviderClient2)
+		assert.deepEqual(lp2TokenIds, [positionTokenId2])
 
 		// participant 1 enters Yes
 		const amountInDai = 50000n
