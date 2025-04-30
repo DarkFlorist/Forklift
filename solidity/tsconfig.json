@@ -17,7 +17,7 @@
 		"noFallthroughCasesInSwitch": true,
 		"esModuleInterop": true,
 		"lib": ["ESNext", "DOM"],
-		"typeRoots": ["node_modules/@types", "ts/types"],
+		"typeRoots": ["../node_modules/@types", "./ts/types"],
 		"types": [ "node" ],
 	},
 	"include": [

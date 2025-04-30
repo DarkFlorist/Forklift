@@ -6,7 +6,6 @@ import { IERC20 } from "./IERC20.sol";
 import { IShareToken } from "./IShareToken.sol";
 import { IMarket } from "./IMarket.sol";
 import { IAugur } from "./IAugur.sol";
-import { IAugurConstantProduct } from "./IAugurConstantProduct.sol";
 import { Constants } from "./Constants.sol";
 import { PoolIdLibrary, PoolId } from "./uniswap/types/PoolId.sol";
 import { PositionInfo, PositionInfoLibrary } from "./uniswap/libraries/PositionInfoLibrary.sol";
@@ -26,13 +25,15 @@ import { IAllowanceTransfer } from "./uniswap/interfaces/external/IAllowanceTran
 import { IV4Router } from './uniswap/interfaces/IV4Router.sol';
 import { IUniversalRouter } from './uniswap/interfaces/IUniversalRouter.sol';
 import { IV4Quoter } from './uniswap/interfaces/IV4Quoter.sol';
+import { BeforeSwapDelta, BeforeSwapDeltaLibrary } from "./uniswap/types/BeforeSwapDelta.sol";
+import { BalanceDelta } from "./uniswap/types/BalanceDelta.sol";
 
 contract AugurConstantProductRouter {
 	using CurrencyLibrary for uint256;
 
 	mapping(address => PoolKey) public marketIds;
 	IMarket[] private marketList;
-	uint24 public constant feePips = 50_000; // 5% fee
+	uint24 public constant initialFeePips = 50_000; // 5% fee
 	int24 public constant tickSpacing = 1000; // NOTE: follows general fee -> tickSPacing convention but may need tweaking.
 	uint160 private constant startingPrice = 79228162514264337593543950336; // 1:1 pricing magic number. The startingPrice is expressed as sqrtPriceX96: floor(sqrt(token1 / token0) * 2^96)
 
@@ -53,6 +54,28 @@ contract AugurConstantProductRouter {
 	// Swap actions
 	bytes private constant SWAP_EXACT_IN_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_IN_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
 	bytes private constant SWAP_EXACT_OUT_ACTIONS = abi.encodePacked(uint8(Actions.SWAP_EXACT_OUT_SINGLE), uint8(Actions.SETTLE_ALL), uint8(Actions.TAKE_ALL));
+
+	// Hook Permissions
+	struct Permissions {
+        bool beforeInitialize;
+        bool afterInitialize;
+        bool beforeAddLiquidity;
+        bool afterAddLiquidity;
+        bool beforeRemoveLiquidity;
+        bool afterRemoveLiquidity;
+        bool beforeSwap;
+        bool afterSwap;
+        bool beforeDonate;
+        bool afterDonate;
+        bool beforeSwapReturnDelta;
+        bool afterSwapReturnDelta;
+        bool afterAddLiquidityReturnDelta;
+        bool afterRemoveLiquidityReturnDelta;
+    }
+
+	// Hook fee flags
+	uint24 public constant DYNAMIC_FEE_FLAG = 0x800000;
+	uint24 public constant OVERRIDE_FEE_FLAG = 0x400000;
 
 	constructor() {
 		dai.approve(Constants.SHARE_TOKEN, 2**256-1);
@@ -332,23 +355,6 @@ contract AugurConstantProductRouter {
 		shareTokenOut.transfer(msg.sender, shareTokenOut.balanceOf(address(this)));
 	}
 
-	function buyShares(address augurMarketAddress, uint256 setsToBuy) external {
-		dai.transferFrom(msg.sender, address(this), setsToBuy * numTicks);
-		shareToken.buyCompleteSets(augurMarketAddress, address(this), setsToBuy);
-
-		PoolKey memory poolKey = marketIds[augurMarketAddress];
-
-		IShareTokenWrapper yesShareToken = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
-		IShareTokenWrapper noShareToken = IShareTokenWrapper(Currency.unwrap(poolKey.currency1));
-
-		yesShareToken.wrap(setsToBuy);
-		noShareToken.wrap(setsToBuy);
-
-		yesShareToken.transfer(msg.sender, setsToBuy);
-		noShareToken.transfer(msg.sender, setsToBuy);
-		shareToken.unsafeTransferFrom(address(this), msg.sender, shareToken.getTokenId(augurMarketAddress, 0), setsToBuy);
-	}
-
 	function getShareTokenWrappers(address augurMarketAddress) public view returns (address no, address yes) {
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 		no = Currency.unwrap(poolKey.currency0);
@@ -365,7 +371,7 @@ contract AugurConstantProductRouter {
 	}
 
 	function createACPM(IMarket market) public returns (PoolKey memory) {
-		require(marketIds[address(market)].fee != feePips, string(abi.encodePacked("ACPM for market already exists. PoolId: ", PoolIdLibrary.toId(marketIds[address(market)]))));
+		require(marketIds[address(market)].fee != DYNAMIC_FEE_FLAG, string(abi.encodePacked("ACPM for market already exists. PoolId: ", PoolIdLibrary.toId(marketIds[address(market)]))));
 
 		address shareTokenWrapperAddress0 = createShareToken(address(market), 0);
 		address shareTokenWrapperAddress1 = createShareToken(address(market), 1);
@@ -392,9 +398,9 @@ contract AugurConstantProductRouter {
 		PoolKey memory pool = PoolKey({
 			currency0: noGreater ? CurrencyLibrary.fromId(uint160(yesShareTokenWrapperAddress)) : CurrencyLibrary.fromId(uint160(noShareTokenWrapperAddress)),
 			currency1: noGreater ? CurrencyLibrary.fromId(uint160(noShareTokenWrapperAddress)) : CurrencyLibrary.fromId(uint160(yesShareTokenWrapperAddress)),
-			fee: feePips,
+			fee: DYNAMIC_FEE_FLAG,
 			tickSpacing: tickSpacing,
-			hooks: IHooks(address(0))
+			hooks: IHooks(address(this))
 		});
 
 		IPoolManager(Constants.UNIV4_POOL_MANAGER).initialize(pool, startingPrice);
@@ -461,5 +467,47 @@ contract AugurConstantProductRouter {
 
 	function getMarketIsValid(address augurMarketAddress) external view returns (bool) {
 		return marketIds[augurMarketAddress].fee != 0;
+	}
+
+	function beforeSwap(
+		address,
+		PoolKey calldata,
+		IPoolManager.SwapParams calldata,
+		bytes calldata
+	) external returns (bytes4, BeforeSwapDelta, uint24) {
+		uint24 fee = initialFeePips | OVERRIDE_FEE_FLAG;
+		return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee);
+	}
+
+	function afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
+		external
+		returns (bytes4, int128)
+	{
+		// TODO: If this will adjust fee parameters this needs to validate the sender is PoolManager
+		return (this.afterSwap.selector, 0);
+	}
+
+	function getHookPermissions()
+		public
+		pure
+		returns (Permissions memory)
+	{
+		return
+			Permissions({
+				beforeInitialize: false,
+				afterInitialize: false,
+				beforeAddLiquidity: false,
+				afterAddLiquidity: false,
+				beforeRemoveLiquidity: false,
+				afterRemoveLiquidity: false,
+				beforeSwap: true,
+				afterSwap: true,
+				beforeDonate: false,
+				afterDonate: false,
+				beforeSwapReturnDelta: false,
+				afterSwapReturnDelta: false,
+				afterAddLiquidityReturnDelta: false,
+				afterRemoveLiquidityReturnDelta: false
+			});
 	}
 }

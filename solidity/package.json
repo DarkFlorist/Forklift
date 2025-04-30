@@ -4,8 +4,9 @@
 	"description": "Augur-Constant-Product-Market-Contracts",
 	"scripts": {
 		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
-		"compile": "tsc ./ts/compile.ts && node ./js/compile.js",
-		"test": "npx tsc && node --test $npm_config_testargs"
+		"compile": "tsc --project tsconfig-compile.json && node ./js/compile.js",
+		"test": "npx tsc && node --test $npm_config_testargs",
+		"generateHookSalt": "tsc && node ./js/generateHookSalt.js"
 	},
 	"keywords": [],
 	"author": "",

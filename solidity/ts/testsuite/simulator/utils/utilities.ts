@@ -3,7 +3,7 @@ import { getContractAddress, numberToBytes, encodeAbiParameters, keccak256 } fro
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { createWriteClient, ReadClient, WriteClient } from './viem.js'
-import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
+import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, HOOK_SALT, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address, parseAbiItem } from 'viem'
 import { ABIS } from '../../../abi/abis.js'
@@ -243,18 +243,9 @@ export const deployAugurMarket = async (client: WriteClient, storeMarketAddress:
 	return logs[0].args.market!
 }
 
-export async function ensureProxyDeployerDeployed(client: WriteClient): Promise<void> {
-	const deployerBytecode = await client.getCode({ address: addressString(PROXY_DEPLOYER_ADDRESS)})
-	if (deployerBytecode === '0x60003681823780368234f58015156014578182fd5b80825250506014600cf3') return
-	const ethSendHash = await client.sendTransaction({ to: '0x4c8d290a1b368ac4728d83a9e8321fc3af2b39b1', amount: 10000000000000000n })
-	await client.waitForTransactionReceipt({ hash: ethSendHash })
-	const deployHash = await client.sendRawTransaction({ serializedTransaction: '0xf87e8085174876e800830186a08080ad601f80600e600039806000f350fe60003681823780368234f58015156014578182fd5b80825250506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222' })
-	await client.waitForTransactionReceipt({ hash: deployHash })
-}
-
-export function getAugurConstantProductMarketRouterAddress() {
+export function getAugurConstantProductMarketRouterAddress(salt: bigint = HOOK_SALT) {
 	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
-	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(0) })
+	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(salt) })
 }
 
 export const isAugurConstantProductMarketRouterDeployed = async (client: ReadClient) => {
@@ -265,12 +256,11 @@ export const isAugurConstantProductMarketRouterDeployed = async (client: ReadCli
 }
 
 export const deployAugurConstantProductMarketRouterTransaction = () => {
-	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
+	const bytecode: `0x${ string }` = `0x${HOOK_SALT.toString(16).padStart(64, '0')}${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
 	return { to: addressString(PROXY_DEPLOYER_ADDRESS), data: bytecode } as const
 }
 
 export const ensureAugurConstantProductMarketRouterDeployed = async (client: WriteClient) => {
-	await ensureProxyDeployerDeployed(client)
 	const hash = await client.sendTransaction(deployAugurConstantProductMarketRouterTransaction())
 	await client.waitForTransactionReceipt({ hash })
 }
