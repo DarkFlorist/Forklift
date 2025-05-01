@@ -444,8 +444,8 @@ contract AugurConstantProductRouter {
 		uint256[] memory userLpTokenIds = new uint256[](length);
 		for (uint256 i = 0; i < marketLpTokenIds.length; i++) {
 			if (IPositionManager(Constants.UNIV4_POSITION_MANAGER).ownerOf(marketLpTokenIds[i]) == user) {
-				userLpTokenIds[length -1] = marketLpTokenIds[i];
 				length--;
+				userLpTokenIds[length] = marketLpTokenIds[i];
 			}
 		}
 		return userLpTokenIds;
