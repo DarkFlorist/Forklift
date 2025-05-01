@@ -2,8 +2,9 @@ import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
-import { getForkValues, getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
+import { getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
+import { MarketData } from './Market.js'
 
 export type OutcomeStake = {
 	outcomeName: string
@@ -14,17 +15,17 @@ export type OutcomeStake = {
 }
 
 type MarketReportingOptionsForYesNoAndCategoricalProps = {
+	marketData: OptionalSignal<MarketData>
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 	isSlowReporting: Signal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 	areOptionsDisabled: Signal<boolean>
 	canInitialReport: Signal<boolean>
 }
 
-export const MarketReportingOptionsForYesNoAndCategorical = ({ outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, lastCompletedCrowdSourcer, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
+export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -34,7 +35,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ outcomeStakes, se
 		if (outcomeStakes.deepValue === undefined) return []
 		if (forkValues.deepValue === undefined) return []
 		const disputeThresholdForDisputePacing = forkValues.deepValue.disputeThresholdForDisputePacing
-		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing, lastCompletedCrowdSourcer.deepValue))
+		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, disputeThresholdForDisputePacing, marketData.deepValue?.lastCompletedCrowdSourcer))
 	})
 
 	return <div class = 'outcome-options'> {

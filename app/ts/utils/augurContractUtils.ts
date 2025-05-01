@@ -16,6 +16,22 @@ import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 import { encodePacked, keccak256 } from 'viem'
+import * as funtypes from 'funtypes'
+import { LiteralConverterParserFactory } from '../types/types.js'
+
+export type ExtraInfo = funtypes.Static<typeof ExtraInfo>
+export const ExtraInfo = funtypes.Intersect(
+	funtypes.ReadonlyObject({
+		description: funtypes.String,
+	}).asReadonly(),
+	funtypes.Partial({
+		categories: funtypes.ReadonlyArray(funtypes.String),
+		tags: funtypes.ReadonlyArray(funtypes.String),
+		longDescription: funtypes.String,
+		template: funtypes.Unknown,
+		_scalarDenomination: funtypes.Union(funtypes.String, funtypes.Literal(false).withParser(LiteralConverterParserFactory<false | string, undefined>(false, undefined)))
+	})
+)
 
 export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	await writeClient.writeContract({
@@ -34,19 +50,28 @@ export const estimateGasCreateYesNoMarket = async (universe: AccountAddress, rea
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
 }
+const parseMarketExtraInfo = (extraInfo: string) => {
+	try {
+		return ExtraInfo.parse(JSON.parse(extraInfo))
+	} catch(error) {
+		return undefined
+	}
+}
 
-export const fetchHotLoadingMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
+export const fetchMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
 	const hotLoadingMarketData = await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
 		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
 	})
+	const repBond = await getRepBond(readClient, marketAddress)
 	const marketType = MARKET_TYPES[hotLoadingMarketData.marketType]
 	if (marketType === undefined) throw new Error(`unknown market type: ${ hotLoadingMarketData.marketType }`)
 	const reportingState = REPORTING_STATES[hotLoadingMarketData.reportingState]
 	if (reportingState === undefined) throw new Error(`unknown reporting state type: ${ hotLoadingMarketData.reportingState }`)
-	return { ...hotLoadingMarketData, marketType, reportingState }
+	const lastCompletedCrowdSourcer = reportingState === 'PreReporting'	? undefined : await getLastCompletedCrowdSourcer(readClient, marketAddress, hotLoadingMarketData.disputeRound)
+	return { ...hotLoadingMarketData, marketType, reportingState, repBond, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
 }
 
 export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {

@@ -16,9 +16,9 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
 
-	const minValue = useComputed(() => marketData.deepValue?.hotLoadingMarketData.displayPrices[0] || 0n)
-	const maxValue = useComputed(() => marketData.deepValue?.hotLoadingMarketData.displayPrices[1] || 0n)
-	const numTicks = useComputed(() => marketData.deepValue?.hotLoadingMarketData.numTicks || 0n)
+	const minValue = useComputed(() => marketData.deepValue?.displayPrices[0] || 0n)
+	const maxValue = useComputed(() => marketData.deepValue?.displayPrices[1] || 0n)
+	const numTicks = useComputed(() => marketData.deepValue?.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
 
 	useSignalEffect(() => {
@@ -37,7 +37,7 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 		}
 	})
 	if (marketData.deepValue === undefined) return <></>
-	if (marketData.deepValue.hotLoadingMarketData.marketType === 'Scalar') {
+	if (marketData.deepValue.marketType === 'Scalar') {
 		return <ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
 	}
 	return <MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>

@@ -5,7 +5,6 @@ import { Signal, useComputed, useSignal } from '@preact/signals'
 import { getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
-import { getLastCompletedCrowdSourcer } from '../utils/augurContractUtils.js'
 import { OutcomeStake } from './YesNoCategoricalMarketReportingOptions.js'
 
 type ScalarInputProps = {
@@ -92,7 +91,6 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 type ReportedScalarInputsProps = {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-	lastCompletedCrowdSourcer: OptionalSignal<Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>>
 }
 
 export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsourcerStake  }: ReportedScalarInputsProps) => {

@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
-import { fetchHotLoadingMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getRepBond, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
+import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
@@ -8,7 +8,6 @@ import { Signal, useComputed, useSignal } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
-import { ExtraInfo } from '../../CreateMarketUI/types/createMarketTypes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 
@@ -44,7 +43,6 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
 	const forkingoutcomeStakes = useOptionalSignal<readonly MarketOutcomeOption[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
-	const forkingRepBond = useOptionalSignal<EthereumQuantity>(undefined)
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const repV2ToMigrateToNewUniverse = useSignal<string>('')
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
@@ -53,17 +51,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const parentUniverseUrl = useComputed(() => parentUniverse.deepValue === undefined ? '' : getUniverseUrl(parentUniverse.deepValue, 'migration'))
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 	const migrationDisabled = useComputed(() => false)
-	const lastCompletedCrowdSourcer = useOptionalSignal(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
-
-	const getParsedExtraInfo = (extraInfo: string) => {
-		try {
-			return ExtraInfo.parse(JSON.parse(extraInfo))
-		} catch(error) {
-			return undefined
-		}
-	}
 
 	const update = async () => {
 		const readClient = maybeReadClient.deepPeek()
@@ -79,11 +68,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 			parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
 		}
 		if (universeForkingInformation.deepValue?.isForking) {
-			const newMarketData = await fetchHotLoadingMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
-			const parsedExtraInfo = getParsedExtraInfo(newMarketData.extraInfo)
-			forkingMarketData.deepValue = { marketAddress: universeForkingInformation.deepValue.forkingMarket, parsedExtraInfo, hotLoadingMarketData: newMarketData }
-			forkingRepBond.deepValue = await getRepBond(readClient, universeForkingInformation.deepValue.forkingMarket)
-			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.hotLoadingMarketData.marketType, forkingMarketData.deepValue.hotLoadingMarketData.numOutcomes, forkingMarketData.deepValue.hotLoadingMarketData.numTicks, forkingMarketData.deepValue.hotLoadingMarketData.outcomes)
+			forkingMarketData.deepValue = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
+			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
 			forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 			disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket)
 			if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
@@ -122,8 +108,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
 		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('Selected outcome not found')
 		if (forkingMarketData.deepValue === undefined) throw new Error('Forking market missing')
-		const hotLoading = forkingMarketData.deepValue.hotLoadingMarketData
-		childUniverseAddress.deepValue = await getChildUniverse(writeClient, hotLoading.universe, selectedPayoutNumerators.deepValue, hotLoading.numTicks, hotLoading.numOutcomes)
+		childUniverseAddress.deepValue = await getChildUniverse(writeClient, forkingMarketData.deepValue.universe, selectedPayoutNumerators.deepValue, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.numOutcomes)
 	}
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
@@ -145,7 +130,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		</div>
 		{ universeForkingInformation.deepValue.isForking ? <>
 			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe } repBond = { forkingRepBond } lastCompletedCrowdSourcer = { lastCompletedCrowdSourcer } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
+				<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 					<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 				</Market>
 				<DisplayForkValues forkValues = { forkValues }/>
