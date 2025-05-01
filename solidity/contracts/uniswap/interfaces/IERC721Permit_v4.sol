@@ -35,4 +35,6 @@ interface IERC721Permit_v4 {
         uint256 nonce,
         bytes calldata signature
     ) external payable;
+
+	function ownerOf(uint256 id) external view returns (address owner);
 }
