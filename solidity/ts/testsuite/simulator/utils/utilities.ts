@@ -3,13 +3,17 @@ import { getContractAddress, numberToBytes, encodeAbiParameters, keccak256 } fro
 import { mainnet } from 'viem/chains'
 import { promises as fs } from 'fs'
 import { createWriteClient, ReadClient, WriteClient } from './viem.js'
-import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, HOOK_SALT, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
+import { AUGUR_ADDRESS, AUGUR_UNIVERSE_ADDRESS, HOOK_IMPLEMENTATION_CODE, NULL_ADDRESS, PERMIT2, PROXY_DEPLOYER_ADDRESS, QUINTILLION, TEST_ADDRESSES, UNIV4_POSITION_MANAGER, VITALIK, YEAR_2030 } from './constants.js'
 import { addressString } from './bigint.js'
 import { Abi, Address, parseAbiItem } from 'viem'
 import { ABIS } from '../../../abi/abis.js'
 import * as funtypes from 'funtypes'
 import { MockWindowEthereum } from '../MockWindowEthereum.js'
 import { augurConstantProductMarketContractArtifact as vendoredACPMArtifact } from '../../../abi/VendoredAugurConstantProductMarket.js'
+import { HOOK_SALT } from '../../../hookSalt.js'
+import * as path from 'path'
+
+let curHookSalt = HOOK_SALT
 
 const ContractDefinition = funtypes.ReadonlyObject({
 	abi: funtypes.Unknown,
@@ -251,16 +255,27 @@ export function getShareTokenWrapperFactoryAddress() {
 	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(0n) })
 }
 
-export function getAugurConstantProductMarketRouterAddress(salt: bigint = HOOK_SALT) {
-	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
-	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(salt) })
+export const checkHookSalt = async () => {
+	const routerAddress = getAugurConstantProductMarketRouterAddress(curHookSalt)
+	if (routerAddress.endsWith(HOOK_IMPLEMENTATION_CODE)) return
+	console.log(`Searching for salt`)
+	let found = false
+	let salt = 0n
+	while (!found) {
+		const addressAttempt = getAugurConstantProductMarketRouterAddress(salt)
+		if (addressAttempt.endsWith(HOOK_IMPLEMENTATION_CODE)) {
+			console.log(`!!! Salt found: ${salt}`)
+			found = true
+			curHookSalt = salt
+			await fs.writeFile(path.join(process.cwd(), 'ts', 'hookSalt.ts'), `export const HOOK_SALT = ${salt}n`)
+		}
+		salt++;
+	}
 }
 
-export const isAugurConstantProductMarketRouterDeployed = async (client: ReadClient) => {
-	const expectedDeployedBytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.deployedBytecode.object }`
-	const address = getAugurConstantProductMarketRouterAddress()
-	const deployedBytecode = await client.getCode({ address })
-	return deployedBytecode === expectedDeployedBytecode
+export function getAugurConstantProductMarketRouterAddress(salt: bigint = curHookSalt) {
+	const bytecode: `0x${ string }` = `0x${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
+	return getContractAddress({ bytecode, from: addressString(PROXY_DEPLOYER_ADDRESS), opcode: 'CREATE2', salt: numberToBytes(salt) })
 }
 
 export const deployShareTokenWrapperFactoryTransaction = () => {
@@ -269,7 +284,7 @@ export const deployShareTokenWrapperFactoryTransaction = () => {
 }
 
 export const deployAugurConstantProductMarketRouterTransaction = () => {
-	const bytecode: `0x${ string }` = `0x${HOOK_SALT.toString(16).padStart(64, '0')}${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
+	const bytecode: `0x${ string }` = `0x${curHookSalt.toString(16).padStart(64, '0')}${ augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.evm.bytecode.object }`
 	return { to: addressString(PROXY_DEPLOYER_ADDRESS), data: bytecode } as const
 }
 
@@ -280,6 +295,7 @@ export const ensureShareTokenWrapperFactoryDeployed = async (client: WriteClient
 
 export const ensureAugurConstantProductMarketRouterDeployed = async (client: WriteClient) => {
 	const shareTokenWrapperFactoryAddress = await getShareTokenWrapperFactoryAddress()
+	await checkHookSalt();
 	const acpmRouterAddress = await getAugurConstantProductMarketRouterAddress()
 	await ensureShareTokenWrapperFactoryDeployed(client)
 	const hash = await client.sendTransaction(deployAugurConstantProductMarketRouterTransaction())
