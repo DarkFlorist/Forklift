@@ -72,6 +72,10 @@ export function bigintToDecimalString(value: bigint, power: bigint, maxDecimals?
 	return `${ integerPart.toString(10) }.${ finalFractionalStr }`
 }
 
+export function bigintToDecimalStringWithUnknown(value: bigint | undefined, power: bigint, maxDecimals?: number): string {
+	return value === undefined ? '?' : bigintToDecimalString(value, power, maxDecimals)
+}
+
 export function isSameAddress(address1: `0x${ string }` | undefined, address2: `0x${ string }` | undefined) {
 	if (address1 === undefined && address2 === undefined) return true
 	if (address1 === undefined || address2 === undefined) return false

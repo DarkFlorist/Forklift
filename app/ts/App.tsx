@@ -200,7 +200,7 @@ export function App() {
 
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <DeployContract maybeWriteClient = { maybeWriteClient } areContractsDeployed = { areContractsDeployed }/> },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress }/> },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/> },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/> },
 		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
