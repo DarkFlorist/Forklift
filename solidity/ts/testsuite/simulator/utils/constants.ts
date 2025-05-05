@@ -134,4 +134,3 @@ export const UNIV4_MIN_TICK = -8000
 export const UNIV4_MAX_TICK = 8000
 
 export const HOOK_IMPLEMENTATION_CODE = "00C0"
-export const HOOK_SALT = 159250n
