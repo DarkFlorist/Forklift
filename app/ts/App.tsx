@@ -3,12 +3,10 @@ import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
 import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
-import { DeployContract } from './ConstantProductUI/components/DeployContract.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
-import { isAugurConstantProductMarketDeployed } from './utils/contractDeployment.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
 import { addressString, bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
@@ -20,6 +18,7 @@ import { getErc20TokenBalance } from './utils/erc20.js'
 import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokensUI.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
+import { Trading } from './TradingUI/Trading.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -179,7 +178,6 @@ export function App() {
 	const errorString = useOptionalSignal<string>(undefined)
 	const loadingAccount = useSignal<boolean>(false)
 	const isWindowEthereum = useSignal<boolean>(true)
-	const areContractsDeployed = useSignal<boolean | undefined>(undefined)
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
 	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
 	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
@@ -199,7 +197,7 @@ export function App() {
 	const pathSignal = useSignal<string>('')
 
 	const tabs = [
-		{ title: 'Trading', path: 'trading', component: <DeployContract maybeWriteClient = { maybeWriteClient } areContractsDeployed = { areContractsDeployed }/> },
+		{ title: 'Trading', path: 'trading', component: <Trading maybeWriteClient = { maybeWriteClient } maybeReadClient = { maybeReadClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/> },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/> },
@@ -288,7 +286,6 @@ export function App() {
 				setError(e)
 			} finally {
 				loadingAccount.value = false
-				areContractsDeployed.value = maybeReadClient.deepValue === undefined ? undefined : await isAugurConstantProductMarketDeployed(maybeReadClient.deepValue)
 			}
 			setUniverseIfValid()
 		}
