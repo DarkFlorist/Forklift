@@ -20,6 +20,11 @@ export const UNIV4_POOL_MANAGER = '0x000000000004444c5dc75cB358380D2e3dE08A90'
 export const UNIV4_POSITION_MANAGER = '0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e'
 export const UNIV4_MIN_TICK = -8000
 export const UNIV4_MAX_TICK = 8000
+export const ONE_YEAR_IN_SECONDS = 31536000n
+export const AUGUR_SHARE_DECIMALS = 15n
+export const DAI_LOGO = 'img/dai-logo.svg'
+export const YES_LOGO = 'img/yes-logo.svg'
+export const NO_LOGO = 'img/no-logo.svg'
 
 // Reporting
 export const REPORTING_STATES = [

@@ -19,6 +19,7 @@ import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokens
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { Trading } from './TradingUI/Trading.js'
+import { Liquidity } from './LiquidityProvidingUI/Liquidity.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -198,6 +199,7 @@ export function App() {
 
 	const tabs = [
 		{ title: 'Trading', path: 'trading', component: <Trading maybeWriteClient = { maybeWriteClient } maybeReadClient = { maybeReadClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
+		{ title: 'Liquidity Providing', path: 'liquidity-providing', component: <Liquidity maybeWriteClient = { maybeWriteClient } maybeReadClient = { maybeReadClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/> },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/> },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/> },

@@ -1,32 +1,45 @@
 
 import { mainnet } from 'viem/chains'
-import { AugurConstantProductRouter, IPositionManager } from '../VendoredAugurConstantProductMarket.js'
+import { AugurConstantProductRouter, IPositionManager, ShareTokenWrapperFactory } from '../VendoredAugurConstantProductMarket.js'
 import { ReadClient, WriteClient } from './ethereumWallet'
-import { PROXY_DEPLOYER_ADDRESS, UNIV4_POSITION_MANAGER } from './constants.js'
+import { PROXY_DEPLOYER_ADDRESS, UNIV4_POSITION_MANAGER, ZERO_ADDRESS } from './constants.js'
 import { getContractAddress, numberToBytes } from 'viem'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ERC1155_ABI } from '../ABI/Erc1155.js'
 
+const HOOK_SALT = 44028n
+
 export function getAugurConstantProductMarketRouterAddress() {
 	const bytecode: `0x${ string }` = `0x${ AugurConstantProductRouter.evm.bytecode.object }`
-	return getContractAddress({ bytecode, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
+	return getContractAddress({ bytecode, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(HOOK_SALT) })
 }
 
 export const isAugurConstantProductMarketRouterDeployed = async (client: ReadClient) => {
 	const expectedDeployedBytecode: `0x${ string }` = `0x${ AugurConstantProductRouter.evm.deployedBytecode.object }`
 	const address = getAugurConstantProductMarketRouterAddress()
 	const deployedBytecode = await client.getCode({ address })
+	console.log(deployedBytecode)
 	return deployedBytecode === expectedDeployedBytecode
 }
 
 export const deployAugurConstantProductMarketRouterTransaction = () => {
-	const bytecode: `0x${ string }` = `0x${ AugurConstantProductRouter.evm.bytecode.object }`
+	const bytecode = `0x${ HOOK_SALT.toString(16).padStart(64, '0') }${ AugurConstantProductRouter.evm.bytecode.object }` as const
 	return { to: PROXY_DEPLOYER_ADDRESS, data: bytecode } as const
 }
 
 export const deployAugurConstantProductMarketRouter = async (writeClient: WriteClient) => {
 	const hash = await writeClient.sendTransaction(deployAugurConstantProductMarketRouterTransaction())
 	await writeClient.waitForTransactionReceipt({ hash })
+}
+
+export function getShareTokenWrapperFactoryAddress() {
+	const bytecode: `0x${ string }` = `0x${ ShareTokenWrapperFactory.evm.bytecode.object }`
+	return getContractAddress({ bytecode, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0n) })
+}
+
+export const deployShareTokenWrapperFactoryTransaction = () => {
+	const bytecode: `0x${ string }` = `0x${0n.toString(16).padStart(64, '0')}${ ShareTokenWrapperFactory.evm.bytecode.object }`
+	return { to: PROXY_DEPLOYER_ADDRESS, data: bytecode } as const
 }
 
 export const getAugurConstantProductMarket = async (client: ReadClient, marketAddress: AccountAddress) => {
@@ -39,10 +52,12 @@ export const getAugurConstantProductMarket = async (client: ReadClient, marketAd
 }
 
 export const isThereAugurConstantProductmarket = async (client: ReadClient, marketAddress: AccountAddress) => {
-	return (await getAugurConstantProductMarket(client, marketAddress))[2] > 0n
+	return (await getAugurConstantProductMarket(client, marketAddress))[0] != ZERO_ADDRESS
 }
 
 export const deployAugurConstantProductMarket = async (client: WriteClient, marketAddress: AccountAddress) => {
+	if (!await (isAugurConstantProductMarketRouterDeployed(client))) throw new Error('router doesnt exist')
+	if (await (isThereAugurConstantProductmarket(client, marketAddress))) throw new Error('market already exists')
 	return await client.writeContract({
 		chain: mainnet,
 		abi: AugurConstantProductRouter.abi,
@@ -70,6 +85,7 @@ export const getNumMarkets = async (client: ReadClient) => {
 	})
 }
 
+/*
 export const getMarketIsValid = async (client: ReadClient, marketAddress: AccountAddress) => {
 	return await client.readContract({
 		abi: AugurConstantProductRouter.abi,
@@ -77,7 +93,7 @@ export const getMarketIsValid = async (client: ReadClient, marketAddress: Accoun
 		address: getAugurConstantProductMarketRouterAddress(),
 		args: [marketAddress]
 	})
-}
+}*/
 
 export const getMarkets = async (client: ReadClient, startIndex: EthereumQuantity, pageSize: EthereumQuantity) => {
 	return await client.readContract({
@@ -322,7 +338,7 @@ export const expectedSharesNeededForSwap = async (client: ReadClient, marketAddr
 	}
 }
 
-export const setERC1155Approval = async (client: WriteClient, tokenAddress: AccountAddress, operatorAddress: AccountAddress, approved: boolean) => {
+export const setErc1155ApprovalForAll = async (client: WriteClient, tokenAddress: AccountAddress, operatorAddress: AccountAddress, approved: boolean) => {
 	return await client.writeContract({
 		chain: mainnet,
 		abi: ERC1155_ABI,
@@ -331,3 +347,16 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Acco
 		args: [operatorAddress, approved]
 	})
 }
+
+export const isErc1155ApprovedForAll = async (client: ReadClient, tokenAddress: AccountAddress, account: AccountAddress, operatorAddress: AccountAddress) => {
+	return await client.readContract({
+		abi: ERC1155_ABI,
+		functionName: 'isApprovedForAll',
+		address: tokenAddress,
+		args: [account, operatorAddress]
+	})
+}
+
+export const tickToPrice = (tick: number) => Math.pow(1.0001, tick)
+export const priceToTick = (price: number) => Math.round(Math.log(price) / Math.log(1.0001))
+export const roundToClosestPrice = (price: number) => tickToPrice(priceToTick(price))
