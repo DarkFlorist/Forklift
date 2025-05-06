@@ -65,4 +65,6 @@ interface IPositionManager is
     /// @param tokenId the ERC721 tokenId
     /// @return a uint256 packed value holding information about the position including the range (tickLower, tickUpper)
     function positionInfo(uint256 tokenId) external view returns (PositionInfo);
+
+	function transferFrom(address from, address to, uint256 tokenId) external;
 }
