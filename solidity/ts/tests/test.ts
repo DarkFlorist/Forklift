@@ -30,6 +30,7 @@ describe('Contract Test Suite', () => {
 
 	test('canAddAndRemoveLiquidity', async () => {
 		const client = createWriteClient(mockWindow, TEST_ADDRESSES[0], 0)
+		const badClient = createWriteClient(mockWindow, TEST_ADDRESSES[1], 0)
 		await deployAugurConstantProductMarket(client)
 
 		// Approve Dai for ACPM
@@ -66,9 +67,12 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(liquidityProviderShareBalances[2], 0n, `Liquidity provider did not provide all yes shares`)
 
 		// Increase Liquidity
-		await setERC1155Approval(client, addressString(UNIV4_POSITION_MANAGER), router, true);
 		const expectedIncreaseLiquidity = await getExpectedLiquidity(client, UNIV4_MIN_TICK, UNIV4_MAX_TICK, setsToBuy, setsToBuy)
 		const expectedLiquidityAfterIncrease = expectedLiquidity + expectedIncreaseLiquidity
+
+		// Other user cannot do liquidity operations on their token
+		assert.rejects(increaseLiquidity(badClient, positionTokenId, setsToBuy, setsToBuy, setsToBuy, YEAR_2030))
+
 		await increaseLiquidity(client, positionTokenId, setsToBuy, setsToBuy, setsToBuy, YEAR_2030)
 		const lpBalanceAfterIncrease = await getPoolLiquidityBalance(client, positionTokenId)
 
@@ -86,6 +90,10 @@ describe('Contract Test Suite', () => {
 		const partialLiquidityRemovalAmount = expectedLiquidityAfterIncrease / 10n
 		const expectedSharesReturned = (setsAfterIncrease / 10n) - 1n;
 		const expectedLiquidityAfterRemoval = expectedLiquidityAfterIncrease - partialLiquidityRemovalAmount
+
+		// Other user cannot do liquidity operations on their token
+		assert.rejects(decreaseLiquidity(badClient, positionTokenId, partialLiquidityRemovalAmount, expectedSharesReturned, expectedSharesReturned, YEAR_2030))
+
 		await decreaseLiquidity(client, positionTokenId, partialLiquidityRemovalAmount, expectedSharesReturned, expectedSharesReturned, YEAR_2030)
 		const newLPBalance = await getPoolLiquidityBalance(client, positionTokenId)
 		assert.strictEqual(newLPBalance, expectedLiquidityAfterRemoval, `Liquidity not removed correctly`)
@@ -104,6 +112,10 @@ describe('Contract Test Suite', () => {
 
 		// Burn Liquidity
 		const expectedFinalSharesReturned = setsAfterIncrease - expectedSharesReturned - 2n // Minimum liquidity constraint
+
+		// Other user cannot do liquidity operations on their token
+		assert.rejects(burnLiquidity(badClient, positionTokenId, expectedFinalSharesReturned, expectedFinalSharesReturned, YEAR_2030))
+
 		await burnLiquidity(client, positionTokenId, expectedFinalSharesReturned, expectedFinalSharesReturned, YEAR_2030)
 		const daiBalance = await getCashBalance(client)
 		const expectedDaiFromBurn = expectedFinalSharesReturned * numTicks

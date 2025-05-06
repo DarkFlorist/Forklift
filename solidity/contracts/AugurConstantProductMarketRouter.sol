@@ -33,7 +33,7 @@ contract AugurConstantProductRouter {
 
 	mapping(address => PoolKey) public marketIds;
 	IMarket[] private marketList;
-	mapping(address => uint256[]) public lpTokenIds;
+	mapping(address => mapping(address => uint256[])) public lpTokenIds;
 	uint24 public constant initialFeePips = 50_000; // 5% fee
 	int24 public constant tickSpacing = 1000; // NOTE: follows general fee -> tickSPacing convention but may need tweaking.
 	uint160 private constant startingPrice = 79228162514264337593543950336; // 1:1 pricing magic number. The startingPrice is expressed as sqrtPriceX96: floor(sqrt(token1 / token0) * 2^96)
@@ -91,12 +91,12 @@ contract AugurConstantProductRouter {
 		yesShareToken.wrap(setsToBuy);
 		noShareToken.wrap(setsToBuy);
 
-		lpTokenIds[augurMarketAddress].push(IPositionManager(Constants.UNIV4_POSITION_MANAGER).nextTokenId());
+		lpTokenIds[msg.sender][augurMarketAddress].push(IPositionManager(Constants.UNIV4_POSITION_MANAGER).nextTokenId());
 
 		bytes[] memory params = new bytes[](2);
 
 		uint256 liquidity = getExpectedLiquidityInternal(poolId, tickLower, tickUpper, amountNo, amountYes);
-		params[0] = abi.encode(poolKey, tickLower, tickUpper, liquidity, amountNo, amountYes, msg.sender, "");
+		params[0] = abi.encode(poolKey, tickLower, tickUpper, liquidity, amountNo, amountYes, address(this), "");
 		params[1] = abi.encode(poolKey.currency0, poolKey.currency1);
 
 		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.MINT_POSITION), uint8(Actions.SETTLE_PAIR)), params), deadline);
@@ -107,6 +107,7 @@ contract AugurConstantProductRouter {
 	}
 
     function increaseLiquidity(address augurMarketAddress, uint256 tokenId, uint256 setsToBuy, uint128 amountNo, uint128 amountYes, uint256 deadline) external {
+		require(userOwnsLpToken(augurMarketAddress, msg.sender, tokenId), "AugurCP: Not LP token owner");
 		dai.transferFrom(msg.sender, address(this), setsToBuy * numTicks);
 		shareToken.buyCompleteSets(augurMarketAddress, address(this), setsToBuy);
 
@@ -152,6 +153,7 @@ contract AugurConstantProductRouter {
 	}
 
 	function decreaseLiquidity(address augurMarketAddress, uint256 tokenId, uint256 liquidity, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external {
+		require(userOwnsLpToken(augurMarketAddress, msg.sender, tokenId), "AugurCP: Not LP token owner");
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
 		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
@@ -168,6 +170,7 @@ contract AugurConstantProductRouter {
 	}
 
 	function burnLiquidity(address augurMarketAddress, uint256 tokenId, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external {
+		require(userOwnsLpToken(augurMarketAddress, msg.sender, tokenId), "AugurCP: Not LP token owner");
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
 		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
@@ -436,19 +439,15 @@ contract AugurConstantProductRouter {
 	}
 
 	function getUserLpTokenIdsForMarket(address augurMarketAddress, address user) external view returns (uint256[] memory) {
-		uint256[] memory marketLpTokenIds = lpTokenIds[augurMarketAddress];
-		uint256 length = 0;
-		for (uint256 i = 0; i < marketLpTokenIds.length; i++) {
-			if (IPositionManager(Constants.UNIV4_POSITION_MANAGER).ownerOf(marketLpTokenIds[i]) == user) length++;
+		return lpTokenIds[user][augurMarketAddress];
+	}
+
+	function userOwnsLpToken(address augurMarketAddress, address user, uint256 lpToken) internal view returns (bool) {
+		uint256[] memory userMarketLpTokens = lpTokenIds[user][augurMarketAddress];
+		for (uint256 i = 0; i < userMarketLpTokens.length; i++) {
+			if (userMarketLpTokens[i] == lpToken) return true;
 		}
-		uint256[] memory userLpTokenIds = new uint256[](length);
-		for (uint256 i = 0; i < marketLpTokenIds.length; i++) {
-			if (IPositionManager(Constants.UNIV4_POSITION_MANAGER).ownerOf(marketLpTokenIds[i]) == user) {
-				length--;
-				userLpTokenIds[length] = marketLpTokenIds[i];
-			}
-		}
-		return userLpTokenIds;
+		return false;
 	}
 
 	function getMarkets(int256 startIndex, uint256 pageSize) external view returns (IMarket[] memory) {
