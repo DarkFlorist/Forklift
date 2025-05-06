@@ -5,7 +5,7 @@ import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js
 import { Market, MarketData } from '../SharedUI/Market.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { Input } from '../SharedUI/Input.js'
-import { enterPosition, exitPosition, expectedSharesAfterSwap, expectedSharesNeededForSwap, getAugurConstantProductMarketRouterAddress, getShareBalances, isAugurConstantProductMarketRouterDeployed, isErc1155ApprovedForAll, isThereAugurConstantProductmarket } from '../utils/augurConstantProductMarketUtils.js'
+import { enterPosition, exitPosition, expectedSharesAfterSwap, expectedSharesNeededForSwap, getShareBalances, isErc1155ApprovedForAll, isThereAugurConstantProductmarket } from '../utils/augurConstantProductMarketUtils.js'
 import { bigintToDecimalString, bigintToDecimalStringWithUnknown, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { getAllowanceErc20Token } from '../utils/erc20.js'
 import { AUGUR_SHARE_DECIMALS, AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
@@ -13,6 +13,7 @@ import { Toggle } from '../SharedUI/Toggle.js'
 import { TradingAndLiquidityProvidingAllowances } from '../SharedUI/TradingAndLiquidityProvidingAllowances.js'
 import { DaiNameAndSymbol, NoNameAndSymbol, YesNameAndSymbol } from '../SharedUI/tokens.js'
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
+import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 
 interface TradingViewProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -283,7 +284,6 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, reputatio
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) throw new Error('missing readClient')
 		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(readClient)
-		console.log(`router deployed: ${isRouterDeployed.deepValue}`)
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		if (isRouterDeployed.deepValue === false) return
 		clear()

@@ -3,17 +3,18 @@ import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { Market, MarketData } from '../SharedUI/Market.js'
 import { AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
-import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, priceToTick, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
+import { isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, priceToTick, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
 import { Input } from '../SharedUI/Input.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js'
-import { DeployRouter } from '../SharedUI/deploy.js'
+import { DeployAugurConstantProductMarket, DeployRouter } from '../SharedUI/deploy.js'
 import { getAllowanceErc20Token } from '../utils/erc20.js'
 import { fetchMarketData, getDisputeWindow, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
 import { TradingAndLiquidityProvidingAllowances } from '../SharedUI/TradingAndLiquidityProvidingAllowances.js'
 import { DaiNameAndSymbol } from '../SharedUI/tokens.js'
 import { useEffect } from 'preact/hooks'
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
+import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 
 interface LiquidityProvidingProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -41,13 +42,23 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		if (tokenInputAmount.deepValue === undefined) return
 		if (liquidityLower.deepValue === undefined) return
 		if (liquidityUpper.deepValue === undefined) return
-		if (liquidityLower.deepValue < liquidityUpper.deepValue) return
+		if (liquidityLower.deepValue > liquidityUpper.deepValue) return
 		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const setsToBuy = tokenInputAmount.deepValue / marketData.deepValue.numTicks
 		const amountYesMax = setsToBuy
 		const amountNoMax = setsToBuy
-		const tickLower = priceToTick(liquidityLower.deepValue)
-		const tickUpper = priceToTick(liquidityUpper.deepValue)
+
+		const getTick = (price: number) => {
+			if (price === 1) return priceToTick(Infinity)
+			if (price === 0) return priceToTick(0)
+			return priceToTick(price/(1 - price))
+		}
+
+		const tickLower = getTick(liquidityLower.deepValue)
+		const tickUpper = getTick(liquidityUpper.deepValue)
+		console.log('mint')
+		console.log(tickLower)
+		console.log(tickUpper)
 		await mintLiquidity(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, setsToBuy, tickLower, tickUpper, amountNoMax, amountYesMax, aLotTimeInFuture)
 	}
 	const refresh = async () => {
@@ -58,16 +69,6 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		//const amountNo = tokenInputAmount.deepValue
 		//expectedLiquidity.deepValue = await getExpectedLiquidity(maybeReadClient.deepValue, marketData.deepValue.marketAddress, UNIV4_MIN_TICK, UNIV4_MAX_TICK, amountNo, amountYes)
 		//expectedCost.deepValue = tokenInputAmount.deepValue * 10n ** 18n / marketData.deepValue.numTicks
-	}
-	const burnLiquidityButton = async() => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-		/*const marketSharesBalances2 = await getShareBalances(maybeReadClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
-		const noShare2 = marketSharesBalances2[1] - 10n // min out does not account for fees
-		const yesShare2 = marketSharesBalances2[2] - 10n
-		const expectedSetsSold2 = yesShare2 + 2n */
-		//await burnLiquidity(maybeReadClient.deepValue, positionTokenId2, noShare2, yesShare2, YEAR_2030)
 	}
 	return <>
 		<section>
@@ -144,9 +145,6 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		<section>
 			<button class = 'button button-primary' style = 'width: 100%;' onClick = { mintLiquidityButton }>Provide Liquidity</button>
 		</section>
-		<section>
-			<button class = 'button button-primary' onClick = { burnLiquidityButton }>Burn Liquidity</button>
-		</section>
 	</>
 }
 
@@ -188,7 +186,6 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) throw new Error('missing readClient')
 		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(readClient)
-		console.log(`router deployed: ${isRouterDeployed.deepValue}`)
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
 		if (isRouterDeployed.deepValue === false) return
 		clear()
@@ -238,6 +235,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
 				</div>
 			</> }>
+				<DeployAugurConstantProductMarket maybeWriteClient = { maybeWriteClient } isConstantProductMarketDeployed = { isConstantProductMarketDeployed } marketAddress = { marketAddress }/>
 				<TradingAndLiquidityProvidingAllowances maybeWriteClient = { maybeWriteClient } requiredDaiApproval = { requiredDaiApproval } allowedDai = { daiApprovedForRouter } sharesApprovedToRouter = { sharesApprovedToRouter }/>
 				<LiquidityProviding maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</Market>

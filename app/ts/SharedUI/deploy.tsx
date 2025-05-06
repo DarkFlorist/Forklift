@@ -1,5 +1,6 @@
 import { AccountAddress } from '../types/types.js'
-import { deployAugurConstantProductMarket, deployAugurConstantProductMarketRouter } from '../utils/augurConstantProductMarketUtils.js'
+import { deployAugurConstantProductMarket } from '../utils/augurConstantProductMarketUtils.js'
+import { ensureAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 import { WriteClient } from '../utils/ethereumWallet'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 
@@ -12,7 +13,7 @@ export const DeployRouter = ({ maybeWriteClient, isRouterDeployed }: DeployProps
 	const deploy = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing write client')
-		await deployAugurConstantProductMarketRouter(writeClient)
+		await ensureAugurConstantProductMarketRouterDeployed(writeClient)
 		isRouterDeployed.deepValue = true
 	}
 	if (isRouterDeployed.deepValue === true || isRouterDeployed.deepValue === undefined) return <></>

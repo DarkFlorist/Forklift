@@ -3,11 +3,12 @@ import { WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS } from '../utils/constants.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../utils/erc20.js'
-import { getAugurConstantProductMarketRouterAddress, setErc1155ApprovalForAll } from '../utils/augurConstantProductMarketUtils.js'
+import { setErc1155ApprovalForAll } from '../utils/augurConstantProductMarketUtils.js'
 import { bigintToDecimalString, bigintToDecimalStringWithUnknown, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { Input } from './Input.js'
 import { EthereumQuantity } from '../types/types.js'
 import { Toggle } from './Toggle.js'
+import { getAugurConstantProductMarketRouterAddress } from '../utils/augurDeployment.js'
 
 interface TradingAndLiquidityProvidingAllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
