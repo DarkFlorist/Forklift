@@ -50,7 +50,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 				if (sharesToSellInputAmount.deepValue === undefined) return `Sell YES shares for DAI`
 				return `Sell ${ bigintToDecimalStringWithUnknown(sharesToSellInputAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } YES shares for DAI`
 			}
-				if (sharesToSellInputAmount.deepValue === undefined) return `Sell NO shares for DAI`
+			if (sharesToSellInputAmount.deepValue === undefined) return `Sell NO shares for DAI`
 			return `Sell ${ bigintToDecimalStringWithUnknown(sharesToSellInputAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } No shares for DAI`
 		}
 	})
@@ -61,8 +61,8 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		if (marketData.deepValue === undefined) return
 		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
 		invalidBalance.deepValue = shareBalances[0]
-		yesBalance.deepValue = shareBalances[1]
-		noBalance.deepValue = shareBalances[2]
+		noBalance.deepValue = shareBalances[1]
+		yesBalance.deepValue = shareBalances[2]
 
 		if (invalidBalance.deepValue === undefined) throw new Error('invalid balance was undefined')
 		if (invalidBalance.deepValue > 4n) {
@@ -162,11 +162,11 @@ const setsToSell = shareBalances[0] - 4n
 	}
 
 	const execute = async () => {
-		if (buySelected) {
-			if (yesSelected) return await buyYes()
+		if (buySelected.value === 'Buy') {
+			if (yesSelected.value === 'Yes') return await buyYes()
 			return await buyNo()
 		}
-		if (yesSelected) return await sellYes()
+		if (yesSelected.value === 'Yes') return await sellYes()
 		return await sellNo()
 	}
 	return <>

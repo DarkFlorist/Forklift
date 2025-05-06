@@ -4,17 +4,16 @@ import { AUGUR_PROXY_DEPLOYER } from './constants.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { mainnet } from 'viem/chains'
 
-const HOOK_SALT = 44028n
-let curHookSalt = HOOK_SALT
+const HOOK_SALT = 32171n
 
 export function getShareTokenWrapperFactoryAddress() {
 	const bytecode: `0x${ string }` = `0x${ ShareTokenWrapperFactory.evm.bytecode.object }`
 	return getContractAddress({ bytecode, from: AUGUR_PROXY_DEPLOYER, opcode: 'CREATE2', salt: numberToBytes(0n) })
 }
 
-export function getAugurConstantProductMarketRouterAddress(salt: bigint = curHookSalt) {
+export function getAugurConstantProductMarketRouterAddress() {
 	const bytecode: `0x${ string }` = `0x${ AugurConstantProductRouter.evm.bytecode.object }`
-	return getContractAddress({ bytecode, from: AUGUR_PROXY_DEPLOYER, opcode: 'CREATE2', salt: numberToBytes(salt) })
+	return getContractAddress({ bytecode, from: AUGUR_PROXY_DEPLOYER, opcode: 'CREATE2', salt: numberToBytes(HOOK_SALT) })
 }
 
 export const deployShareTokenWrapperFactoryTransaction = () => {
@@ -23,7 +22,7 @@ export const deployShareTokenWrapperFactoryTransaction = () => {
 }
 
 export const deployAugurConstantProductMarketRouterTransaction = () => {
-	const bytecode: `0x${ string }` = `0x${ curHookSalt.toString(16).padStart(64, '0')}${ AugurConstantProductRouter.evm.bytecode.object }`
+	const bytecode: `0x${ string }` = `0x${ HOOK_SALT.toString(16).padStart(64, '0')}${ AugurConstantProductRouter.evm.bytecode.object }`
 	return { to: AUGUR_PROXY_DEPLOYER, data: bytecode } as const
 }
 

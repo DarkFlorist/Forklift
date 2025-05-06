@@ -322,9 +322,18 @@ export const isErc1155ApprovedForAll = async (client: ReadClient, tokenAddress: 
 	})
 }
 
-export const tickToPrice = (tick: number) => Math.pow(1.0001, tick)
-export const priceToTick = (price: number) => {
-	if (price < 0) throw new Error('Price was negative')
-	return Math.min(Math.max(-887272, Math.round(Math.log(price) / Math.log(1.0001))), 887272)
+export const getTickSpacing = async (client: ReadClient) => {
+	return await client.readContract({
+		abi: AugurConstantProductRouter.abi,
+		functionName: 'tickSpacing',
+		address: getAugurConstantProductMarketRouterAddress(),
+		args: []
+	})
 }
-export const roundToClosestPrice = (price: number) => tickToPrice(priceToTick(price))
+
+export const tickToPrice = (tick: number) => Math.pow(1.0001, tick)
+export const priceToTick = (price: number, tickSpacing: number) => {
+	if (price < 0) throw new Error('Price was negative')
+	return Math.round(Math.min(Math.max(-887272, Math.round(Math.log(price) / Math.log(1.0001))), 887272) / tickSpacing) * tickSpacing
+}
+export const roundToClosestPrice = (price: number, tickSpacing: number) => tickToPrice(priceToTick(price, tickSpacing))

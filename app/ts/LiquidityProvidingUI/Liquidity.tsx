@@ -3,7 +3,7 @@ import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { Market, MarketData } from '../SharedUI/Market.js'
 import { AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
-import { isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, priceToTick, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
+import { getTickSpacing, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, priceToTick, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
 import { Input } from '../SharedUI/Input.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js'
@@ -26,6 +26,7 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 	const tokenInputAmount = useOptionalSignal<bigint>(0n)
 	const liquidityLower = useOptionalSignal<number>(0)
 	const liquidityUpper = useOptionalSignal<number>(1)
+	const tickSpacing = useSignal<number>(1000)
 
 	useSignalEffect(() => {
 		maybeWriteClient.deepValue
@@ -49,22 +50,20 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		const amountNoMax = setsToBuy
 
 		const getTick = (price: number) => {
-			if (price === 1) return priceToTick(Infinity)
-			if (price === 0) return priceToTick(0)
-			return priceToTick(price/(1 - price))
+			if (price === 1) return priceToTick(Infinity, tickSpacing.value)
+			if (price === 0) return priceToTick(0, tickSpacing.value)
+			return priceToTick(price/(1 - price), tickSpacing.value)
 		}
 
 		const tickLower = getTick(liquidityLower.deepValue)
 		const tickUpper = getTick(liquidityUpper.deepValue)
-		console.log('mint')
-		console.log(tickLower)
-		console.log(tickUpper)
 		await mintLiquidity(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, setsToBuy, tickLower, tickUpper, amountNoMax, amountYesMax, aLotTimeInFuture)
 	}
 	const refresh = async () => {
 		if (maybeReadClient.deepValue === undefined) return
 		if (tokenInputAmount.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
+		tickSpacing.value = await getTickSpacing(maybeReadClient.deepValue)
 		//const amountYes = tokenInputAmount.deepValue
 		//const amountNo = tokenInputAmount.deepValue
 		//expectedLiquidity.deepValue = await getExpectedLiquidity(maybeReadClient.deepValue, marketData.deepValue.marketAddress, UNIV4_MIN_TICK, UNIV4_MAX_TICK, amountNo, amountYes)
@@ -84,7 +83,7 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 							tryParse = { (amount: string | undefined) => {
 								if (amount === undefined) return { ok: false } as const
 								if (!isDecimalString(amount.trim())) return { ok: false } as const
-								const rounded = roundToClosestPrice(Number(amount.trim()))
+								const rounded = roundToClosestPrice(Number(amount.trim()), tickSpacing.value)
 								if (rounded < 0 || rounded > 1) return { ok: false } as const
 								return { ok: true, value: Math.round(rounded * 100) / 100 } as const
 							} }
@@ -104,7 +103,7 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 							tryParse = { (amount: string | undefined) => {
 								if (amount === undefined) return { ok: false } as const
 								if (!isDecimalString(amount.trim())) return { ok: false } as const
-								const rounded = roundToClosestPrice(Number(amount.trim()))
+								const rounded = roundToClosestPrice(Number(amount.trim()), tickSpacing.value)
 								if (rounded < 0 || rounded > 1) return { ok: false } as const
 								return { ok: true, value: Math.round(rounded * 100) / 100 } as const
 							} }
