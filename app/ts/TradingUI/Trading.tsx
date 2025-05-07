@@ -14,6 +14,7 @@ import { TradingAndLiquidityProvidingAllowances } from '../SharedUI/TradingAndLi
 import { DaiNameAndSymbol, NoNameAndSymbol, YesNameAndSymbol } from '../SharedUI/tokens.js'
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
+import { min } from '../utils/utils.js'
 
 interface TradingViewProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -66,25 +67,29 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 
 		if (invalidBalance.deepValue === undefined) throw new Error('invalid balance was undefined')
 		if (invalidBalance.deepValue > 4n) {
-			// can exit not:
-			const setsToSell = 10000n // invalidBalance.deepValue - 4n
-			const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, false, setsToSell)
-			if (noNeededForSwap.success) {
-				canExitNoShareAmount.deepValue = setsToSell + noNeededForSwap.result
-				canExitNoExpectedDai.deepValue = setsToSell * marketData.deepValue.numTicks
-			} else {
-				canExitNoShareAmount.deepValue = undefined
-				canExitNoExpectedDai.deepValue = undefined
+			canExitNoShareAmount.deepValue = undefined
+			canExitNoExpectedDai.deepValue = undefined
+			canExitNoShareAmount.deepValue = undefined
+			canExitNoExpectedDai.deepValue = undefined
+
+			// can exit no:
+			const noSetsToSell = min(noBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			if (noSetsToSell > 0n) {
+				const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, false, noSetsToSell)
+				if (noNeededForSwap.success) {
+					canExitNoShareAmount.deepValue = noSetsToSell + noNeededForSwap.result
+					canExitNoExpectedDai.deepValue = noSetsToSell * marketData.deepValue.numTicks
+				}
 			}
 
 			// can exit yes
-			const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, true, setsToSell)
-			if (yesNeededForSwap.success) {
-				canExitYesShareAmount.deepValue = setsToSell + yesNeededForSwap.result
-				canExitYesExpectedDai.deepValue = setsToSell * marketData.deepValue.numTicks
-			} else {
-				canExitNoShareAmount.deepValue = undefined
-				canExitNoExpectedDai.deepValue = undefined
+			const yesSetsToSell = min(yesBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			if (yesSetsToSell > 0n) {
+				const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, true, yesSetsToSell)
+				if (yesNeededForSwap.success) {
+					canExitYesShareAmount.deepValue = yesSetsToSell + yesNeededForSwap.result
+					canExitYesExpectedDai.deepValue = yesSetsToSell * marketData.deepValue.numTicks
+				}
 			}
 		} else {
 			canExitNoShareAmount.deepValue = 0n
@@ -105,19 +110,11 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 			}
 		} else {
 			if (yesSelected.value === 'Yes') {
-
-			}
-			else {
-
+				throw new Error('TODO: not implemented')
+			} else {
+				throw new Error('TODO: not implemented')
 			}
 		}
-
-		/*
-const setsToSell = shareBalances[0] - 4n
-		const noNeededForSwap = await expectedSharesNeededForSwap(participantClient1, false, setsToSell)
-		const noSharesNeeded = setsToSell + noNeededForSwap
-		const expectedDaiFromShares = setsToSell * numTicks
-		*/
 	}
 
 	const buyYes = async () => {
@@ -176,8 +173,8 @@ const setsToSell = shareBalances[0] - 4n
 			<div> No Shares: { bigintToDecimalStringWithUnknown(noBalance.deepValue, AUGUR_SHARE_DECIMALS, 2) } No </div>
 			<div> Invalid Shares: { bigintToDecimalStringWithUnknown(invalidBalance.deepValue, AUGUR_SHARE_DECIMALS, 2) } Invalid</div>
 
-			<div> canExitYes: { bigintToDecimalStringWithUnknown(canExitYesShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 15) } for { bigintToDecimalStringWithUnknown(canExitYesExpectedDai.deepValue, 18n, 2) } </div>
-			<div> canExitNo: { bigintToDecimalStringWithUnknown(canExitNoShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 15) } for { bigintToDecimalStringWithUnknown(canExitNoExpectedDai.deepValue, 18n, 2) } </div>
+			<div> canExitYes: { bigintToDecimalStringWithUnknown(canExitYesShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } YES for { bigintToDecimalStringWithUnknown(canExitYesExpectedDai.deepValue, 18n, 2) } DAI </div>
+			<div> canExitNo: { bigintToDecimalStringWithUnknown(canExitNoShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } NO for { bigintToDecimalStringWithUnknown(canExitNoExpectedDai.deepValue, 18n, 2) } DAI </div>
 		</section>
 		<section>
 			<h3>Trade</h3>

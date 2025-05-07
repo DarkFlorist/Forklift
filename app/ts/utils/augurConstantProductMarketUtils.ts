@@ -50,16 +50,6 @@ export const getNumMarkets = async (client: ReadClient) => {
 	})
 }
 
-/*
-export const getMarketIsValid = async (client: ReadClient, marketAddress: AccountAddress) => {
-	return await client.readContract({
-		abi: AugurConstantProductRouter.abi,
-		functionName: 'getMarketIsValid',
-		address: getAugurConstantProductMarketRouterAddress(),
-		args: [marketAddress]
-	})
-}*/
-
 export const getMarkets = async (client: ReadClient, startIndex: EthereumQuantity, pageSize: EthereumQuantity) => {
 	return await client.readContract({
 		abi: AugurConstantProductRouter.abi,

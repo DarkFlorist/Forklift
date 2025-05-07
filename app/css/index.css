@@ -856,8 +856,8 @@ h3 {
 	align-items: baseline;
 	font-size: var(--big-font-size);
 	background-color: unset;
-    box-shadow: unset;
-    border: unset;
+	box-shadow: unset;
+	border: unset;
 	width: 100%;
 }
 
