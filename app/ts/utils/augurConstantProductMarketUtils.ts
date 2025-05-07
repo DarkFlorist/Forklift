@@ -1,4 +1,3 @@
-
 import { mainnet } from 'viem/chains'
 import { AugurConstantProductRouter, IPositionManager } from '../VendoredAugurConstantProductMarket.js'
 import { ReadClient, WriteClient } from './ethereumWallet'
@@ -17,7 +16,7 @@ export const getAugurConstantProductMarket = async (client: ReadClient, marketAd
 }
 
 export const isThereAugurConstantProductmarket = async (client: ReadClient, marketAddress: AccountAddress) => {
-	return (await getAugurConstantProductMarket(client, marketAddress))[0] != ZERO_ADDRESS
+	return (await getAugurConstantProductMarket(client, marketAddress))[0] !== ZERO_ADDRESS
 }
 
 export const deployAugurConstantProductMarket = async (client: WriteClient, marketAddress: AccountAddress) => {

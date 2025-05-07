@@ -64,10 +64,6 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		if (tokenInputAmount.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
 		tickSpacing.value = await getTickSpacing(maybeReadClient.deepValue)
-		//const amountYes = tokenInputAmount.deepValue
-		//const amountNo = tokenInputAmount.deepValue
-		//expectedLiquidity.deepValue = await getExpectedLiquidity(maybeReadClient.deepValue, marketData.deepValue.marketAddress, UNIV4_MIN_TICK, UNIV4_MAX_TICK, amountNo, amountYes)
-		//expectedCost.deepValue = tokenInputAmount.deepValue * 10n ** 18n / marketData.deepValue.numTicks
 	}
 	return <>
 		<section>
