@@ -212,7 +212,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 			<section className = 'details-grid'>
 				{ [
 					...marketData.deepValue.owner === marketData.deepValue.marketCreator && marketData.deepValue.marketCreator === marketData.deepValue.designatedReporter ?
-						['Owner/Creator/Reporter', marketData.deepValue.owner]
+						[['Owner/Creator/Designated Reporter', marketData.deepValue.owner]]
 					: [
 						['Market Owner', marketData.deepValue.owner],
 						['Market Creator', marketData.deepValue.marketCreator],
