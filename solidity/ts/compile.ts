@@ -13,6 +13,15 @@ const CompileResult = funtypes.ReadonlyObject({
 	errors: funtypes.Array(CompileError)
 })
 
+class CompilationError extends Error {
+	errors: string[]
+	constructor(errors: string[]) {
+		super('compilation error')
+		this.name = "CompilationError"
+		this.errors = errors
+	}
+}
+
 async function exists(path: string) {
 	try {
 		await fs.stat(path)
@@ -40,7 +49,8 @@ const compileAugurConstantProductMarket = async () => {
 	const files = await getAllFiles('contracts')
 	const sources = await files.reduce(async (acc, curr) => {
 		const value = { content: await fs.readFile(curr, 'utf8') }
-		acc.then(obj => obj[curr] = value);
+		const relativePath = path.relative(process.cwd(), curr).replace(/\\/g, '/')
+		acc.then(obj => obj[relativePath] = value)
 		return acc
 	}, Promise.resolve(<{ [key: string]: { content: string } }>{}))
 
@@ -63,14 +73,11 @@ const compileAugurConstantProductMarket = async () => {
 			},
 		},
 	}
-	var output = solc.compile(JSON.stringify(input))
-	var result = CompileResult.parse(JSON.parse(output))
-	let errors = (result!.errors || []).filter((x) => (x.severity === "error")).map((x) => x.formattedMessage);
-	if (errors.length) {
-        let error = new Error("compilation error");
-        (<any>error).errors = errors
-        throw error
-    }
+
+	const output = solc.compile(JSON.stringify(input))
+	const result = CompileResult.parse(JSON.parse(output))
+	const errors = (result!.errors || []).filter(x => x.severity === 'error').map(x => x.formattedMessage)
+	if (errors.length) throw new CompilationError(errors)
 	const artifactsDir = path.join(process.cwd(), 'artifacts')
 	if (!await exists(artifactsDir)) await fs.mkdir(artifactsDir, { recursive: false })
 	await fs.writeFile(path.join(artifactsDir, 'AugurConstantProductMarket.json'), output)
