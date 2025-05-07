@@ -13,6 +13,15 @@ const CompileResult = funtypes.ReadonlyObject({
 	errors: funtypes.Array(CompileError)
 })
 
+class CompilationError extends Error {
+	errors: string[]
+	constructor(errors: string[]) {
+		super('compilation error')
+		this.name = "CompilationError"
+		this.errors = errors
+	}
+}
+
 async function exists(path: string) {
 	try {
 		await fs.stat(path)
@@ -65,14 +74,10 @@ const compileAugurConstantProductMarket = async () => {
 		},
 	}
 
-	var output = solc.compile(JSON.stringify(input))
-	var result = CompileResult.parse(JSON.parse(output))
-	let errors = (result!.errors || []).filter((x) => (x.severity === "error")).map((x) => x.formattedMessage);
-	if (errors.length) {
-		let error = new Error("compilation error");
-		(<any>error).errors = errors
-		throw error
-	}
+	const output = solc.compile(JSON.stringify(input))
+	const result = CompileResult.parse(JSON.parse(output))
+	const errors = (result!.errors || []).filter(x => x.severity === 'error').map(x => x.formattedMessage)
+	if (errors.length) throw new CompilationError(errors)
 	const artifactsDir = path.join(process.cwd(), 'artifacts')
 	if (!await exists(artifactsDir)) await fs.mkdir(artifactsDir, { recursive: false })
 	await fs.writeFile(path.join(artifactsDir, 'AugurConstantProductMarket.json'), output)
