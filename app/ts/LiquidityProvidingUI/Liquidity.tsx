@@ -3,7 +3,7 @@ import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { Market, MarketData } from '../SharedUI/Market.js'
 import { AUGUR_SHARE_DECIMALS, AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
-import { burnLiquidity, getTickSpacing, getUserLpTokenIdsAndBalancesForMarket, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
+import { burnLiquidity, getShareBalances, getTickSpacing, getUserLpTokenIdsAndBalancesForMarket, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
 import { Input } from '../SharedUI/Input.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js'
@@ -16,6 +16,7 @@ import { useEffect } from 'preact/hooks'
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 import { tickToZeroToOnePrice, zeroOnePriceToTick } from '../utils/uniswapUtils.js'
+import { ShareBalances } from '../SharedUI/ShareBalances.js'
 
 interface LiquidityTokensProps {
 	liquidityTokens: OptionalSignal<Awaited<ReturnType<typeof getUserLpTokenIdsAndBalancesForMarket>>>
@@ -52,7 +53,7 @@ const LiquidityTokens = ({ liquidityTokens, maybeWriteClient, marketData, curren
 		<div style = 'display: grid; grid-template-columns: auto auto auto auto auto;'>
 			{ liquidityTokens.deepValue.map((token) => <>
 				<p>TokenId: { token.tokenId }</p>
-				<p>Liquidity: { bigintToDecimalString(token.liquidityBalance, AUGUR_SHARE_DECIMALS, 2) } LIQUIDITY</p>
+				<p>Liquidity: { bigintToDecimalString(token.liquidityBalance, AUGUR_SHARE_DECIMALS, 2) } Liquidity</p>
 				<p>Lower Price: { Math.round(tickToZeroToOnePrice(token.positionInfo.tickLower) * 100) / 100 } DAI</p>
 				<p>Upper Price: { Math.round(tickToZeroToOnePrice(token.positionInfo.tickUpper) * 100) / 100 } DAI</p>
 				<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } onClick = { () => closePosition(token.tokenId) }>
@@ -205,6 +206,10 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 	const sharesApprovedToRouter = useOptionalSignal<boolean>(undefined)
 	const liquidityTokens = useOptionalSignal<Awaited<ReturnType<typeof getUserLpTokenIdsAndBalancesForMarket>>>(undefined)
 
+	const yesBalance = useOptionalSignal<bigint>(undefined)
+	const noBalance = useOptionalSignal<bigint>(undefined)
+	const invalidBalance = useOptionalSignal<bigint>(undefined)
+
 	const isConstantProductMarketDeployed = useOptionalSignal<boolean>(undefined)
 
 	const clear = () => {
@@ -243,6 +248,11 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(readClient, AUGUR_SHARE_TOKEN, writeClient.account.address, router)
 
 		if (maybeWriteClient.deepValue === undefined) return
+		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
+		invalidBalance.deepValue = shareBalances[0]
+		noBalance.deepValue = shareBalances[1]
+		yesBalance.deepValue = shareBalances[2]
+
 		liquidityTokens.deepValue = await getUserLpTokenIdsAndBalancesForMarket(readClient, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
 	}
 
@@ -278,6 +288,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 				<DeployAugurConstantProductMarket maybeWriteClient = { maybeWriteClient } isConstantProductMarketDeployed = { isConstantProductMarketDeployed } marketAddress = { marketAddress }/>
 				<TradingAndLiquidityProvidingAllowances maybeWriteClient = { maybeWriteClient } requiredDaiApproval = { requiredDaiApproval } allowedDai = { daiApprovedForRouter } sharesApprovedToRouter = { sharesApprovedToRouter }/>
 				<LiquidityTokens liquidityTokens = { liquidityTokens } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+				<ShareBalances yesBalance = { yesBalance } noBalance = {noBalance} invalidBalance = { invalidBalance }/>
 				<LiquidityProviding maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</Market>
 		</div>
