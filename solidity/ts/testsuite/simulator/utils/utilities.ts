@@ -494,6 +494,16 @@ export const getLastPositionInfo = async (client: ReadClient) => {
 	})
 }
 
+export const getOwnerOfPositionManagerToken = async (client: ReadClient, tokenId: bigint) => {
+	const abi = vendoredACPMArtifact.contracts['contracts/uniswap/interfaces/IPositionManager.sol'].IPositionManager.abi
+	return await client.readContract({
+		abi,
+		functionName: 'ownerOf',
+		address: addressString(UNIV4_POSITION_MANAGER),
+		args: [tokenId]
+	})
+}
+
 export const buyShares = async (client: WriteClient, sharesToBuy: bigint) => {
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -573,6 +583,18 @@ export const burnLiquidity = async (client: WriteClient, positionTokenId: bigint
 		functionName: 'burnLiquidity',
 		address: routerAddress,
 		args: [augurMarketAddress, positionTokenId, amountNoMin, amountYesMin, deadline]
+	})
+}
+
+export const unwrapLpToken = async (client: WriteClient, positionTokenId: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'unwrapLpToken',
+		address: routerAddress,
+		args: [augurMarketAddress, positionTokenId]
 	})
 }
 
