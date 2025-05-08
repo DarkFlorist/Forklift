@@ -309,6 +309,32 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
+	function getExactShareEnterEstimate(address augurMarketAddress, uint256 exactShares, bool buyYes, uint256 maxDaiIn) external returns (uint256 setsToBuy, uint256 resultingShares) {
+		setsToBuy = maxDaiIn / numTicks;
+		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
+		resultingShares = setsToBuy + shares;
+		require(resultingShares >= exactShares, "AugurCP: maxDaiIn insufficient to buy exactShares");
+
+		while(resultingShares != exactShares && gasleft() > 50_000) {
+			setsToBuy = exactShares * 10**18 / (10**18 + (shares * 10**18 / setsToBuy));
+			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
+			resultingShares = setsToBuy + shares;
+		}
+	}
+
+	function getShareSplit(address augurMarketAddress, uint256 sharesToSwap, bool buyYes) external returns (uint256, uint256) {
+		uint256 amountToSwap = sharesToSwap / 2;
+		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(amountToSwap), !buyYes);
+
+		if (shares == amountToSwap) return (shares, amountToSwap);
+
+		while(shares != (sharesToSwap - amountToSwap) && gasleft() > 50_000) {
+			amountToSwap = sharesToSwap * 10**18 / (10**18 + (shares * 10**18 / amountToSwap));
+			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(amountToSwap), !buyYes);
+		}
+		return (shares, amountToSwap);
+	}
+
 	function swapExactIn(address augurMarketAddress, bool swapYes, uint128 exactAmountIn, uint128 minAmountOut, uint256 deadline) external {
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 		IShareTokenWrapper shareTokenIn = IShareTokenWrapper(Currency.unwrap(swapYes ? poolKey.currency1 : poolKey.currency0));
@@ -424,7 +450,7 @@ contract AugurConstantProductRouter {
 		return pool;
     }
 
-	function quoteExactInputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) external returns (uint256, uint256) {
+	function quoteExactInputSingle(address augurMarketAddress, uint128 exactAmount, bool swapYes) public returns (uint256, uint256) {
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
 		IV4Quoter.QuoteExactSingleParams memory params;

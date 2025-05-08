@@ -712,3 +712,25 @@ export const expectedSharesNeededForSwap = async (client: ReadClient, swapYes: b
 	}) as [bigint, bigint]
 	return results[0]
 }
+
+export const getExactShareEnterEstimate = async (client: ReadClient, exactShares: bigint, buyYes: boolean, maxDaiIn: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'getExactShareEnterEstimate',
+		address: routerAddress,
+		args: [augurMarketAddress, exactShares, buyYes, maxDaiIn]
+	}) as [bigint, bigint]
+}
+
+export const getShareSplit = async (client: ReadClient, sharesToSwap: bigint, buyYes: boolean) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'getShareSplit',
+		address: routerAddress,
+		args: [augurMarketAddress, sharesToSwap, buyYes]
+	}) as [bigint, bigint]
+}
