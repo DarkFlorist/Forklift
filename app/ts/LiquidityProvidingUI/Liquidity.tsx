@@ -36,7 +36,6 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 
 	useEffect(() => { refresh() }, [])
 
-	//const expectedLiquidity = useOptionalSignal<bigint>(undefined)
 	const mintLiquidityButton = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
