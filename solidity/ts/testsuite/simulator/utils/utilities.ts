@@ -574,6 +574,17 @@ export const decreaseLiquidity = async (client: WriteClient, positionTokenId: bi
 	})
 }
 
+export const decreaseLiquidityCall = async (client: WriteClient, positionTokenId: bigint, lpToSell: bigint, amountNoMin: bigint, amountYesMin: bigint, deadline: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'decreaseLiquidity',
+		address: routerAddress,
+		args: [augurMarketAddress, positionTokenId, lpToSell, amountNoMin, amountYesMin, deadline]
+	}) as [bigint, bigint, bigint]
+}
+
 export const burnLiquidity = async (client: WriteClient, positionTokenId: bigint, amountNoMin: bigint, amountYesMin: bigint, deadline: bigint) => {
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -584,6 +595,17 @@ export const burnLiquidity = async (client: WriteClient, positionTokenId: bigint
 		address: routerAddress,
 		args: [augurMarketAddress, positionTokenId, amountNoMin, amountYesMin, deadline]
 	})
+}
+
+export const burnLiquidityCall = async (client: WriteClient, positionTokenId: bigint, amountNoMin: bigint, amountYesMin: bigint, deadline: bigint) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'burnLiquidity',
+		address: routerAddress,
+		args: [augurMarketAddress, positionTokenId, amountNoMin, amountYesMin, deadline]
+	}) as [bigint, bigint, bigint]
 }
 
 export const unwrapLpToken = async (client: WriteClient, positionTokenId: bigint) => {

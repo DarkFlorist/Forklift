@@ -2,7 +2,7 @@ import { describe, beforeEach, test } from 'node:test'
 import { getMockedEthSimulateWindowEthereum, MockWindowEthereum } from '../testsuite/simulator/MockWindowEthereum.js'
 import { createWriteClient } from '../testsuite/simulator/utils/viem.js'
 import { SHARE_TOKEN, TEST_ADDRESSES, UNIV4_MAX_TICK, UNIV4_MIN_TICK, UNIV4_POOL_MANAGER, UNIV4_POSITION_MANAGER, YEAR_2030 } from '../testsuite/simulator/utils/constants.js'
-import { deployAugurConstantProductMarket, approveCash, getCashAllowance, setERC1155Approval, setupTestAccounts, getAugurConstantProductMarketRouterAddress, getMarketAddress, getPoolLiquidityBalance, getCashBalance, mintLiquidity, getNextPositionManagerToken, getExpectedLiquidity, getShareBalances, decreaseLiquidity, getReportingFee, burnLiquidity, increaseLiquidity, expectedSharesAfterSwap, enterPosition, expectedSharesNeededForSwap, exitPosition, swapExactIn, swapExactOut, getNumMarkets, getMarkets, getLpTokens, getMarketIsValid, unwrapLpToken, getOwnerOfPositionManagerToken } from '../testsuite/simulator/utils/utilities.js'
+import { deployAugurConstantProductMarket, approveCash, getCashAllowance, setERC1155Approval, setupTestAccounts, getAugurConstantProductMarketRouterAddress, getMarketAddress, getPoolLiquidityBalance, getCashBalance, mintLiquidity, getNextPositionManagerToken, getExpectedLiquidity, getShareBalances, decreaseLiquidity, getReportingFee, burnLiquidity, increaseLiquidity, expectedSharesAfterSwap, enterPosition, expectedSharesNeededForSwap, exitPosition, swapExactIn, swapExactOut, getNumMarkets, getMarkets, getLpTokens, getMarketIsValid, unwrapLpToken, getOwnerOfPositionManagerToken, decreaseLiquidityCall, burnLiquidityCall } from '../testsuite/simulator/utils/utilities.js'
 import assert from 'node:assert'
 import { addressString } from '../testsuite/simulator/utils/bigint.js'
 
@@ -94,6 +94,9 @@ describe('Contract Test Suite', () => {
 		// Other user cannot do liquidity operations on their token
 		assert.rejects(decreaseLiquidity(badClient, positionTokenId, partialLiquidityRemovalAmount, expectedSharesReturned, expectedSharesReturned, YEAR_2030))
 
+		// We can do a call to find the expected results of the decrease liquidity operation
+		const decreaseResults = await decreaseLiquidityCall(client, positionTokenId, partialLiquidityRemovalAmount, expectedSharesReturned, expectedSharesReturned, YEAR_2030)
+
 		await decreaseLiquidity(client, positionTokenId, partialLiquidityRemovalAmount, expectedSharesReturned, expectedSharesReturned, YEAR_2030)
 		const newLPBalance = await getPoolLiquidityBalance(client, positionTokenId)
 		assert.strictEqual(newLPBalance, expectedLiquidityAfterRemoval, `Liquidity not removed correctly`)
@@ -103,6 +106,7 @@ describe('Contract Test Suite', () => {
 		const expectedBaseReturn = expectedSharesReturned * numTicks
 		const expectedReturnAfterFee = expectedBaseReturn - (expectedBaseReturn / reportingFee)
 		const expectedDaiBalanceAfterPartialRemoval = daiBalanceAfterIncrease + expectedReturnAfterFee
+		assert.strictEqual(expectedBaseReturn, decreaseResults[0] * numTicks)
 		assert.strictEqual(daiBalanceAfterPartialRemoval, expectedDaiBalanceAfterPartialRemoval, `Dai not returned as expected. Got ${daiBalanceAfterPartialRemoval}. Expected: ${expectedDaiBalanceAfterPartialRemoval}`)
 
 		const shareBalances = await getShareBalances(client, client.account.address)
@@ -110,22 +114,33 @@ describe('Contract Test Suite', () => {
 		assert.strictEqual(shareBalances[1], 0n, `User received No shares incorrectly`)
 		assert.strictEqual(shareBalances[2], 0n, `User received Yes shares incorrectly`)
 
+		assert.strictEqual(decreaseResults[0], expectedSharesReturned, `Complete set call result was wrong`)
+		assert.strictEqual(decreaseResults[1], 0n, `No share call result was wrong`)
+		assert.strictEqual(decreaseResults[2], 0n, `Yes share call result was wrong`)
+
 		// Burn Liquidity
 		const expectedFinalSharesReturned = setsAfterIncrease - expectedSharesReturned - 2n // Minimum liquidity constraint
 
 		// Other user cannot do liquidity operations on their token
 		assert.rejects(burnLiquidity(badClient, positionTokenId, expectedFinalSharesReturned, expectedFinalSharesReturned, YEAR_2030))
 
+		const burnResults = await burnLiquidityCall(client, positionTokenId, expectedFinalSharesReturned, expectedFinalSharesReturned, YEAR_2030)
+
 		await burnLiquidity(client, positionTokenId, expectedFinalSharesReturned, expectedFinalSharesReturned, YEAR_2030)
 		const daiBalance = await getCashBalance(client)
 		const expectedDaiFromBurn = expectedFinalSharesReturned * numTicks
 		const expectedDaiBalance = daiBalanceAfterPartialRemoval + expectedDaiFromBurn - (expectedDaiFromBurn / reportingFee)
+		assert.strictEqual(expectedDaiFromBurn, burnResults[0] * numTicks)
 		assert.strictEqual(daiBalance, expectedDaiBalance, `Dai not returned as expected. Got ${daiBalance}. Expected: ${expectedDaiBalance}`)
 
 		const finalShareBalances = await getShareBalances(client, client.account.address)
 		assert.strictEqual(finalShareBalances[0], 2n, `User received excess Invalid shares incorrectly`)
 		assert.strictEqual(finalShareBalances[1], 0n, `User received No shares incorrectly`)
 		assert.strictEqual(finalShareBalances[2], 0n, `User received Yes shares incorrectly`)
+
+		assert.strictEqual(burnResults[0], expectedFinalSharesReturned, `Complete set call results was wrong`)
+		assert.strictEqual(burnResults[1], 0n, `No share call result was wrong`)
+		assert.strictEqual(burnResults[2], 0n, `Yes share call result was wrong`)
 	})
 
 	test('canUnwrapLpToken', async () => {

@@ -152,7 +152,7 @@ contract AugurConstantProductRouter {
 		);
 	}
 
-	function decreaseLiquidity(address augurMarketAddress, uint256 tokenId, uint256 liquidity, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external {
+	function decreaseLiquidity(address augurMarketAddress, uint256 tokenId, uint256 liquidity, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external returns (uint256 completeSetsToSell, uint256 noShares, uint256 yesShares) {
 		require(userOwnsLpToken(augurMarketAddress, msg.sender, tokenId), "AugurCP: Not LP token owner");
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
@@ -166,10 +166,10 @@ contract AugurConstantProductRouter {
 
 		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.DECREASE_LIQUIDITY), uint8(Actions.TAKE_PAIR)), params), deadline);
 
-		settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
+		return settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
 	}
 
-	function burnLiquidity(address augurMarketAddress, uint256 tokenId, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external {
+	function burnLiquidity(address augurMarketAddress, uint256 tokenId, uint128 amountNoMin, uint128 amountYesMin, uint256 deadline) external returns (uint256 completeSetsToSell, uint256 noShares, uint256 yesShares) {
 		require(userOwnsLpToken(augurMarketAddress, msg.sender, tokenId), "AugurCP: Not LP token owner");
 		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
@@ -183,7 +183,7 @@ contract AugurConstantProductRouter {
 
 		IPositionManager(Constants.UNIV4_POSITION_MANAGER).modifyLiquidities(abi.encode(abi.encodePacked(uint8(Actions.BURN_POSITION), uint8(Actions.TAKE_PAIR)), params), deadline);
 
-		settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
+		return settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
 	}
 
 	function unwrapLpToken(address augurMarketAddress, uint256 tokenId) external {
@@ -198,12 +198,12 @@ contract AugurConstantProductRouter {
 		require(false, "AugurCP: Not LP token owner");
 	}
 
-	function settleRemovedLiquidity(address augurMarketAddress, IShareTokenWrapper noShareTokenWrapper, IShareTokenWrapper yesShareTokenWrapper) internal {
+	function settleRemovedLiquidity(address augurMarketAddress, IShareTokenWrapper noShareTokenWrapper, IShareTokenWrapper yesShareTokenWrapper) internal returns (uint256 completeSetsToSell, uint256 noShares, uint256 yesShares) {
 		uint256 invalidShares = shareToken.balanceOfMarketOutcome(augurMarketAddress, 0, msg.sender);
 		uint256 noSharesReceived = noShareTokenWrapper.balanceOf(address(this));
 		uint256 yesSharesReceived = yesShareTokenWrapper.balanceOf(address(this));
 
-		uint256 completeSetsToSell = invalidShares;
+		completeSetsToSell = invalidShares;
 		completeSetsToSell = noSharesReceived < completeSetsToSell ? noSharesReceived : completeSetsToSell;
 		completeSetsToSell = yesSharesReceived < completeSetsToSell ? yesSharesReceived : completeSetsToSell;
 
@@ -213,8 +213,10 @@ contract AugurConstantProductRouter {
 		yesShareTokenWrapper.unwrap(completeSetsToSell);
 		shareToken.sellCompleteSets(augurMarketAddress, address(this), msg.sender, completeSetsToSell, bytes32(0));
 
-		if (noSharesReceived > completeSetsToSell) noShareTokenWrapper.transfer(msg.sender, noSharesReceived - completeSetsToSell);
-		if (yesSharesReceived > completeSetsToSell) yesShareTokenWrapper.transfer(msg.sender, yesSharesReceived - completeSetsToSell);
+		noShares = noSharesReceived > completeSetsToSell ? noSharesReceived - completeSetsToSell : 0;
+		yesShares = yesSharesReceived > completeSetsToSell ? yesSharesReceived - completeSetsToSell : 0;
+		if (noShares > 0) noShareTokenWrapper.transfer(msg.sender, noShares);
+		if (yesShares > completeSetsToSell) yesShareTokenWrapper.transfer(msg.sender, yesShares);
 	}
 
 	function getExpectedAmountsFromLiquidity(address augurMarketAddress, int24 tickLower, int24 tickUpper, uint128 amountNo, uint128 amountYes) external view returns (uint256) {
