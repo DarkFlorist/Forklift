@@ -26,6 +26,11 @@
 	--error-box-text: #000000;
 	--warning-box-color:#FFC107;
 	--warning-box-text: #000000;
+	--alpha-005: rgba(255, 255, 255, 0.05);
+	--text-color: #ffffff;
+	--big-font-size: 28px;
+	--normal-font-size: 14px;
+	--importance-box-color: #252538;
 }
 
 :root[data-theme="dark"] {
@@ -618,8 +623,8 @@ h3 {
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	max-width: 100px;
-	font-size: '0.9rem';
-	color: '#ccc';
+	font-size: 0.9rem;
+	color: #ccc;
 	flex-shrink: 0;
 }
 
@@ -770,4 +775,122 @@ h3 {
 
 .button-small {
 	padding: 5px;
+}
+
+.toggle-group {
+	display: inline-flex;
+	overflow: hidden;
+}
+
+.toggle-button {
+	padding: 0.5em 1.2em;
+	background-color: #1f2937;
+	color: white;
+	border: none;
+	outline: none;
+	cursor: pointer;
+	font-size: 1em;
+	transition: background 0.2s, color 0.2s;
+	width: 100%;
+}
+
+.toggle-button:first-child {
+	border-top-left-radius: 6px;
+	border-bottom-left-radius: 6px;
+}
+
+.toggle-button:last-child {
+	border-top-right-radius: 6px;
+	border-bottom-right-radius: 6px;
+}
+
+.toggle-button.active {
+	background: var(--btn-primary-bg);
+	color: black;
+}
+
+.price-range-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+.price-range-element {
+	display: flex;
+	flex-direction: column;
+	background: var(--detail-bg);
+	padding: 1rem;
+	border-radius: 0.5rem;
+}
+
+.price-range-element:first-child {
+	border-top-left-radius: 6px;
+	border-bottom-left-radius: 6px;
+}
+
+.price-range-element:last-child {
+	border-top-right-radius: 6px;
+	border-bottom-right-radius: 6px;
+}
+
+.transaction-importance-box {
+	border-radius: 20px;
+	position: relative;
+	background-color: var(--importance-box-color);
+	padding: 10px;
+	margin: auto;
+	margin-bottom: 10px;
+	color: var(--text-color)
+}
+
+.swap-box {
+	border-radius: 6px;
+	margin-bottom: 0px;
+	display: grid;
+	padding: 10px;
+}
+
+.swap-amount {
+	color: var(--text-color);
+	display: inline-flex;
+	align-items: baseline;
+	font-size: var(--big-font-size);
+	background-color: unset;
+	box-shadow: unset;
+	border: unset;
+	width: 100%;
+}
+
+.swap-amount:focus {
+	border-color: unset;
+	box-shadow: unset;
+}
+
+.swap-grid {
+	grid-template-columns: auto auto;
+	display: grid;
+	place-content: space-between;
+	column-gap: 0.25em;
+}
+
+.log-cell {
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+	display: flex;
+	-ms-flex-align: center;
+	-webkit-align-items: center;
+	-webkit-box-align: center;
+	align-items: center;
+	vertical-align: middle;
+}
+
+.gray-text {
+	color: #999
+}
+
+.currency-image {
+	width: 3em;
+	height: 3em;
+	padding-right: 0.5em;
 }
