@@ -5,6 +5,7 @@ import { UNIV4_POSITION_MANAGER, ZERO_ADDRESS } from './constants.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ERC1155_ABI } from '../ABI/Erc1155.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from './augurDeployment.js'
+import { parsePositionInfo } from './uniswapUtils.js'
 
 export const getAugurConstantProductMarket = async (client: ReadClient, marketAddress: AccountAddress) => {
 	return await client.readContract({
@@ -85,7 +86,7 @@ export const getNextPositionManagerToken = async (client: ReadClient) => {
 	})
 }
 
-export const getPoolLiquidityBalance = async (client: WriteClient, tokenId: EthereumQuantity) => {
+export const getPoolLiquidityBalance = async (client: ReadClient, tokenId: EthereumQuantity) => {
 	return await client.readContract({
 		abi: IPositionManager.abi,
 		functionName: 'getPositionLiquidity',
@@ -326,3 +327,41 @@ export const priceToTick = (price: number, tickSpacing: number) => {
 	return Math.round(Math.min(Math.max(-887272, Math.round(Math.log(price) / Math.log(1.0001))), 887272) / tickSpacing) * tickSpacing
 }
 export const roundToClosestPrice = (price: number, tickSpacing: number) => tickToPrice(priceToTick(price, tickSpacing))
+
+export const getUserLpTokenIdsForMarket = async (client: ReadClient, marketAddress: AccountAddress, user: AccountAddress) => {
+	return await client.readContract({
+		abi: AugurConstantProductRouter.abi,
+		functionName: 'getUserLpTokenIdsForMarket',
+		address: getAugurConstantProductMarketRouterAddress(),
+		args: [marketAddress, user]
+	})
+}
+
+export const getPoolAndPositionInfo = async (client: ReadClient, tokenId: EthereumQuantity) => {
+	return await client.readContract({
+		abi: IPositionManager.abi,
+		functionName: 'getPoolAndPositionInfo',
+		address: UNIV4_POSITION_MANAGER,
+		args: [tokenId]
+	})
+}
+
+export const getPositionInfo = async (client: ReadClient, tokenId: EthereumQuantity) => {
+	return await client.readContract({
+		abi: IPositionManager.abi,
+		functionName: 'positionInfo',
+		address: UNIV4_POSITION_MANAGER,
+		args: [tokenId]
+	})
+}
+
+export const getUserLpTokenIdsAndBalancesForMarket = async (client: ReadClient, marketAddress: AccountAddress, user: AccountAddress) => {
+	const tokenIds = await getUserLpTokenIdsForMarket(client, marketAddress, user)
+	return await Promise.all(
+		tokenIds.map(async (tokenId) => ({
+			tokenId,
+			liquidityBalance: await getPoolLiquidityBalance(client, tokenId),
+			positionInfo: parsePositionInfo(await getPositionInfo(client, tokenId))
+		}))
+	)
+}

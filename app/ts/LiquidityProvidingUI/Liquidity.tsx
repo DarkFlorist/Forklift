@@ -2,8 +2,8 @@ import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { Market, MarketData } from '../SharedUI/Market.js'
-import { AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
-import { getTickSpacing, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, priceToTick, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
+import { AUGUR_SHARE_DECIMALS, AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
+import { burnLiquidity, getTickSpacing, getUserLpTokenIdsAndBalancesForMarket, isErc1155ApprovedForAll, isThereAugurConstantProductmarket, mintLiquidity, roundToClosestPrice } from '../utils/augurConstantProductMarketUtils.js'
 import { Input } from '../SharedUI/Input.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js'
@@ -15,6 +15,53 @@ import { DaiNameAndSymbol } from '../SharedUI/tokens.js'
 import { useEffect } from 'preact/hooks'
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
+import { tickToZeroToOnePrice, zeroOnePriceToTick } from '../utils/uniswapUtils.js'
+
+interface LiquidityTokensProps {
+	liquidityTokens: OptionalSignal<Awaited<ReturnType<typeof getUserLpTokenIdsAndBalancesForMarket>>>
+	maybeWriteClient: OptionalSignal<WriteClient>
+	marketData: OptionalSignal<MarketData>
+	currentTimeInBigIntSeconds: Signal<bigint>
+}
+
+const LiquidityTokens = ({ liquidityTokens, maybeWriteClient, marketData, currentTimeInBigIntSeconds }: LiquidityTokensProps) => {
+	if (liquidityTokens.deepValue === undefined) {
+		return <section>
+			<h3>Liquidity Positions</h3>
+			<p> loading...</p>
+		</section>
+	}
+	if (liquidityTokens.deepValue.length === 0) {
+		return <section>
+			<h3>Liquidity Positions</h3>
+			<p> No Positions</p>
+		</section>
+	}
+	const closePosition = async (tokenId: bigint) => {
+		if (maybeWriteClient.deepValue === undefined) return
+		if (marketData.deepValue === undefined) return
+		if (liquidityTokens.deepValue === undefined) return
+		const amountNoMin = 0n // TODO, add slippage calculations
+		const amountYesMin = 0n // TODO, add slippage calculations
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		await burnLiquidity(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, tokenId, amountNoMin, amountYesMin, aYearFromNow)
+		liquidityTokens.deepValue = liquidityTokens.deepValue.filter((token) => token.tokenId !== tokenId)
+	}
+	return <section>
+		<h3>Liquidity Positions</h3>
+		<div style = 'display: grid; grid-template-columns: auto auto auto auto auto;'>
+			{ liquidityTokens.deepValue.map((token) => <>
+				<p>TokenId: { token.tokenId }</p>
+				<p>Liquidity: { bigintToDecimalString(token.liquidityBalance, AUGUR_SHARE_DECIMALS, 2) } LIQUIDITY</p>
+				<p>Lower Price: { Math.round(tickToZeroToOnePrice(token.positionInfo.tickLower) * 100) / 100 } DAI</p>
+				<p>Upper Price: { Math.round(tickToZeroToOnePrice(token.positionInfo.tickUpper) * 100) / 100 } DAI</p>
+				<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } onClick = { () => closePosition(token.tokenId) }>
+					Close
+				</button>
+			</>)
+		} </div>
+	</section>
+}
 
 interface LiquidityProvidingProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -22,6 +69,7 @@ interface LiquidityProvidingProps {
 	marketData: OptionalSignal<MarketData>
 	currentTimeInBigIntSeconds: Signal<bigint>
 }
+
 export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketData, currentTimeInBigIntSeconds }: LiquidityProvidingProps) => {
 	const tokenInputAmount = useOptionalSignal<bigint>(0n)
 	const liquidityLower = useOptionalSignal<number>(0)
@@ -36,7 +84,6 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 
 	useEffect(() => { refresh() }, [])
 
-	//const expectedLiquidity = useOptionalSignal<bigint>(undefined)
 	const mintLiquidityButton = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
@@ -44,20 +91,14 @@ export const LiquidityProviding = ({ maybeReadClient, maybeWriteClient, marketDa
 		if (liquidityLower.deepValue === undefined) return
 		if (liquidityUpper.deepValue === undefined) return
 		if (liquidityLower.deepValue > liquidityUpper.deepValue) return
-		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const setsToBuy = tokenInputAmount.deepValue / marketData.deepValue.numTicks
 		const amountYesMax = setsToBuy
 		const amountNoMax = setsToBuy
 
-		const getTick = (price: number) => {
-			if (price === 1) return priceToTick(Infinity, tickSpacing.value)
-			if (price === 0) return priceToTick(0, tickSpacing.value)
-			return priceToTick(price/(1 - price), tickSpacing.value)
-		}
-
-		const tickLower = getTick(liquidityLower.deepValue)
-		const tickUpper = getTick(liquidityUpper.deepValue)
-		await mintLiquidity(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, setsToBuy, tickLower, tickUpper, amountNoMax, amountYesMax, aLotTimeInFuture)
+		const tickLower = zeroOnePriceToTick(liquidityLower.deepValue, tickSpacing.value)
+		const tickUpper = zeroOnePriceToTick(liquidityUpper.deepValue, tickSpacing.value)
+		await mintLiquidity(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, setsToBuy, tickLower, tickUpper, amountNoMax, amountYesMax, aYearFromNow)
 	}
 	const refresh = async () => {
 		if (maybeReadClient.deepValue === undefined) return
@@ -162,6 +203,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 	const requiredDaiApproval = useOptionalSignal<bigint>(undefined)
 	const daiApprovedForRouter = useOptionalSignal<bigint>(undefined)
 	const sharesApprovedToRouter = useOptionalSignal<boolean>(undefined)
+	const liquidityTokens = useOptionalSignal<Awaited<ReturnType<typeof getUserLpTokenIdsAndBalancesForMarket>>>(undefined)
 
 	const isConstantProductMarketDeployed = useOptionalSignal<boolean>(undefined)
 
@@ -199,6 +241,9 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		daiApprovedForRouter.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, getAugurConstantProductMarketRouterAddress())
 		const router = getAugurConstantProductMarketRouterAddress()
 		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(readClient, AUGUR_SHARE_TOKEN, writeClient.account.address, router)
+
+		if (maybeWriteClient.deepValue === undefined) return
+		liquidityTokens.deepValue = await getUserLpTokenIdsAndBalancesForMarket(readClient, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
 	}
 
 	return <div class = 'subApplication'>
@@ -232,6 +277,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			</> }>
 				<DeployAugurConstantProductMarket maybeWriteClient = { maybeWriteClient } isConstantProductMarketDeployed = { isConstantProductMarketDeployed } marketAddress = { marketAddress }/>
 				<TradingAndLiquidityProvidingAllowances maybeWriteClient = { maybeWriteClient } requiredDaiApproval = { requiredDaiApproval } allowedDai = { daiApprovedForRouter } sharesApprovedToRouter = { sharesApprovedToRouter }/>
+				<LiquidityTokens liquidityTokens = { liquidityTokens } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 				<LiquidityProviding maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</Market>
 		</div>

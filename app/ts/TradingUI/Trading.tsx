@@ -121,41 +121,41 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
 		if (daiInputAmountToBuy.deepValue === undefined) return
-		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const minSharesOut = 0n // TODO FIX
-		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, true, minSharesOut, aLotTimeInFuture)
+		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, true, minSharesOut, aYearFromNow)
 	}
 	const buyNo = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
 		if (daiInputAmountToBuy.deepValue === undefined) return
-		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const minSharesOut = 0n // TODO FIX
-		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, false, minSharesOut, aLotTimeInFuture)
+		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, false, minSharesOut, aYearFromNow)
 	}
 	const sellYes = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
 		if (sharesToSellInputAmount.deepValue === undefined) return
-		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
 		const setsToSell = shareBalances[0] - 4n
 		const yesNeededForSwap = await expectedSharesNeededForSwap(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, true, setsToSell)
 		if (!yesNeededForSwap.success) throw new Error('failed to exit')
 		const yesSharesNeeded = setsToSell + yesNeededForSwap.result
-		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, yesSharesNeeded, aLotTimeInFuture)
+		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, yesSharesNeeded, aYearFromNow)
 	}
 	const sellNo = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
 		if (sharesToSellInputAmount.deepValue === undefined) return
-		const aLotTimeInFuture = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
+		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
 		const setsToSell = shareBalances[0] - 4n
 		const noNeededForSwap = await expectedSharesNeededForSwap(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, false, setsToSell)
 		if (!noNeededForSwap.success) throw new Error('failed to exit')
 		const noSharesNeeded = setsToSell + noNeededForSwap.result
-		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, noSharesNeeded, aLotTimeInFuture)
+		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, noSharesNeeded, aYearFromNow)
 	}
 
 	const execute = async () => {
