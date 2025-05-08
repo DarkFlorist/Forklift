@@ -688,7 +688,7 @@ describe('Contract Test Suite', () => {
 		const finalShareBalances = await getShareBalances(liquidityProviderClient2, liquidityProviderClient2.account.address)
 		assert.strictEqual(finalShareBalances[0], 0n, `User received excess Invalid shares incorrectly`)
 		assert.strictEqual(finalShareBalances[1], 1n, `User received excess No shares incorrectly`)
-		assert.strictEqual(finalShareBalances[2], 0n, `User received Yes shares incorrectly`)
+		assert.strictEqual(finalShareBalances[2], 3n, `User received Yes shares incorrectly`)
 	})
 
 	test('canOnlyWithdrawProfitUpToInitialEntry', async () => {

@@ -216,7 +216,7 @@ contract AugurConstantProductRouter {
 		noShares = noSharesReceived > completeSetsToSell ? noSharesReceived - completeSetsToSell : 0;
 		yesShares = yesSharesReceived > completeSetsToSell ? yesSharesReceived - completeSetsToSell : 0;
 		if (noShares > 0) noShareTokenWrapper.transfer(msg.sender, noShares);
-		if (yesShares > completeSetsToSell) yesShareTokenWrapper.transfer(msg.sender, yesShares);
+		if (yesShares > 0) yesShareTokenWrapper.transfer(msg.sender, yesShares);
 	}
 
 	function getExpectedAmountsFromLiquidity(address augurMarketAddress, int24 tickLower, int24 tickUpper, uint128 amountNo, uint128 amountYes) external view returns (uint256) {
