@@ -219,8 +219,6 @@ export function App() {
 
 	useSignalEffect(() => {
 		const hashpath = parseHashPath(pathSignal.value, tabs.map((tab) => tab.path))
-		console.log('parsed hash!')
-		console.log(hashpath)
 		window.history.pushState({}, '', pathSignal.value)
 
 		const goTo404 = () => {
