@@ -15,6 +15,7 @@ import { DaiNameAndSymbol, NoNameAndSymbol, YesNameAndSymbol } from '../SharedUI
 import { BigInputBox } from '../SharedUI/BigInputBox.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 import { min } from '../utils/utils.js'
+import { ShareBalances } from '../SharedUI/ShareBalances.js'
 
 interface TradingViewProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -101,13 +102,8 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		if (daiInputAmountToBuy.deepValue === undefined) return
 		if (buySelected.value === 'Buy') {
 			const baseSharesExpected = daiInputAmountToBuy.deepValue / marketData.deepValue.numTicks
-			if (yesSelected.value === 'Yes') {
-				const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, true, baseSharesExpected)
-				expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
-			} else {
-				const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, false, baseSharesExpected)
-				expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
-			}
+			const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, yesSelected.value === 'No', baseSharesExpected)
+			expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
 		} else {
 			if (yesSelected.value === 'Yes') {
 				throw new Error('TODO: not implemented')
@@ -168,11 +164,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 	}
 	return <>
 		<section>
-			<h3>Balances</h3>
-			<div> Yes Shares: { bigintToDecimalStringWithUnknown(yesBalance.deepValue, AUGUR_SHARE_DECIMALS, 2) } Yes</div>
-			<div> No Shares: { bigintToDecimalStringWithUnknown(noBalance.deepValue, AUGUR_SHARE_DECIMALS, 2) } No </div>
-			<div> Invalid Shares: { bigintToDecimalStringWithUnknown(invalidBalance.deepValue, AUGUR_SHARE_DECIMALS, 2) } Invalid</div>
-
+			<ShareBalances yesBalance = { yesBalance } noBalance = {noBalance} invalidBalance = { invalidBalance }/>
 			<div> canExitYes: { bigintToDecimalStringWithUnknown(canExitYesShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } YES for { bigintToDecimalStringWithUnknown(canExitYesExpectedDai.deepValue, 18n, 2) } DAI </div>
 			<div> canExitNo: { bigintToDecimalStringWithUnknown(canExitNoShareAmount.deepValue, AUGUR_SHARE_DECIMALS, 2) } NO for { bigintToDecimalStringWithUnknown(canExitNoExpectedDai.deepValue, 18n, 2) } DAI </div>
 		</section>
