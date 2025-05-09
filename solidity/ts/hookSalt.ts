@@ -1,1 +1,1 @@
-export const HOOK_SALT = 53049n
+export const HOOK_SALT = 426922n

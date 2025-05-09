@@ -19,7 +19,7 @@ import { IPoolManager } from './uniswap/interfaces/IPoolManager.sol';
 import { IHooks } from './uniswap/interfaces/IHooks.sol';
 import { TickMath } from "./uniswap/libraries/TickMath.sol";
 import { LiquidityAmounts } from "./uniswap/libraries/LiquidityAmounts.sol";
-import { StateLibrary } from "./uniswap/libraries/StateLibrary.sol";
+import { StateLibrary } from "./uniswap/libraries/StateLibrary.sol"; // NOTE: This could be removed for space needs by just porting over the getSlot0 function
 import { IAllowanceTransfer } from "./uniswap/interfaces/external/IAllowanceTransfer.sol";
 import { IV4Router } from './uniswap/interfaces/IV4Router.sol';
 import { IUniversalRouter } from './uniswap/interfaces/IUniversalRouter.sol';
@@ -243,7 +243,7 @@ contract AugurConstantProductRouter {
 		);
 	}
 
-	function enterPosition(address augurMarketAddress, uint128 amountInDai, bool buyYes, uint256 minSharesOut, uint256 deadline) external {
+	function enterPosition(address augurMarketAddress, uint128 amountInDai, bool buyYes, uint256 minSharesOut, uint256 deadline) public {
 		uint128 setsToBuy = amountInDai / numTicks;
 		dai.transferFrom(msg.sender, address(this), amountInDai);
 		shareToken.buyCompleteSets(augurMarketAddress, address(this), setsToBuy);
@@ -263,6 +263,34 @@ contract AugurConstantProductRouter {
 		require(balanceOfDesiredToken >= minSharesOut, "AugurCP: Did not recieve minSharesOut");
 		desiredToken.transfer(msg.sender, balanceOfDesiredToken);
 		shareToken.unsafeTransferFrom(address(this), msg.sender, shareToken.getTokenId(augurMarketAddress, 0), setsToBuy);
+	}
+
+	function enterPositionExactShares(address augurMarketAddress, uint256 exactShares, bool buyYes, uint256 maxDaiIn, uint256 estimatedDaiIn, uint256 maxIterations, uint256 deadline) external {
+		(uint256 setsToBuy, uint256 resultingShares) = getExactShareEnterEstimate(augurMarketAddress, exactShares, buyYes, estimatedDaiIn, maxIterations);
+		require(setsToBuy * numTicks <= maxDaiIn, "AugurCP: maxDaiIn too low to purchase exactShares");
+		enterPosition(augurMarketAddress, uint128(setsToBuy) * numTicks, buyYes, exactShares, deadline);
+	}
+
+	function getExactShareEnterEstimate(address augurMarketAddress, uint256 exactShares, bool buyYes, uint256 estimatedDaiIn, uint256 maxIterations) public returns (uint256 setsToBuy, uint256 resultingShares) {
+		setsToBuy = estimatedDaiIn / numTicks;
+		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
+		resultingShares = setsToBuy + shares;
+
+		while(resultingShares != exactShares && maxIterations > 0) {
+			setsToBuy = exactShares * 10**18 / (10**18 + (shares * 10**18 / setsToBuy));
+			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
+			// The estimation is finished. It just can't arrive at an exact result. Add extra sets as needed, which will result in slight excess
+			if (setsToBuy + shares == resultingShares) {
+				if (resultingShares < exactShares) {
+					uint256 gap = exactShares - resultingShares;
+					setsToBuy+= gap;
+					resultingShares+= gap;
+				}
+				break;
+			}
+			resultingShares = setsToBuy + shares;
+			maxIterations--;
+		}
 	}
 
 	function exitPosition(address augurMarketAddress, uint256 daiToBuy, uint256 maxSharesIn, uint256 deadline) external {
@@ -309,30 +337,50 @@ contract AugurConstantProductRouter {
 		shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
-	function getExactShareEnterEstimate(address augurMarketAddress, uint256 exactShares, bool buyYes, uint256 maxDaiIn) external returns (uint256 setsToBuy, uint256 resultingShares) {
-		setsToBuy = maxDaiIn / numTicks;
-		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
-		resultingShares = setsToBuy + shares;
-		require(resultingShares >= exactShares, "AugurCP: maxDaiIn insufficient to buy exactShares");
+	function exitPositionExactShares(address augurMarketAddress, uint256 sharesToSell, bool sellYes, uint256 swapEstimate, uint256 minDaiOut, uint256 maxIterations, uint256 deadline) external {
+		(uint256 userInvalid, uint256 userNo, uint256 userYes) = getShareBalances(augurMarketAddress, msg.sender);
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
 
-		while(resultingShares != exactShares && gasleft() > 50_000) {
-			setsToBuy = exactShares * 10**18 / (10**18 + (shares * 10**18 / setsToBuy));
-			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(setsToBuy), !buyYes);
-			resultingShares = setsToBuy + shares;
-		}
+		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
+		IShareTokenWrapper yesShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency1));
+
+		require(sharesToSell < (sellYes ? userYes : userNo), "AugurCP: Not enough shares to sell");
+
+		(uint256 shares, uint256 finalSwapEstimate) = getShareSplitEstimate(augurMarketAddress, sharesToSell, swapEstimate, !sellYes, maxIterations);
+
+		(sellYes ? yesShareTokenWrapper : noShareTokenWrapper).transferFrom(msg.sender, address(this), finalSwapEstimate);
+		performExactInSwapInternal(poolKey, !sellYes, uint128(finalSwapEstimate), uint128(shares), deadline);
+		(sellYes ? noShareTokenWrapper : yesShareTokenWrapper).transfer(msg.sender, shares);
+
+		uint256 finalUserNo = sellYes? userNo + shares : userNo - finalSwapEstimate;
+		uint256 finalUserYes = sellYes? userYes - finalSwapEstimate : userYes + shares;
+
+		uint256 setsToSell = userInvalid;
+		if (finalUserNo < setsToSell) setsToSell = finalUserNo;
+		if (finalUserYes < setsToSell) setsToSell = finalUserYes;
+
+		require(setsToSell * numTicks >= minDaiOut, "AugurCP: minDaiOut not reached");
+
+		noShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+		yesShareTokenWrapper.approvedUnwrap(msg.sender, setsToSell);
+		shareToken.sellCompleteSets(augurMarketAddress, msg.sender, msg.sender, setsToSell, bytes32(0));
 	}
 
-	function getShareSplit(address augurMarketAddress, uint256 sharesToSwap, bool buyYes) external returns (uint256, uint256) {
-		uint256 amountToSwap = sharesToSwap / 2;
-		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(amountToSwap), !buyYes);
+	function getShareSplitEstimate(address augurMarketAddress, uint256 sharesToSwap, uint256 swapEstimate, bool buyYes, uint256 maxIterations) public returns (uint256, uint256) {
+		(uint256 shares, uint256 gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(swapEstimate), !buyYes);
 
-		if (shares == amountToSwap) return (shares, amountToSwap);
+		if (shares == swapEstimate) return (shares, swapEstimate);
 
-		while(shares != (sharesToSwap - amountToSwap) && gasleft() > 50_000) {
-			amountToSwap = sharesToSwap * 10**18 / (10**18 + (shares * 10**18 / amountToSwap));
-			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(amountToSwap), !buyYes);
+		uint256 lastSwapEstimate = swapEstimate;
+		while(shares != (sharesToSwap - swapEstimate) && maxIterations > 0) {
+			swapEstimate = sharesToSwap * 10**18 / (10**18 + (shares * 10**18 / swapEstimate));
+			(shares, gasEstimate) = quoteExactInputSingle(augurMarketAddress, uint128(swapEstimate), !buyYes);
+			// The estimation is finished. It just can't arrive at an exact result.
+			if (lastSwapEstimate == swapEstimate) break;
+			lastSwapEstimate = swapEstimate;
+			maxIterations--;
 		}
-		return (shares, amountToSwap);
+		return (shares, swapEstimate);
 	}
 
 	function swapExactIn(address augurMarketAddress, bool swapYes, uint128 exactAmountIn, uint128 minAmountOut, uint256 deadline) external {
@@ -396,17 +444,11 @@ contract AugurConstantProductRouter {
 		shareTokenOut.transfer(msg.sender, shareTokenOut.balanceOf(address(this)));
 	}
 
-	function getShareTokenWrappers(address augurMarketAddress) public view returns (address no, address yes) {
-		PoolKey memory poolKey = marketIds[augurMarketAddress];
-		no = Currency.unwrap(poolKey.currency0);
-		yes = Currency.unwrap(poolKey.currency1);
-	}
-
 	function getShareBalances(address augurMarketAddress, address owner) public view returns (uint256 invalidBalance, uint256 noBalance, uint256 yesBalance) {
 		invalidBalance = shareToken.balanceOfMarketOutcome(augurMarketAddress, 0, owner);
-		(address noAddress, address yesAddress) = getShareTokenWrappers(augurMarketAddress);
-		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(noAddress);
-		IShareTokenWrapper yesShareTokenWrapper = IShareTokenWrapper(yesAddress);
+		PoolKey memory poolKey = marketIds[augurMarketAddress];
+		IShareTokenWrapper noShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency0));
+		IShareTokenWrapper yesShareTokenWrapper = IShareTokenWrapper(Currency.unwrap(poolKey.currency1));
 		noBalance = noShareTokenWrapper.balanceOf(owner);
 		yesBalance = yesShareTokenWrapper.balanceOf(owner);
 	}

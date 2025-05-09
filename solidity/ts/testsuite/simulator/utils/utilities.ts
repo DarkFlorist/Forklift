@@ -516,17 +516,6 @@ export const buyShares = async (client: WriteClient, sharesToBuy: bigint) => {
 	})
 }
 
-export const getShareWrappers = async (client: ReadClient) => {
-	const routerAddress = await getAugurConstantProductMarketRouterAddress()
-	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
-	return await client.readContract({
-		abi: abi as Abi,
-		functionName: 'getShareTokenWrappers',
-		address: routerAddress,
-		args: [augurMarketAddress]
-	}) as [Address, Address]
-}
-
 export const mintLiquidity = async (client: WriteClient, sharesToBuy: bigint, tickLower: number, tickUpper: number, amountNoMax: bigint, amountYesMax: bigint, deadline: bigint) => {
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
@@ -632,6 +621,29 @@ export const enterPosition = async (client: WriteClient, amountInDai: bigint, bu
 	})
 }
 
+export const enterPositionExactShares = async (client: WriteClient, exactShares: bigint, buyYes: boolean, maxDaiIn: bigint, estimatedDaiIn: bigint, maxIterations: bigint = 10n, deadline = YEAR_2030) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'enterPositionExactShares',
+		address: routerAddress,
+		args: [augurMarketAddress, exactShares, buyYes, maxDaiIn, estimatedDaiIn, maxIterations, deadline]
+	})
+}
+
+export const enterPositionExactSharesGasEstimate = async (client: WriteClient, exactShares: bigint, buyYes: boolean, maxDaiIn: bigint, estimatedDaiIn: bigint, maxIterations: bigint = 10n, deadline = YEAR_2030) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.estimateContractGas({
+		abi: abi as Abi,
+		functionName: 'enterPositionExactShares',
+		address: routerAddress,
+		args: [augurMarketAddress, exactShares, buyYes, maxDaiIn, estimatedDaiIn, maxIterations, deadline]
+	})
+}
+
 export const approveToken = async (client: WriteClient, tokenAddress: Address, spenderAddress: Address) => {
 	const amount = 1000000000000000000000000000000000n
 	return await client.writeContract({
@@ -662,6 +674,18 @@ export const exitPosition = async (client: WriteClient, daiToBuy: bigint, maxSha
 		functionName: 'exitPosition',
 		address: routerAddress,
 		args: [augurMarketAddress, daiToBuy, maxSharesIn, deadline]
+	})
+}
+
+export const exitPositionExactShares = async (client: WriteClient, sharesToSell: bigint, sellyes: boolean, swapEstimate: bigint, minDaiOut: bigint, maxIterations: bigint, deadline = YEAR_2030) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'exitPositionExactShares',
+		address: routerAddress,
+		args: [augurMarketAddress, sharesToSell, sellyes, swapEstimate, minDaiOut, maxIterations, deadline]
 	})
 }
 
@@ -713,24 +737,46 @@ export const expectedSharesNeededForSwap = async (client: ReadClient, swapYes: b
 	return results[0]
 }
 
-export const getExactShareEnterEstimate = async (client: ReadClient, exactShares: bigint, buyYes: boolean, maxDaiIn: bigint) => {
+export const getExactShareEnterEstimate = async (client: ReadClient, exactShares: bigint, buyYes: boolean, maxDaiIn: bigint, maxIterations: bigint = 10n) => {
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
 	return await client.readContract({
 		abi: abi as Abi,
 		functionName: 'getExactShareEnterEstimate',
 		address: routerAddress,
-		args: [augurMarketAddress, exactShares, buyYes, maxDaiIn]
+		args: [augurMarketAddress, exactShares, buyYes, maxDaiIn, maxIterations]
 	}) as [bigint, bigint]
 }
 
-export const getShareSplit = async (client: ReadClient, sharesToSwap: bigint, buyYes: boolean) => {
+export const getExactShareEnterEstimateGas = async (client: ReadClient, exactShares: bigint, buyYes: boolean, estimatedDaiIn: bigint, maxIterations: bigint = 10n) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.estimateContractGas({
+		abi: abi as Abi,
+		functionName: 'getExactShareEnterEstimate',
+		address: routerAddress,
+		args: [augurMarketAddress, exactShares, buyYes, estimatedDaiIn, maxIterations]
+	})
+}
+
+export const getShareSplitEstimate = async (client: ReadClient, sharesToSwap: bigint, swapEstimate: bigint, buyYes: boolean, maxIterations: bigint = 10n) => {
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
 	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
 	return await client.readContract({
 		abi: abi as Abi,
-		functionName: 'getShareSplit',
+		functionName: 'getShareSplitEstimate',
 		address: routerAddress,
-		args: [augurMarketAddress, sharesToSwap, buyYes]
+		args: [augurMarketAddress, sharesToSwap, swapEstimate, buyYes, maxIterations]
 	}) as [bigint, bigint]
+}
+
+export const getShareSplitEstimateGas = async (client: WriteClient, sharesToSwap: bigint, swapEstimate: bigint, buyYes: boolean, maxIterations: bigint = 10n) => {
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.estimateContractGas({
+		abi: abi as Abi,
+		functionName: 'getShareSplitEstimate',
+		address: routerAddress,
+		args: [augurMarketAddress, sharesToSwap, swapEstimate, buyYes, maxIterations]
+	})
 }
