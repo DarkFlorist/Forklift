@@ -5,7 +5,7 @@ import { AccountAddress, EthereumAddress, NonHexBigInt } from '../types/types.js
 import { Market, MarketData } from '../SharedUI/Market.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { Input } from '../SharedUI/Input.js'
-import { enterPosition, exitPosition, expectedSharesAfterSwap, expectedSharesNeededForSwap, getShareBalances, isErc1155ApprovedForAll, isThereAugurConstantProductmarket } from '../utils/augurConstantProductMarketUtils.js'
+import { enterPosition, exitPosition, expectedSharesAfterSwap, expectedSharesNeededForSwap, getShareBalances, isErc1155ApprovedForAll, isThereAugurConstantProductMarket } from '../utils/augurConstantProductMarketUtils.js'
 import { bigintToDecimalString, bigintToDecimalStringWithUnknown, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { getAllowanceErc20Token } from '../utils/erc20.js'
 import { AUGUR_SHARE_DECIMALS, AUGUR_SHARE_TOKEN, DAI_TOKEN_ADDRESS, ONE_YEAR_IN_SECONDS } from '../utils/constants.js'
@@ -57,24 +57,20 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		}
 	})
 
-	const updateSharesOut = async (daiInput: bigint) => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-		const baseSharesExpected = daiInput / marketData.deepValue.numTicks
-		const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, yesSelected.value === 'No', baseSharesExpected)
+	const updateSharesOut = async (maybeReadClient: ReadClient | undefined, marketData: MarketData | undefined, daiInput: bigint) => {
+		if (marketData === undefined) return
+		if (maybeReadClient === undefined) return
+		const baseSharesExpected = daiInput / marketData.numTicks
+		const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient, marketData.marketAddress, yesSelected.value === 'No', baseSharesExpected)
 		expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
 	}
 
 	useSignalEffect(() => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-
+		expectedSharesOut.deepValue = undefined
 		if (buySelected.value === 'Buy') {
 			if (daiInputAmountToBuy.deepValue === undefined) return
 			// TODO, fix race conditions
-			updateSharesOut(daiInputAmountToBuy.deepValue).catch(console.error)
+			updateSharesOut(maybeReadClient.deepValue, marketData.deepValue, daiInputAmountToBuy.deepValue).catch(console.error)
 		} else {
 			if (yesSelected.value === 'Yes') {
 				console.error('TODO: not implemented')
@@ -145,6 +141,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const minSharesOut = 0n // TODO FIX
 		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, true, minSharesOut, aYearFromNow)
+		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue)
 	}
 	const buyNo = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
@@ -153,6 +150,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		const aYearFromNow = currentTimeInBigIntSeconds.value + ONE_YEAR_IN_SECONDS
 		const minSharesOut = 0n // TODO FIX
 		await enterPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, daiInputAmountToBuy.deepValue, false, minSharesOut, aYearFromNow)
+		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue)
 	}
 	const sellYes = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
@@ -165,6 +163,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		if (!yesNeededForSwap.success) throw new Error('failed to exit')
 		const yesSharesNeeded = setsToSell + yesNeededForSwap.result
 		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, yesSharesNeeded, aYearFromNow)
+		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue)
 	}
 	const sellNo = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
@@ -177,6 +176,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		if (!noNeededForSwap.success) throw new Error('failed to exit')
 		const noSharesNeeded = setsToSell + noNeededForSwap.result
 		await exitPosition(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, sharesToSellInputAmount.deepValue, noSharesNeeded, aYearFromNow)
+		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue)
 	}
 
 	const execute = async () => {
@@ -263,15 +263,14 @@ interface TradingProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
-	reputationTokenAddress: OptionalSignal<AccountAddress>
 	currentTimeInBigIntSeconds: Signal<bigint>
+	selectedMarket: OptionalSignal<AccountAddress>
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 }
 
-export const Trading = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, currentTimeInBigIntSeconds }: TradingProps) => {
-	const marketAddress = useOptionalSignal<AccountAddress>(undefined)
+export const Trading = ({ maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: TradingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
-	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 	const isRouterDeployed = useOptionalSignal<boolean>(undefined)
@@ -281,40 +280,48 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, reputatio
 
 	const isConstantProductMarketDeployed = useOptionalSignal<boolean>(undefined)
 
-	const clear = () => {
-		marketData.deepValue = undefined
-	}
-
 	useSignalEffect(() => {
-		if (marketAddress.deepValue === undefined) {
-			clear()
-		} else {
-			refreshData()
-		}
+		selectedMarket.deepValue // clear market related fields when user changes market address
+
+		marketData.deepValue = undefined
+		disputeWindowInfo.deepValue = undefined
+		isConstantProductMarketDeployed.deepValue = undefined
 	})
 
-	const refreshData = async () => {
-		const readClient = maybeReadClient.deepPeek()
-		if (readClient === undefined) throw new Error('missing readClient')
-		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(readClient)
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
-		if (isRouterDeployed.deepValue === false) return
-		clear()
-		if (marketAddress.deepValue === undefined) throw new Error('market not defined')
-		marketData.deepValue = await fetchMarketData(readClient, marketAddress.deepValue)
-		const disputeWindowAddress = await getDisputeWindow(readClient, marketAddress.deepValue)
+	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue) })
+
+	const checkIfRouterIsDeployed = async (maybeReadClient: ReadClient | undefined) => {
+		if (maybeReadClient === undefined) return
+		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(maybeReadClient)
+	}
+
+	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue) })
+
+	const refreshMarketData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined, isRouterDeployed: boolean | undefined) => {
+		if (maybeReadClient === undefined) return
+		if (isRouterDeployed !== true) return
+		if (selectedMarket === undefined) return
+		isConstantProductMarketDeployed.deepValue = await isThereAugurConstantProductMarket(maybeReadClient, selectedMarket)
+		marketData.deepValue = await fetchMarketData(maybeReadClient, selectedMarket)
+		const disputeWindowAddress = await getDisputeWindow(maybeReadClient, selectedMarket)
 		if (EthereumAddress.parse(disputeWindowAddress) !== 0n) {
-			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress)
+			disputeWindowInfo.deepValue = await getDisputeWindowInfo(maybeReadClient, disputeWindowAddress)
+		} else {
+			disputeWindowInfo.deepValue = undefined
 		}
-		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
+	}
 
-		isConstantProductMarketDeployed.deepValue = await isThereAugurConstantProductmarket(readClient, marketAddress.deepValue)
+	const refreshData = async () => {
+		await refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue)
+	}
 
-		const writeClient = maybeWriteClient.deepPeek()
-		if (writeClient === undefined) throw new Error('missing writeClient')
-		daiApprovedForRouter.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, getAugurConstantProductMarketRouterAddress())
+	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue) })
+
+	const updateAccountSpecificSignals = async (maybeWriteClient: WriteClient | undefined) => {
+		if (maybeWriteClient === undefined) return
 		const router = getAugurConstantProductMarketRouterAddress()
-		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(readClient, AUGUR_SHARE_TOKEN, writeClient.account.address, router)
+		daiApprovedForRouter.deepValue = await getAllowanceErc20Token(maybeWriteClient, DAI_TOKEN_ADDRESS, maybeWriteClient.account.address, router)
+		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(maybeWriteClient, AUGUR_SHARE_TOKEN, maybeWriteClient.account.address, router)
 	}
 
 	return <div class = 'subApplication'>
@@ -328,7 +335,7 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, reputatio
 						type = 'text'
 						width = '100%'
 						placeholder = 'Market address'
-						value = { marketAddress }
+						value = { selectedMarket }
 						sanitize = { (addressString: string) => addressString }
 						tryParse = { (marketAddressString: string | undefined) => {
 							if (marketAddressString === undefined) return { ok: false } as const
@@ -345,8 +352,12 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, reputatio
 					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
 				</div>
 			</> }>
-				<TradingAndLiquidityProvidingAllowances maybeWriteClient = { maybeWriteClient } requiredDaiApproval = { requiredDaiApproval } allowedDai = { daiApprovedForRouter } sharesApprovedToRouter = { sharesApprovedToRouter }/>
-				<TradingView maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+				{ isConstantProductMarketDeployed.deepValue === false ? <p> There's no pool for this market</p> : <>
+					{ isConstantProductMarketDeployed.deepValue === undefined ? <p> Loading... </p> : <>
+						<TradingAndLiquidityProvidingAllowances maybeWriteClient = { maybeWriteClient } requiredDaiApproval = { requiredDaiApproval } allowedDai = { daiApprovedForRouter } sharesApprovedToRouter = { sharesApprovedToRouter }/>
+						<TradingView maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } marketData = { marketData } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+					</> }
+				</> }
 			</Market>
 		</div>
 	</div>

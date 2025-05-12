@@ -347,18 +347,17 @@ interface ReportingProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<AccountAddress>
-	reputationTokenAddress: OptionalSignal<AccountAddress>
+	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
+	selectedMarket: OptionalSignal<AccountAddress>
 }
 
-export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, currentTimeInBigIntSeconds }: ReportingProps) => {
-	const marketAddress = useOptionalSignal<AccountAddress>(undefined)
+export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const preemptiveDisputeCrowdsourcerAddress = useOptionalSignal<AccountAddress>(undefined)
 	const preemptiveDisputeCrowdsourcerStake = useOptionalSignal<bigint>(undefined)
-	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 	const reportingHistory = useOptionalSignal<readonly ReportingHistoryElement[]>(undefined)
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 
@@ -369,32 +368,25 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		return state === 'CrowdsourcingDispute' || state === 'DesignatedReporting' || state === 'OpenReporting' || state === 'AwaitingNextWindow'
 	})
 
-	const clear = () => {
+	useSignalEffect(() => {
+		selectedMarket.deepValue // when user changes market, we should clear all market address related fields
+
 		marketData.deepValue = undefined
 		outcomeStakes.deepValue = undefined
 		disputeWindowInfo.deepValue = undefined
 		preemptiveDisputeCrowdsourcerAddress.deepValue = undefined
 		preemptiveDisputeCrowdsourcerStake.deepValue = 0n
-		forkValues.deepValue = undefined
 		reportingHistory.deepValue = undefined
-	}
-
-	useSignalEffect(() => {
-		if (marketAddress.deepValue === undefined) {
-			clear()
-		} else {
-			refreshData()
-		}
 	})
 
-	const refreshData = async () => {
-		const readClient = maybeReadClient.deepPeek()
-		if (readClient === undefined) throw new Error('missing readClient')
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
-		clear()
-		if (marketAddress.deepValue === undefined) throw new Error('market not defined')
-		marketData.deepValue = await fetchMarketData(readClient, marketAddress.deepValue)
+	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue) })
+
+	const refreshData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined) => {
+		if (maybeReadClient === undefined) return
+		if (selectedMarket === undefined) return
+		marketData.deepValue = await fetchMarketData(maybeReadClient, selectedMarket)
 		const currentMarketData = marketData.deepValue
+		const readClient = maybeReadClient
 
 		const getAllInterestingPayoutNumerators = async() => {
 			const reportingParticipants = await getReportingParticipantsForMarket(readClient, currentMarketData.marketAddress)
@@ -413,7 +405,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 			}
 		}
 		const allInterestingPayoutNumerators = await getAllInterestingPayoutNumerators()
-		const winningOption = await getWinningPayoutNumerators(readClient, marketAddress.deepValue)
+		const winningOption = await getWinningPayoutNumerators(maybeReadClient, selectedMarket)
 		const winningIndex = winningOption === undefined ? -1 : allInterestingPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
 		outcomeStakes.deepValue = await Promise.all(allInterestingPayoutNumerators.map(async (info, index) => {
 			const payoutNumerators = info.payoutNumerators
@@ -426,20 +418,23 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(readClient, currentMarketData.marketAddress, payoutHash))?.stake
 			}
 		}))
-		const disputeWindowAddress = await getDisputeWindow(readClient, marketAddress.deepValue)
+		const disputeWindowAddress = await getDisputeWindow(maybeReadClient, selectedMarket)
 		if (EthereumAddress.parse(disputeWindowAddress) !== 0n) {
-			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress)
+			disputeWindowInfo.deepValue = await getDisputeWindowInfo(maybeReadClient, disputeWindowAddress)
 		}
-		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(readClient, marketAddress.deepValue)
+		preemptiveDisputeCrowdsourcerAddress.deepValue = await getPreemptiveDisputeCrowdsourcer(maybeReadClient, selectedMarket)
 		if (EthereumAddress.parse(preemptiveDisputeCrowdsourcerAddress.deepValue) !== 0n) {
-			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(readClient, preemptiveDisputeCrowdsourcerAddress.deepValue)
+			preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(maybeReadClient, preemptiveDisputeCrowdsourcerAddress.deepValue)
 		}
-		forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 		if (!(currentMarketData.reportingState === 'PreReporting'
 			|| currentMarketData.reportingState === 'OpenReporting'
 			|| currentMarketData.reportingState === 'DesignatedReporting')) {
-			reportingHistory.deepValue = await getReportingHistory(readClient, marketAddress.deepValue, currentMarketData.disputeRound)
+			reportingHistory.deepValue = await getReportingHistory(maybeReadClient, selectedMarket, currentMarketData.disputeRound)
 		}
+	}
+
+	const refreshDataButton = async () => {
+		refreshData(maybeReadClient.deepValue, selectedMarket.deepValue)
 	}
 
 	const finalizeMarketButton = async () => {
@@ -447,7 +442,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (marketData.deepValue === undefined) throw new Error('missing market data')
 		await finalizeMarket(writeClient, marketData.deepValue.marketAddress)
-		await refreshData()
+		await refreshData(maybeReadClient.deepValue, selectedMarket.deepValue)
 	}
 
 	return <div class = 'subApplication'>
@@ -461,7 +456,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 						type = 'text'
 						width = '100%'
 						placeholder = 'Market address'
-						value = { marketAddress }
+						value = { selectedMarket }
 						sanitize = { (addressString: string) => addressString }
 						tryParse = { (marketAddressString: string | undefined) => {
 							if (marketAddressString === undefined) return { ok: false } as const
@@ -475,15 +470,15 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, reputat
 						} }
 						invalidSignal = { isInvalidMarketAddress }
 					/>
-					<button class = 'button button-primary' onClick = { refreshData }>Refresh</button>
+					<button class = 'button button-primary' onClick = { refreshDataButton }>Refresh</button>
 				</div>
 			</> }>
 				{ showReporting.value === false ? <></> : <>
 					<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-					<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshData }/>
+					<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
 				</> }
-				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshData }/>
+				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
 			</Market>
 		</div>
 	</div>
