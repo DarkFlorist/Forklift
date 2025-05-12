@@ -76,10 +76,7 @@ export function bigintToDecimalStringWithUnknown(value: bigint | undefined, powe
 	return value === undefined ? '?' : bigintToDecimalString(value, power, maxDecimals)
 }
 
-export const isPracticallyInfinite = (value: bigint, power: bigint) => {
-	const googol = 10n ^ 100n
-	return value / (10n ** power) > googol
-}
+export const isPracticallyInfinite = (value: bigint, power: bigint) => value / (10n ** power) > 2 ** 100
 
 export function bigintToDecimalStringWithUnknownAndPracticallyInfinite(value: bigint | undefined, power: bigint, maxDecimals?: number): string {
 	if (value === undefined) return '?'

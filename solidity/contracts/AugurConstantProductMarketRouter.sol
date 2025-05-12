@@ -186,6 +186,18 @@ contract AugurConstantProductRouter {
 		settleRemovedLiquidity(augurMarketAddress, noShareTokenWrapper, yesShareTokenWrapper);
 	}
 
+	function unwrapLpToken(address augurMarketAddress, uint256 tokenId) external {
+		uint256[] memory userMarketLpTokens = lpTokenIds[msg.sender][augurMarketAddress];
+		for (uint256 i = 0; i < userMarketLpTokens.length; i++) {
+			if (userMarketLpTokens[i] == tokenId) {
+				delete lpTokenIds[msg.sender][augurMarketAddress][i];
+				IPositionManager(Constants.UNIV4_POSITION_MANAGER).transferFrom(address(this), msg.sender, tokenId);
+				return;
+			}
+		}
+		require(false, "AugurCP: Not LP token owner");
+	}
+
 	function settleRemovedLiquidity(address augurMarketAddress, IShareTokenWrapper noShareTokenWrapper, IShareTokenWrapper yesShareTokenWrapper) internal {
 		uint256 invalidShares = shareToken.balanceOfMarketOutcome(augurMarketAddress, 0, msg.sender);
 		uint256 noSharesReceived = noShareTokenWrapper.balanceOf(address(this));
