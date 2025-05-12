@@ -284,43 +284,50 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, forkValue
 
 	const isConstantProductMarketDeployed = useOptionalSignal<boolean>(undefined)
 
-	const clear = () => {
+	useSignalEffect(() => {
+		selectedMarket.deepValue // clear market related fields when user changes market address
+
 		marketData.deepValue = undefined
+		disputeWindowInfo.deepValue = undefined
+		isConstantProductMarketDeployed.deepValue = undefined
+	})
+
+	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue) })
+
+	const checkIfRouterIsDeployed = async (maybeReadClient: ReadClient | undefined) => {
+		if (maybeReadClient === undefined) return
+		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(maybeReadClient)
 	}
 
-	useSignalEffect(() => {
-		selectedMarket.deepValue
-		clear()
-	})
+	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue) })
 
-	useSignalEffect(() => {
-		selectedMarket.deepValue
-		isRouterDeployed.deepValue
-		maybeReadClient.deepValue
-		maybeWriteClient.deepValue
-		refreshData()
-	})
+	const refreshMarketData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined, isRouterDeployed: boolean | undefined) => {
+		if (maybeReadClient === undefined) return
+		if (isRouterDeployed !== true) return
+		if (selectedMarket === undefined) return
+		isConstantProductMarketDeployed.deepValue = await isThereAugurConstantProductMarket(maybeReadClient, selectedMarket)
+		marketData.deepValue = await fetchMarketData(maybeReadClient, selectedMarket)
+		const disputeWindowAddress = await getDisputeWindow(maybeReadClient, selectedMarket)
+		if (EthereumAddress.parse(disputeWindowAddress) !== 0n) {
+			disputeWindowInfo.deepValue = await getDisputeWindowInfo(maybeReadClient, disputeWindowAddress)
+		} else {
+			disputeWindowInfo.deepValue = undefined
+		}
+	}
 
 	const refreshData = async () => {
-		const readClient = maybeReadClient.deepValue
-		if (readClient === undefined) return
-		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(readClient)
-		if (isRouterDeployed.deepValue === false) return
-		if (selectedMarket.deepValue === undefined) return
-		marketData.deepValue = await fetchMarketData(readClient, selectedMarket.deepValue)
-		const disputeWindowAddress = await getDisputeWindow(readClient, selectedMarket.deepValue)
-		if (EthereumAddress.parse(disputeWindowAddress) !== 0n) {
-			disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress)
-		}
-
-		isConstantProductMarketDeployed.deepValue = await isThereAugurConstantProductMarket(readClient, selectedMarket.deepValue)
-
-		const writeClient = maybeWriteClient.deepValue
-		if (writeClient === undefined) return
-		daiApprovedForRouter.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, getAugurConstantProductMarketRouterAddress())
-		const router = getAugurConstantProductMarketRouterAddress()
-		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(readClient, AUGUR_SHARE_TOKEN, writeClient.account.address, router)
+		await refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue)
 	}
+
+	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue) })
+
+	const updateAccountSpecificSignals = async (maybeWriteClient: WriteClient | undefined) => {
+		if (maybeWriteClient === undefined) return
+		const router = getAugurConstantProductMarketRouterAddress()
+		daiApprovedForRouter.deepValue = await getAllowanceErc20Token(maybeWriteClient, DAI_TOKEN_ADDRESS, maybeWriteClient.account.address, router)
+		sharesApprovedToRouter.deepValue = await isErc1155ApprovedForAll(maybeWriteClient, AUGUR_SHARE_TOKEN, maybeWriteClient.account.address, router)
+	}
+
 	return <div class = 'subApplication'>
 		<div style = 'display: grid; width: 100%; gap: 10px;'>
 			<Market marketData = { marketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
