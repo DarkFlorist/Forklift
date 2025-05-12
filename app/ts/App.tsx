@@ -362,16 +362,13 @@ export function App() {
 		universeInfo(maybeReadClient.deepValue, universe.deepValue)
 	})
 
-	useSignalEffect(() => {
-		if (reputationTokenAddress.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		const updateForkValues = async () => {
-			if (reputationTokenAddress.deepValue === undefined) return
-			if (maybeReadClient.deepValue === undefined) return
-			forkValues.deepValue = await getForkValues(maybeReadClient.deepValue, reputationTokenAddress.deepValue)
-		}
-		updateForkValues()
-	})
+	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
+		if (reputationTokenAddress === undefined) return
+		if (maybeReadClient === undefined) return
+		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
+	}
+
+	useSignalEffect(() => { updateForkValues(maybeReadClient.deepValue, reputationTokenAddress.deepValue) })
 
 	if (universe.deepValue === undefined) return <main><p> loading... </p></main>
 
