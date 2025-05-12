@@ -213,7 +213,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		disputeWindowInfo.deepValue = undefined
 	})
 
-	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue) })
+	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue).catch(console.error) })
 
 	const checkIfRouterIsDeployed = async (maybeReadClient: ReadClient | undefined) => {
 		if (maybeReadClient === undefined) return
@@ -225,10 +225,10 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 			if (isRouterDeployed !== true) return // router needs to be deployed for this call to work
 			tickSpacing.value = await getTickSpacing(maybeReadClient)
 		}
-		updateTickSpacing(maybeReadClient.deepValue, isRouterDeployed.deepValue)
+		updateTickSpacing(maybeReadClient.deepValue, isRouterDeployed.deepValue).catch(console.error)
 	})
 
-	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue) })
+	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue).catch(console.error) })
 
 	const refreshMarketData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined, isRouterDeployed: boolean | undefined) => {
 		if (maybeReadClient === undefined) return
@@ -249,7 +249,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue)
 	}
 
-	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue) })
+	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue).catch(console.error) })
 
 	const updateAccountSpecificSignals = async (maybeWriteClient: WriteClient | undefined) => {
 		if (maybeWriteClient === undefined) return
@@ -263,7 +263,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		liquidityTokens.deepValue = await getUserLpTokenIdsAndBalancesForMarket(maybeWriteClient, marketData.marketAddress, maybeWriteClient.account.address)
 	}
 
-	useSignalEffect(() => { updateLPTokens(maybeWriteClient.deepValue, marketData.deepValue) })
+	useSignalEffect(() => { updateLPTokens(maybeWriteClient.deepValue, marketData.deepValue).catch(console.error) })
 
 	const updateShareBalancesButton = async () => {
 		updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue)
@@ -278,7 +278,7 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		yesBalance.deepValue = shareBalances[2]
 	}
 
-	useSignalEffect(() => { updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue) })
+	useSignalEffect(() => { updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue).catch(console.error) })
 
 	return <div class = 'subApplication'>
 		<DeployRouter isRouterDeployed = { isRouterDeployed } maybeWriteClient = { maybeWriteClient }/>

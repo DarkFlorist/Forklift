@@ -379,7 +379,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		reportingHistory.deepValue = undefined
 	})
 
-	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue) })
+	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue).catch(console.error) })
 
 	const refreshData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined) => {
 		if (maybeReadClient === undefined) return

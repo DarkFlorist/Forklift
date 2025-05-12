@@ -348,18 +348,19 @@ export function App() {
 	}
 
 	useSignalEffect(() => {
-		const universeInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
+		const universeInfo = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined) => {
 			if (readClient === undefined) return
 			if (universe === undefined) return
 			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universe)
 			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(readClient, universe)
 
-			if (readClient.account?.address === undefined) return
-			repBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
-			daiBalance.deepValue = await getErc20TokenBalance(readClient, DAI_TOKEN_ADDRESS, readClient.account.address)
-			ethBalance.deepValue = await getEthereumBalance(readClient, readClient.account.address)
+			if (writeClient === undefined) return
+			if (writeClient.account?.address === undefined) return
+			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress.deepValue, writeClient.account.address)
+			daiBalance.deepValue = await getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
+			ethBalance.deepValue = await getEthereumBalance(writeClient, writeClient.account.address)
 		}
-		universeInfo(maybeReadClient.deepValue, universe.deepValue)
+		universeInfo(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(console.error)
 	})
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
@@ -368,7 +369,7 @@ export function App() {
 		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
 	}
 
-	useSignalEffect(() => { updateForkValues(maybeReadClient.deepValue, reputationTokenAddress.deepValue) })
+	useSignalEffect(() => { updateForkValues(maybeReadClient.deepValue, reputationTokenAddress.deepValue).catch(console.error) })
 
 	if (universe.deepValue === undefined) return <main><p> loading... </p></main>
 
