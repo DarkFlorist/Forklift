@@ -57,24 +57,20 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		}
 	})
 
-	const updateSharesOut = async (daiInput: bigint) => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-		const baseSharesExpected = daiInput / marketData.deepValue.numTicks
-		const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, yesSelected.value === 'No', baseSharesExpected)
+	const updateSharesOut = async (maybeReadClient: ReadClient | undefined, marketData: MarketData | undefined, daiInput: bigint) => {
+		if (marketData === undefined) return
+		if (maybeReadClient === undefined) return
+		const baseSharesExpected = daiInput / marketData.numTicks
+		const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient, marketData.marketAddress, yesSelected.value === 'No', baseSharesExpected)
 		expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
 	}
 
 	useSignalEffect(() => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-
+		expectedSharesOut.deepValue = undefined
 		if (buySelected.value === 'Buy') {
 			if (daiInputAmountToBuy.deepValue === undefined) return
 			// TODO, fix race conditions
-			updateSharesOut(daiInputAmountToBuy.deepValue).catch(console.error)
+			updateSharesOut(maybeReadClient.deepValue, marketData.deepValue, daiInputAmountToBuy.deepValue).catch(console.error)
 		} else {
 			if (yesSelected.value === 'Yes') {
 				console.error('TODO: not implemented')
