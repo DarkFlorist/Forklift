@@ -868,7 +868,7 @@ h3 {
 }
 
 .swap-grid {
-	grid-template-columns: auto auto;
+	grid-template-columns: 1fr min-content;
 	display: grid;
 	place-content: space-between;
 	column-gap: 0.25em;
