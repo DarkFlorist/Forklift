@@ -57,39 +57,77 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		}
 	})
 
-	const refresh = async () => {
+	const updateSharesOut = async (daiInput: bigint) => {
 		if (maybeWriteClient.deepValue === undefined) return
 		if (maybeReadClient.deepValue === undefined) return
 		if (marketData.deepValue === undefined) return
-		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
+		const baseSharesExpected = daiInput / marketData.deepValue.numTicks
+		const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, yesSelected.value === 'No', baseSharesExpected)
+		expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
+	}
+
+	useSignalEffect(() => {
+		if (maybeWriteClient.deepValue === undefined) return
+		if (maybeReadClient.deepValue === undefined) return
+		if (marketData.deepValue === undefined) return
+
+		if (buySelected.value === 'Buy') {
+			if (daiInputAmountToBuy.deepValue === undefined) return
+			// TODO, fix race conditions
+			updateSharesOut(daiInputAmountToBuy.deepValue).catch(console.error)
+		} else {
+			if (yesSelected.value === 'Yes') {
+				console.error('TODO: not implemented')
+			} else {
+				console.error('TODO: not implemented')
+			}
+		}
+	})
+
+	const updateShareBalances = async (maybeWriteClient: WriteClient | undefined, marketData: MarketData | undefined) => {
+		if (maybeWriteClient === undefined) return
+		if (marketData === undefined) return
+		const shareBalances = await getShareBalances(maybeWriteClient, marketData.marketAddress, maybeWriteClient.account.address)
 		invalidBalance.deepValue = shareBalances[0]
 		noBalance.deepValue = shareBalances[1]
 		yesBalance.deepValue = shareBalances[2]
+	}
 
-		if (invalidBalance.deepValue === undefined) throw new Error('invalid balance was undefined')
-		if (invalidBalance.deepValue > 4n) {
+	useSignalEffect(() => {
+		updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue).catch(console.error)
+	})
+
+	useSignalEffect(() => {
+		updateCanExits(maybeReadClient.deepValue, marketData.deepValue, invalidBalance.deepValue).catch(console.error)
+	})
+
+	const updateCanExits = async (maybeReadClient: ReadClient | undefined, marketData: MarketData | undefined, invalidBalance: bigint | undefined) => {
+		if (maybeReadClient === undefined) return
+		if (marketData === undefined) return
+		if (invalidBalance === undefined) return
+		if (invalidBalance > 4n) {
 			canExitNoShareAmount.deepValue = undefined
 			canExitNoExpectedDai.deepValue = undefined
 			canExitNoShareAmount.deepValue = undefined
 			canExitNoExpectedDai.deepValue = undefined
 
 			// can exit no:
-			const noSetsToSell = min(noBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			const noSetsToSell = min(noBalance.deepValue || 0n, invalidBalance) - 4n
 			if (noSetsToSell > 0n) {
-				const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, false, noSetsToSell)
+				const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient, marketData.marketAddress, false, noSetsToSell)
 				if (noNeededForSwap.success) {
 					canExitNoShareAmount.deepValue = noSetsToSell + noNeededForSwap.result
-					canExitNoExpectedDai.deepValue = noSetsToSell * marketData.deepValue.numTicks
+					canExitNoExpectedDai.deepValue = noSetsToSell * marketData.numTicks
 				}
 			}
 
 			// can exit yes
-			const yesSetsToSell = min(yesBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			const yesSetsToSell = min(yesBalance.deepValue || 0n, invalidBalance) - 4n
 			if (yesSetsToSell > 0n) {
-				const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, true, yesSetsToSell)
+				const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient, marketData.marketAddress, true, yesSetsToSell)
 				if (yesNeededForSwap.success) {
 					canExitYesShareAmount.deepValue = yesSetsToSell + yesNeededForSwap.result
-					canExitYesExpectedDai.deepValue = yesSetsToSell * marketData.deepValue.numTicks
+					canExitYesExpectedDai.deepValue = yesSetsToSell * marketData.numTicks
 				}
 			}
 		} else {
@@ -97,19 +135,6 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 			canExitNoExpectedDai.deepValue = 0n
 			canExitYesShareAmount.deepValue = 0n
 			canExitYesExpectedDai.deepValue = 0n
-		}
-
-		if (daiInputAmountToBuy.deepValue === undefined) return
-		if (buySelected.value === 'Buy') {
-			const baseSharesExpected = daiInputAmountToBuy.deepValue / marketData.deepValue.numTicks
-			const expectedSwapShares = await expectedSharesAfterSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, yesSelected.value === 'No', baseSharesExpected)
-			expectedSharesOut.deepValue = baseSharesExpected + expectedSwapShares
-		} else {
-			if (yesSelected.value === 'Yes') {
-				throw new Error('TODO: not implemented')
-			} else {
-				throw new Error('TODO: not implemented')
-			}
 		}
 	}
 
@@ -231,7 +256,6 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		<section>
 			<button class = 'button button-primary' style = { { width: '100%' } } onClick = { execute }>{ buttonName.value }</button>
 		</section>
-		<button class = 'button button-primary' onClick = { refresh }>refresh</button>
 	</>
 }
 
