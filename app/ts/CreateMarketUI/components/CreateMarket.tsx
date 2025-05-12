@@ -188,17 +188,17 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	const marketCreationCasCost = useOptionalSignal<bigint>(undefined)
 	const baseFee = useOptionalSignal<bigint>(undefined)
 
-	const refresh = async () => {
-		const readClient = maybeReadClient.deepPeek()
+	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (readClient === undefined) return
-		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
-		if (universe.deepValue === undefined) return
-		if (maybeWriteClient.deepValue === undefined || reputationTokenAddress.deepValue === undefined) return
-		allowedRep.deepValue = await getAllowanceErc20Token(maybeWriteClient.deepValue, reputationTokenAddress.deepValue, maybeWriteClient.deepValue?.account.address, universe.deepValue)
-		allowedDai.deepValue = await getAllowanceErc20Token(maybeWriteClient.deepValue, DAI_TOKEN_ADDRESS, maybeWriteClient.deepValue?.account.address, AUGUR_CONTRACT)
-		marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.deepValue)
-		marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.deepValue)
 		baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
+		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
+		if (universe === undefined) return
+		marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe)
+		marketCreationCostDai.deepValue = await getValidityBond(readClient, universe)
+		if (reputationTokenAddress === undefined) return
+		if (writeClient === undefined) return
+		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress, writeClient?.account.address, universe)
+		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
 	}
 
 	useEffect(() => {
@@ -206,11 +206,7 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 	}, [maybeWriteClient.deepValue?.account.address])
 
 	useSignalEffect(() => {
-		reputationTokenAddress.value
-		universe.value
-		maybeWriteClient.deepValue
-		maybeReadClient.deepValue
-		refresh()
+		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue, reputationTokenAddress.deepValue).catch(console.error)
 	})
 
 	const createMarketDisabled = useComputed(() => {
@@ -289,14 +285,6 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 			estimate()
 		}
 	}, 5000)
-
-	useSignalEffect(() => {
-		reputationTokenAddress.value
-		universe.value
-		maybeWriteClient.deepValue
-		maybeReadClient.deepValue
-		refresh()
-	})
 
 	function handleEndTimeInput(value: string) {
 		endTime.value = value

@@ -288,14 +288,14 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, forkValue
 		isConstantProductMarketDeployed.deepValue = undefined
 	})
 
-	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue) })
+	useSignalEffect(() => { refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue).catch(console.error) })
 
 	const checkIfRouterIsDeployed = async (maybeReadClient: ReadClient | undefined) => {
 		if (maybeReadClient === undefined) return
 		isRouterDeployed.deepValue = await isAugurConstantProductMarketRouterDeployed(maybeReadClient)
 	}
 
-	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue) })
+	useSignalEffect(() => { checkIfRouterIsDeployed(maybeReadClient.deepValue).catch(console.error) })
 
 	const refreshMarketData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined, isRouterDeployed: boolean | undefined) => {
 		if (maybeReadClient === undefined) return
@@ -315,7 +315,7 @@ export const Trading = ({ maybeReadClient, maybeWriteClient, universe, forkValue
 		await refreshMarketData(maybeReadClient.deepValue, selectedMarket.deepValue, isRouterDeployed.deepValue)
 	}
 
-	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue) })
+	useSignalEffect(() => { updateAccountSpecificSignals(maybeWriteClient.deepValue).catch(console.error) })
 
 	const updateAccountSpecificSignals = async (maybeWriteClient: WriteClient | undefined) => {
 		if (maybeWriteClient === undefined) return
