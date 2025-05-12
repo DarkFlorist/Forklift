@@ -266,7 +266,8 @@ export const Liquidity = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 	useSignalEffect(() => { updateLPTokens(maybeWriteClient.deepValue, marketData.deepValue).catch(console.error) })
 
 	const updateShareBalancesButton = async () => {
-		updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue)
+		await updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue, isConstantProductMarketDeployed.deepValue)
+		await updateLPTokens(maybeWriteClient.deepValue, marketData.deepValue)
 	}
 	const updateShareBalances = async (maybeWriteClient: WriteClient | undefined, marketData: MarketData | undefined, isConstantProductMarketDeployed: boolean | undefined) => {
 		if (maybeWriteClient === undefined) return

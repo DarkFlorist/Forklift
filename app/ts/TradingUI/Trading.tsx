@@ -205,7 +205,7 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 				<div class = 'form-grid'>
 					<h3>Amount</h3>
 					<BigInputBox upperText = '' currency = { useComputed(() => <DaiNameAndSymbol/>) } style = { { width: '100%', minWidth: '100%'} } bottomElement = {
-						<p class = 'gray-text'>Expected shares out: { bigintToDecimalStringWithUnknown(expectedSharesOut.deepValue, AUGUR_SHARE_DECIMALS, 2) }</p>
+						<p class = 'gray-text'>Expected shares out: { bigintToDecimalStringWithUnknown(expectedSharesOut.deepValue, AUGUR_SHARE_DECIMALS, 2) } { yesSelected.value === 'Yes' ? 'YES' : 'NO' }.</p>
 					}>
 						<Input
 							class = 'swap-amount'
