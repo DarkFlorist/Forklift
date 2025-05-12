@@ -16,7 +16,6 @@ import { BigInputBox } from '../SharedUI/BigInputBox.js'
 import { getAugurConstantProductMarketRouterAddress, isAugurConstantProductMarketRouterDeployed } from '../utils/augurDeployment.js'
 import { min } from '../utils/utils.js'
 import { ShareBalances } from '../SharedUI/ShareBalances.js'
-import { useEffect } from 'preact/hooks'
 
 interface TradingViewProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -85,55 +84,50 @@ const TradingView = ({ maybeReadClient, maybeWriteClient, marketData, currentTim
 		}
 	})
 
-	const updateShareBalances = async () => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-		const shareBalances = await getShareBalances(maybeWriteClient.deepValue, marketData.deepValue.marketAddress, maybeWriteClient.deepValue.account.address)
+	const updateShareBalances = async (maybeWriteClient: WriteClient | undefined, marketData: MarketData | undefined) => {
+		if (maybeWriteClient === undefined) return
+		if (marketData === undefined) return
+		const shareBalances = await getShareBalances(maybeWriteClient, marketData.marketAddress, maybeWriteClient.account.address)
 		invalidBalance.deepValue = shareBalances[0]
 		noBalance.deepValue = shareBalances[1]
 		yesBalance.deepValue = shareBalances[2]
 	}
 
-	useEffect(() => {
-		updateShareBalances()
-	}, [])
-
 	useSignalEffect(() => {
-		maybeWriteClient.deepValue
-		maybeReadClient.deepValue
-		marketData.deepValue
-		invalidBalance.deepValue
-		updateCanExits()
+		updateShareBalances(maybeWriteClient.deepValue, marketData.deepValue)
 	})
 
-	const updateCanExits = async () => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (maybeReadClient.deepValue === undefined) return
-		if (marketData.deepValue === undefined) return
-		if (invalidBalance.deepValue === undefined) return
-		if (invalidBalance.deepValue > 4n) {
+	useSignalEffect(() => {
+		updateCanExits(maybeReadClient.deepValue, marketData.deepValue, invalidBalance.deepValue)
+	})
+
+	const updateCanExits = async (maybeReadClient: ReadClient | undefined, marketData: MarketData | undefined, invalidBalance: bigint | undefined) => {
+		if (maybeReadClient === undefined) return
+		if (marketData === undefined) return
+		if (invalidBalance === undefined) return
+		if (invalidBalance > 4n) {
 			canExitNoShareAmount.deepValue = undefined
 			canExitNoExpectedDai.deepValue = undefined
 			canExitNoShareAmount.deepValue = undefined
 			canExitNoExpectedDai.deepValue = undefined
 
 			// can exit no:
-			const noSetsToSell = min(noBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			const noSetsToSell = min(noBalance.deepValue || 0n, invalidBalance) - 4n
 			if (noSetsToSell > 0n) {
-				const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, false, noSetsToSell)
+				const noNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient, marketData.marketAddress, false, noSetsToSell)
 				if (noNeededForSwap.success) {
 					canExitNoShareAmount.deepValue = noSetsToSell + noNeededForSwap.result
-					canExitNoExpectedDai.deepValue = noSetsToSell * marketData.deepValue.numTicks
+					canExitNoExpectedDai.deepValue = noSetsToSell * marketData.numTicks
 				}
 			}
 
 			// can exit yes
-			const yesSetsToSell = min(yesBalance.deepValue || 0n, invalidBalance.deepValue) - 4n
+			const yesSetsToSell = min(yesBalance.deepValue || 0n, invalidBalance) - 4n
 			if (yesSetsToSell > 0n) {
-				const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient.deepValue, marketData.deepValue.marketAddress, true, yesSetsToSell)
+				const yesNeededForSwap = await expectedSharesNeededForSwap(maybeReadClient, marketData.marketAddress, true, yesSetsToSell)
 				if (yesNeededForSwap.success) {
 					canExitYesShareAmount.deepValue = yesSetsToSell + yesNeededForSwap.result
-					canExitYesExpectedDai.deepValue = yesSetsToSell * marketData.deepValue.numTicks
+					canExitYesExpectedDai.deepValue = yesSetsToSell * marketData.numTicks
 				}
 			}
 		} else {
