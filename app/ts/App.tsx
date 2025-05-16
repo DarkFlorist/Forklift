@@ -215,7 +215,12 @@ export function App() {
 		{ title: 'Participation Tokens', path: 'participation-tokens', component: <ParticipationTokens maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe }/>, hide: false }
 	] as const
 
-	useEffect(() => { pathSignal.value = window.location.hash }, [])
+	useEffect(() => {
+		const handleHashChange = () => { pathSignal.value = window.location.hash }
+		window.addEventListener('hashchange', handleHashChange)
+		handleHashChange()
+		return () => { window.removeEventListener('hashchange', handleHashChange) }
+	}, [])
 
 	useSignalEffect(() => {
 		const hashpath = parseHashPath(pathSignal.value, tabs.map((tab) => tab.path))
@@ -278,7 +283,7 @@ export function App() {
 			} else {
 				currentTimeInBigIntSeconds.value = BigInt((new Date()).getSeconds() * 1000)
 			}
-		}, 5000)
+		}, 12000)
 		return () => clearInterval(id)
 	})
 
@@ -347,21 +352,29 @@ export function App() {
 		isAugurExtraUtilitiesDeployedSignal.deepValue = true
 	}
 
+	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
+		if (writeClient === undefined) return
+		const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
+		const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
+		if (reputationTokenAddress) {
+			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
+		}
+		daiBalance.deepValue = await daiPromise
+		ethBalance.deepValue = await ethPromise
+	}
+
 	useSignalEffect(() => {
-		const universeInfo = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined) => {
+		const universeInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
 			if (readClient === undefined) return
 			if (universe === undefined) return
-			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universe)
+			const universeForkingPromise = getUniverseForkingInformation(readClient, universe)
 			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(readClient, universe)
-
-			if (writeClient === undefined) return
-			if (writeClient.account?.address === undefined) return
-			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress.deepValue, writeClient.account.address)
-			daiBalance.deepValue = await getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
-			ethBalance.deepValue = await getEthereumBalance(writeClient, writeClient.account.address)
+			universeForkingInformation.deepValue = await universeForkingPromise
 		}
-		universeInfo(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(console.error)
+		universeInfo(maybeReadClient.deepValue, universe.deepValue).catch(console.error)
 	})
+
+	useSignalEffect(() => { updateTokenBalances(maybeWriteClient.deepValue, reputationTokenAddress.deepValue).catch(console.error) })
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
