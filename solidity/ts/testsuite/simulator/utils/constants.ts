@@ -7,9 +7,11 @@ export const ETHEREUM_LOGS_LOGGER_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeee
 //export const DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0Fn
 export const AUGUR_ADDRESS = 0x23916a8F5C3846e3100e5f587FF14F3098722F5dn
 export const AUGUR_UNIVERSE_ADDRESS = 0x49244BD018Ca9fd1f06ecC07B9E9De773246e5AAn
+export const AUGUR_SHARE_TOKEN = 0x9e4799ff2023819b1272eee430eadf510eDF85f0n;
 // export const UNISWAP_V3_NFT_ROUTER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88n
 // export const SUSHISWAP_FACTORY_ADDRESS = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Acn
 export const NULL_ADDRESS = 0x0000000000000000000000000000000000000000n
+export const BURN_ADDRESS = 0x0000000000000000000000000000000000000001n
 
 export const Multicall3ABI = [
 	'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',

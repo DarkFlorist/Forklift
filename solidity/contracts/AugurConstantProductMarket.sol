@@ -153,6 +153,7 @@ contract AugurConstantProduct is ERC20 {
 	// n = pool no
 	// y = pool yes
 	// f = fee
+	// This was derived as an expanded function from the expectedSharesAfterSwap formula
 	function getCloseOutSwapAmount(uint256 shareBalance, bool swapYes) external returns (uint256) {
 		int256 n = swapYes ? int256(noBalance) : int256(yesBalance);
 		int256 y = swapYes ? int256(yesBalance) : int256(noBalance);
