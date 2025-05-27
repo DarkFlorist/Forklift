@@ -486,6 +486,30 @@ export const getFee = async (client: ReadClient) => {
 	})
 }
 
+export const getCloseOutSwapAmount = async (client: ReadClient, shareBalance: bigint, swapYes: boolean) => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const abi = vendoredACPMArtifact.contracts['contracts/AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: 'getCloseOutSwapAmount',
+		address: acpmAddress,
+		args: [shareBalance, swapYes]
+	}) as bigint
+}
+
+export const closeOut = async (client: WriteClient, deadline = YEAR_2030) => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const routerAddress = await getAugurConstantProductMarketRouterAddress()
+	const abi = augurConstantProductMarketContractArtifact.contracts['contracts/AugurConstantProductMarketRouter.sol'].AugurConstantProductRouter.abi
+	return await client.writeContract({
+		chain: mainnet,
+		abi: abi as Abi,
+		functionName: 'closeOut',
+		address: routerAddress,
+		args: [acpmAddress, deadline]
+	})
+}
+
 export const addLiquidity = async (client: WriteClient, sharesToBuy: bigint) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
 	const routerAddress = await getAugurConstantProductMarketRouterAddress()
@@ -536,6 +560,16 @@ export const approveToken = async (client: WriteClient, tokenAddress: Address, s
 	})
 }
 
+export const transfer = async (client: WriteClient, tokenAddress: Address, target: Address, value: bigint) => {
+	return await client.writeContract({
+		chain: mainnet,
+		abi: ABIS.mainnet.erc20,
+		functionName: 'transfer',
+		address: tokenAddress,
+		args: [target, value]
+	})
+}
+
 export const setERC1155Approval = async (client: WriteClient, tokenAddress: Address, operatorAddress: Address, approved: boolean) => {
 	return await client.writeContract({
 		chain: mainnet,
@@ -543,6 +577,27 @@ export const setERC1155Approval = async (client: WriteClient, tokenAddress: Addr
 		functionName: 'setApprovalForAll',
 		address: tokenAddress,
 		args: [operatorAddress, approved]
+	})
+}
+
+export const getTokenId = async (client: WriteClient, token: 'INVALID' | 'NO' | 'YES') => {
+	const acpmAddress = await getAugurConstantProductMarketAddress(client)
+	const abi = vendoredACPMArtifact.contracts['contracts/AugurConstantProductMarket.sol'].AugurConstantProduct.abi
+	return await client.readContract({
+		abi: abi as Abi,
+		functionName: token,
+		address: acpmAddress,
+		args: []
+	}) as bigint
+}
+
+export const safeTransferFrom = async (client: WriteClient, tokenAddress: Address, from: Address, to: Address, id: bigint, value: bigint) => {
+	return await client.writeContract({
+		chain: mainnet,
+		abi: ABIS.mainnet.erc1155,
+		functionName: 'safeTransferFrom',
+		address: tokenAddress,
+		args: [from, to, id, value, "0x0"]
 	})
 }
 
@@ -584,7 +639,6 @@ export const swapForExact = async (client: WriteClient, outputShares: bigint, in
 		args: [acpmAddress, outputShares, inputYes, maxSharesIn, deadline]
 	})
 }
-
 
 export const expectedSharesAfterSwap = async (client: ReadClient, sharesFromUser: bigint, inputYes: boolean) => {
 	const acpmAddress = await getAugurConstantProductMarketAddress(client)
