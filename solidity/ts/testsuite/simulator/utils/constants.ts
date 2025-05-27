@@ -11,7 +11,7 @@ export const AUGUR_SHARE_TOKEN = 0x9e4799ff2023819b1272eee430eadf510eDF85f0n;
 // export const UNISWAP_V3_NFT_ROUTER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88n
 // export const SUSHISWAP_FACTORY_ADDRESS = 0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Acn
 export const NULL_ADDRESS = 0x0000000000000000000000000000000000000000n
-export const BURN_ADDRESS = 0x0000000000000000000000000000000000000001n
+export const BURN_ADDRESS = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeFn
 
 export const Multicall3ABI = [
 	'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
