@@ -113,55 +113,57 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
 	return <div class = 'subApplication'>
-		<button class = 'button button-primary' onClick = { update }>Update data</button>
-		<div class = 'panel'>
-			<div style = 'display: grid'>
-				<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
-				<span><b>Universe Address:</b>{ universe.deepValue }</span>
-				<span><b>Parent Universe Name:</b>{ parentUniverse.deepValue === undefined ? '' : getUniverseName(parentUniverse.deepValue) }</span>
-				<span><b>Parent Universe Address:</b><a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { parentUniverse.value }</a></span>
-				<span><b>Reputation V2 Address For The Universe:</b>{ reputationTokenAddress.deepValue }</span>
-				<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
-				<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }</span>
-				<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No' }</span>
-				<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket }</span>
-				<span><b>Your Reputation V2 Balance:</b>{ v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REP` : '' }</span>
-			</div>
-		</div>
-		{ universeForkingInformation.deepValue.isForking ? <>
-			<div class = 'panel'>
-				<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
-					<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
-				</Market>
-				<DisplayForkValues forkValues = { forkValues }/>
-				<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
-				<div style = 'margin-top: 0.5rem'>
-					<label>
-						Amount to migrate to new universe:{' '}
-						<input
-							type = 'text'
-							placeholder = ''
-							value = { repV2ToMigrateToNewUniverse.value }
-							onChange = { (event) => {
-								const target = event.target as HTMLInputElement
-								repV2ToMigrateToNewUniverse.value = target.value
-							} }
-						/>
-					</label>
-				</div>
-			</div>
-			<button class = 'button button-primary' onClick = { getChildUniverseButton }>Refresh child universe for the selection</button>
-			<button class = 'button button-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
-		</> : <></> }
-		{ isGenesisUniverseField.value ? <>
+		<section class = 'subApplication-card'>
+			<button class = 'button button-primary' onClick = { update }>Update data</button>
 			<div class = 'panel'>
 				<div style = 'display: grid'>
-					<span><b>Reputation V1 Address:</b>{ REPUTATION_V1_TOKEN_ADDRESS }</span>
-					<span><b>Your Reputation V1 Balance:</b>{ v1ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1` : '' }</span>
+					<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
+					<span><b>Universe Address:</b>{ universe.deepValue }</span>
+					<span><b>Parent Universe Name:</b>{ parentUniverse.deepValue === undefined ? '' : getUniverseName(parentUniverse.deepValue) }</span>
+					<span><b>Parent Universe Address:</b><a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { parentUniverse.value }</a></span>
+					<span><b>Reputation V2 Address For The Universe:</b>{ reputationTokenAddress.deepValue }</span>
+					<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
+					<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }</span>
+					<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No' }</span>
+					<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket }</span>
+					<span><b>Your Reputation V2 Balance:</b>{ v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REP` : '' }</span>
 				</div>
 			</div>
-			<button class = 'button button-primary' onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
-			<button class = 'button button-primary' onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
-		</> : <></> }
+			{ universeForkingInformation.deepValue.isForking ? <>
+				<div class = 'panel'>
+					<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
+						<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+					</Market>
+					<DisplayForkValues forkValues = { forkValues }/>
+					<p> Child universe address: <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = childUniverseUrl.value } }> { childUniverseAddress.value }</a></p>
+					<div style = 'margin-top: 0.5rem'>
+						<label>
+							Amount to migrate to new universe:{' '}
+							<input
+								type = 'text'
+								placeholder = ''
+								value = { repV2ToMigrateToNewUniverse.value }
+								onChange = { (event) => {
+									const target = event.target as HTMLInputElement
+									repV2ToMigrateToNewUniverse.value = target.value
+								} }
+							/>
+						</label>
+					</div>
+				</div>
+				<button class = 'button button-primary' onClick = { getChildUniverseButton }>Refresh child universe for the selection</button>
+				<button class = 'button button-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
+			</> : <></> }
+			{ isGenesisUniverseField.value ? <>
+				<div class = 'panel'>
+					<div style = 'display: grid'>
+						<span><b>Reputation V1 Address:</b>{ REPUTATION_V1_TOKEN_ADDRESS }</span>
+						<span><b>Your Reputation V1 Balance:</b>{ v1ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1` : '' }</span>
+					</div>
+				</div>
+				<button class = 'button button-primary' onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
+				<button class = 'button button-primary' onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
+			</> : <></> }
+		</section>
 	</div>
 }
