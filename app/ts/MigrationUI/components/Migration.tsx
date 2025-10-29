@@ -1,10 +1,10 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getUniverseForkingInformation, migrateFromRepV1toRepV2GenesisToken, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
-import { approveErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
+import { approveErc20Token, getAllowanceErc20Token, getErc20TokenBalance } from '../../utils/erc20.js'
 import { REPUTATION_V1_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse } from '../../utils/augurUtils.js'
-import { Signal, useComputed, useSignal } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { addressString, bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
@@ -53,17 +53,23 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	const migrationDisabled = useComputed(() => false)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
+	const isRepV1ApprovedForMigration = useOptionalSignal<boolean>(true)
+	useSignalEffect(() => {
+		update(maybeReadClient.deepValue).catch(console.error)
+	})
 
-	const update = async () => {
-		const readClient = maybeReadClient.deepPeek()
+	const update = async (readClient: ReadClient | undefined ) => {
 		if (readClient === undefined) throw new Error('missing readClient')
 		if (readClient.account?.address === undefined) throw new Error('missing own address')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
+		isRepV1ApprovedForMigration.deepValue = undefined
+		v1ReputationBalance.deepValue = undefined
 		v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
 		if (isGenesisUniverse(universe.deepValue)) {
 			// retrieve v1 balance only for genesis universe as its only relevant there
 			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address)
 			parentUniverse.deepValue = addressString(0n) // we know that genesis doesn't have parent universe
+			isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS) >= v1ReputationBalance.deepValue
 		} else if (universe.deepValue !== undefined) {
 			parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
 		}
@@ -87,12 +93,14 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (repV2ToMigrateToNewUniverse.value.trim() === '') throw new Error ('Input missing')
 		const repV2ToMigrateToNewUniverseBigInt = decimalStringToBigint(repV2ToMigrateToNewUniverse.value, 18n)
 		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, repV2ToMigrateToNewUniverseBigInt)
+		await update(writeClient)
 	}
 
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		await migrateFromRepV1toRepV2GenesisToken(writeClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
+		await update(writeClient)
 	}
 
 	const approveRepV1ForMigration = async () => {
@@ -100,6 +108,7 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (v1ReputationBalance.deepValue === undefined) throw new Error('missing v1ReputationBalance balance')
 		await approveErc20Token(writeClient, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
+		await update(writeClient)
 	}
 
 	const getChildUniverseButton = async () => {
@@ -111,26 +120,42 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		childUniverseAddress.deepValue = await getChildUniverse(writeClient, forkingMarketData.deepValue.universe, selectedPayoutNumerators.deepValue, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.numOutcomes)
 	}
 
+	const isApproveRepV1ForMigrationDisabled = useComputed(() => {
+		if (isRepV1ApprovedForMigration.deepValue === undefined) return true
+		if (isRepV1ApprovedForMigration.deepValue === true) return true
+		if (v1ReputationBalance.deepValue === undefined) return true
+		if (v1ReputationBalance.deepValue === 0n) return true
+		return false
+	})
+	const isMigrateFromRepV1toRepV2GenesisTokenButtonDisabled = useComputed(() => {
+		if (isRepV1ApprovedForMigration.deepValue === undefined) return true
+		if (isRepV1ApprovedForMigration.deepValue === false) return true
+		if (v1ReputationBalance.deepValue === undefined) return true
+		if (v1ReputationBalance.deepValue === 0n) return true
+		return false
+	})
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
-			<button class = 'button button-primary' onClick = { update }>Update data</button>
-			<div class = 'panel'>
-				<div style = 'display: grid'>
-					<span><b>Universe Name:</b>{ getUniverseName(universe.deepValue) }</span>
-					<span><b>Universe Address:</b>{ universe.deepValue }</span>
-					<span><b>Parent Universe Name:</b>{ parentUniverse.deepValue === undefined ? '' : getUniverseName(parentUniverse.deepValue) }</span>
-					<span><b>Parent Universe Address:</b><a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { parentUniverse.value }</a></span>
-					<span><b>Reputation V2 Address For The Universe:</b>{ reputationTokenAddress.deepValue }</span>
-					<span><b>Is Universe Forking:</b>{ universeForkingInformation.deepValue.isForking ? 'Yes' : 'No' }</span>
-					<span><b>Forking End Time:</b>{ universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }</span>
-					<span><b>Has Forking Time Ended:</b>{ universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No' }</span>
-					<span><b>Forking Market:</b>{ universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket }</span>
-					<span><b>Your Reputation V2 Balance:</b>{ v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REP` : '' }</span>
-				</div>
-			</div>
+				<h1>Universe { getUniverseName(universe.deepValue) }</h1>
+				<section class = 'details-grid'>
+					{ [
+						['Universe Address', universe.deepValue],
+						...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Name', getUniverseName(parentUniverse.deepValue)]],
+						...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { parentUniverse.value }</a>]],
+						['Reputation Address For The Universe', reputationTokenAddress.deepValue],
+						['Is Universe Forking', universeForkingInformation.deepValue.isForking ? 'Yes' : 'No'],
+						['Forking End Time', universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime)],
+						['Has Forking Time Ended', universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No'],
+						['Forking Market', universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket],
+					].map(([label, val]) => (
+						<div className = 'detail' key = { label }>
+							<strong>{ label }</strong>
+							<span>{ val }</span>
+						</div>
+					)) }
+				</section>
 			{ universeForkingInformation.deepValue.isForking ? <>
-				<div class = 'panel'>
 					<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 					</Market>
@@ -150,19 +175,16 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 							/>
 						</label>
 					</div>
-				</div>
 				<button class = 'button button-primary' onClick = { getChildUniverseButton }>Refresh child universe for the selection</button>
 				<button class = 'button button-primary' onClick = { migrateReputationToChildUniverseByPayoutButton }>Migrate Reputation to the new universe</button>
 			</> : <></> }
 			{ isGenesisUniverseField.value ? <>
-				<div class = 'panel'>
-					<div style = 'display: grid'>
-						<span><b>Reputation V1 Address:</b>{ REPUTATION_V1_TOKEN_ADDRESS }</span>
-						<span><b>Your Reputation V1 Balance:</b>{ v1ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1` : '' }</span>
-					</div>
-				</div>
-				<button class = 'button button-primary' onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
-				<button class = 'button button-primary' onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
+				<h1>Reputation V1 to V2 Migration</h1>
+				<span><b>You have: </b>{ v1ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 ` : '? REPv1 ' }
+				and { v2ReputationBalance.deepValue !== undefined ? `${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` : '? REPv2' }
+				</span>
+				<button class = 'button button-primary' disabled = { isApproveRepV1ForMigrationDisabled } onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
+				<button class = 'button button-primary' disabled = { isMigrateFromRepV1toRepV2GenesisTokenButtonDisabled } onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
 			</> : <></> }
 		</section>
 	</div>
