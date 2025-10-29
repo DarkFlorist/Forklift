@@ -18,8 +18,6 @@ import { getErc20TokenBalance } from './utils/erc20.js'
 import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokensUI.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
-import { Trading } from './TradingUI/Trading.js'
-import { Liquidity } from './LiquidityProvidingUI/Liquidity.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
 import { paramsToHashPath, parseHashPath } from './utils/hashRouter.js'
 
@@ -206,8 +204,6 @@ export function App() {
 
 	const tabs = [
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
-		{ title: 'Trading', path: 'trading', component: <Trading maybeWriteClient = { maybeWriteClient } maybeReadClient = { maybeReadClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } />, hide: false },
-		{ title: 'Liquidity Providing', path: 'liquidity-providing', component: <Liquidity maybeWriteClient = { maybeWriteClient } maybeReadClient = { maybeReadClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
