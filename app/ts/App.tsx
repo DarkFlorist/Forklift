@@ -15,7 +15,6 @@ import { getForkValues, getReputationTokenForUniverse, getUniverseForkingInforma
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
 import { getErc20TokenBalance } from './utils/erc20.js'
-import { ParticipationTokens } from './ParticipationTokensUI/ParticipationTokensUI.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
@@ -208,7 +207,6 @@ export function App() {
 		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
 		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
-		{ title: 'Participation Tokens', path: 'participation-tokens', component: <ParticipationTokens maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe }/>, hide: false }
 	] as const
 
 	useEffect(() => {
