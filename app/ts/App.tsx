@@ -385,10 +385,10 @@ export function App() {
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
 			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: auto auto auto;'>
-				<div class = 'augur-constant-product-market'>
-					<img src = 'favicon.svg' alt = 'Icon' />
+				<div class = 'forklift'>
+					<img src = 'favicon.ico' alt = 'Icon' />
 					<div>
-						<span>Augur Constant Product Market</span>
+						<span>Augur Forklift</span>
 						<UniverseComponent universe = { universe}/>
 					</div>
 				</div>
@@ -405,7 +405,7 @@ export function App() {
 		<Tabs tabs = { tabs } activeTab = { activeTab }/>
 		<footer class = 'site-footer'>
 			<div>
-				Augur Constant Product Market by&nbsp;
+				Augur Forklift by&nbsp;
 				<a href = 'https://dark.florist' target = '_blank' rel = 'noopener noreferrer'>
 					Dark Florist
 				</a>

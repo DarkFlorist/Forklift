@@ -396,7 +396,7 @@ input[type="checkbox"].custom-input:checked::before {
 	border-radius: 4px;
 }
 
-.augur-constant-product-market {
+.forklift {
 	display: flex;
 	align-items: center;
 	gap: 16px;
@@ -405,16 +405,16 @@ input[type="checkbox"].custom-input:checked::before {
 	position: relative;
 }
 
-.augur-constant-product-market img {
+.forklift img {
 	width: 60px;
 	height: 60px;
 	border-radius: 50%;
-	background: #111;
+	background: #000;
 	padding: 6px;
-	box-shadow: 0 0 0 2px rgba(0, 230, 118, 0.3);
+	box-shadow: 0 0 0 2px #6e08d4;
 }
 
-.augur-constant-product-market .sub-title {
+.forklift .sub-title {
 	margin: 0;
 	margin-top: 4px;
 	font-size: 14px;
