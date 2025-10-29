@@ -149,7 +149,6 @@ input:disabled, textarea:disabled, select:disabled {
 	display: flex;
 	flex-direction: column;
 	gap: 1.5rem;
-	background: #1e1e2f;
 }
 
 .market-header {
