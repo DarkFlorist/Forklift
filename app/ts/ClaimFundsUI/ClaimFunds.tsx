@@ -30,7 +30,7 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 			<div style = 'display: grid'>
 				<span><h1>Redeem winning shares</h1></span>
 				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No winning shares on this account') }/>
+					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
 				</div>
 			</div>
 		</div>
@@ -38,7 +38,7 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 	const alreadyClaimed = useComputed(() => {
 		const alreadyClaimed = availableShareData.deepValue?.filter((data) => data.payout === 0n ).length || 0
 		if (alreadyClaimed === 0) return undefined
-		return `Already claimed from ${ alreadyClaimed } markets`
+		return `Already redeemed ${ alreadyClaimed } markets`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
@@ -80,9 +80,9 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 	if (availableDisputes.deepValue.length === 0) {
 		return <div class = 'claim'>
 			<div style = 'display: grid'>
-				<span><h1>Claim Participation Token rewards</h1></span>
+				<span><h1>Redeem Participation Token rewards</h1></span>
 				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims on this account') }/>
+					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
 				</div>
 			</div>
 		</div>
@@ -90,11 +90,11 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 	const alreadyClaimed = useComputed(() => {
 		const alreadyClaimed = availableDisputes.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (alreadyClaimed === 0) return undefined
-		return `Already claimed from ${ alreadyClaimed } markets`
+		return `Already redeemed ${ alreadyClaimed } markets`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
-			<span><h1>Claim Participation Token rewards</h1></span>
+			<span><h1>Redeem Participation Token rewards</h1></span>
 			<div class = 'claim-options'>
 				<ClaimInfo text = { alreadyClaimed }/>
 				{
@@ -133,7 +133,7 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 	if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) {
 		return <div class = 'claim'>
 			<div style = 'display: grid'>
-				<span><h1>Claim from forked dispute crowdsourcers</h1></span>
+				<span><h1>Redeem forked dispute crowdsourcers</h1></span>
 				<div class = 'claim-options'>
 					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
 				</div>
@@ -143,11 +143,11 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 	const alreadyClaimed = useComputed(() => {
 		const alreadyClaimed = availableClaimsFromForkingDisputeCrowdSourcers.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (alreadyClaimed === 0) return undefined
-		return `Already claimed from ${ alreadyClaimed } markets`
+		return `Already redeemed ${ alreadyClaimed } markets`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
-			<span><h1>Claim from forked dispute crowdsourcers</h1></span>
+			<span><h1>Redeem forked dispute crowdsourcers</h1></span>
 			<div class = 'claim-options'>
 				<ClaimInfo text = { alreadyClaimed }/>
 				{
@@ -186,9 +186,9 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 	if (availableReports.deepValue.length === 0) {
 		return <div class = 'claim'>
 			<div style = 'display: grid'>
-				<span><h1>Claim winning initial reporter or dispute crowdsourcer bonds</h1></span>
+				<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
 				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims on this account') }/>
+					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
 				</div>
 			</div>
 		</div>
@@ -196,11 +196,11 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 	const alreadyClaimed = useComputed(() => {
 		const alreadyClaimed = availableReports.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (alreadyClaimed === 0) return undefined
-		return `Already claimed from ${ alreadyClaimed } markets`
+		return `Already redeemed ${ alreadyClaimed } markets`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
-			<span><h1>Claim winning initial reporter or dispute crowdsourcer bonds</h1></span>
+			<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
 			<div class = 'claim-options'>
 				<ClaimInfo text = { alreadyClaimed }/>
 				{
@@ -291,12 +291,12 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
 					<DisplayShareData availableShareData = { availableShareData } selectedShares = { selectedShares }/>
-					<button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Claim Winning shares</button>
+					<button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Redeem Winning shares</button>
 					<DisplayDisputesData availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 					<DisplayReportsData availableReports = { availableReports } selectedReports = { selectedReports }/>
-					<button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Claim Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button>
+					<button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Redeem Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button>
 					<ForkAndRedeemDisputeCrowdSourcers availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-					<button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Claim fork disputes</button>
+					<button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Redeem fork disputes</button>
 				</div>
 			</div>
 		</section>
