@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { AccountAddress } from '../types/types.js'
 import { fetchMarketData, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
-import { getOutComeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
+import { getOutcomeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
 import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
@@ -93,7 +93,7 @@ export const MarketState = ({ marketData, forkValues }: MarketStateProps) => {
 		case 'Finalized': {
 			if (marketData.deepValue === undefined) return 'Finalized'
 			const winningPayout = marketData.deepValue.winningPayout
-			const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
+			const winningOptionName = getOutcomeName(winningPayout, marketData.deepValue)
 			if (winningOptionName === undefined) return 'Finalized'
 			return `Finalized as ${ winningOptionName }`
 		}
@@ -144,24 +144,30 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 		&& forkValues.deepValue !== undefined
 		&& marketData.deepValue?.lastCompletedCrowdSourcer.size >= forkValues.deepValue.disputeThresholdForDisputePacing
 	)
-	if (disputeWindowInfo.deepValue === undefined) return <></>
-	if (marketData.deepValue === undefined) return <></>
-	const winningPayout = marketData.deepValue?.winningPayout.length === 0 ? marketData.deepValue.lastCompletedCrowdSourcer?.payoutNumerators : marketData.deepValue?.winningPayout
-	if (winningPayout === undefined) return <></>
-	const winningOptionName = getOutComeName(winningPayout, marketData.deepValue)
-	if (winningOptionName === undefined) return <></>
-	const endDate = bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
-	return <SomeTimeAgo priorTimestamp = { endDate } countBackwards = { true } diffToText = {
+	const winningOptionName = useComputed(() => {
+		const winningPayout = marketData.deepValue?.winningPayout.length === 0 ? marketData.deepValue.lastCompletedCrowdSourcer?.payoutNumerators : marketData.deepValue?.winningPayout
+		if (winningPayout === undefined) return undefined
+		if (winningOptionName === undefined) return undefined
+		if (marketData.deepValue === undefined) return undefined
+		return getOutcomeName(winningPayout, marketData.deepValue)
+	})
+	const endDate = useComputed(() => {
+		if (disputeWindowInfo.deepValue === undefined) return undefined
+		return bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
+	})
+	if (endDate.value === undefined) return <></>
+	if (winningOptionName.value === undefined) return <></>
+	return <SomeTimeAgo priorTimestamp = { endDate.value } countBackwards = { true } diffToText = {
 		(time: number) => {
-			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName }</b>"</p>
+			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName.value }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>
 			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
+				Resolving To "<b>{ winningOptionName.value }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
 			</p> </div>
 			const timeUntilNext = humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, disputeWindowInfo.deepValue.startTime)
 			const nextWindowLength = humanReadableDateDeltaFromTo(disputeWindowInfo.deepValue.startTime, disputeWindowInfo.deepValue.endTime)
 			return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+				Resolving To "<b>{ winningOptionName.value }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
 			</p> </div>
 		}
 	}/>

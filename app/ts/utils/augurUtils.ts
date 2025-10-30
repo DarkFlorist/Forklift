@@ -36,7 +36,7 @@ const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint
 	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
 }
 
-export const getOutComeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
+export const getOutcomeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
 	const malformedOutcomeName = `Malformed Outcome (${ payoutNumerators.join(', ') })`
 	switch(marketData.marketType) {
 		case 'Categorical':
