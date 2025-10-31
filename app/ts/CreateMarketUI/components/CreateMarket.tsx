@@ -1,4 +1,4 @@
-import { useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { createYesNoMarket, estimateGasCreateYesNoMarket, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
@@ -149,6 +149,7 @@ interface CreateYesNoMarketProps {
 	reputationTokenAddress: OptionalSignal<AccountAddress>
 	daiBalance: OptionalSignal<bigint>
 	repBalance: OptionalSignal<bigint>
+	updateTokenBalancesSignal: Signal<number>
 }
 
 const isValidDate = (dateStr: string): boolean => {
@@ -170,7 +171,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -252,6 +253,7 @@ export const CreateYesNoMarket = ({ maybeReadClient, maybeWriteClient, universe,
 			tags: tags.deepValue?.filter((element) => element.length > 0) || []
 		})
 		await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
+		updateTokenBalancesSignal.value++
 	}
 
 	useThrottledSignalEffect(() => {

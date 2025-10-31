@@ -12,6 +12,7 @@ import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketRe
 import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
+import { min } from '../../utils/utils.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -75,10 +76,11 @@ interface DisplayStakesProps {
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	repBalance: OptionalSignal<bigint>
 	refreshData: () => Promise<void>
 }
 
-export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData }: DisplayStakesProps) => {
+export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	if (forkValues.deepValue === undefined) return <></>
 
@@ -112,9 +114,10 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 			return outcomeStake.outcomeName
 		}
 	})
-	const reportDisabled = useComputed(() => (isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n)
+	const reportDisabled = useComputed(() =>
+		(isDisabled.value || maxStakeAmount.value === undefined || maxStakeAmount.value === 0n)
 		&& !isInitialReporting.value
-		|| amountInput.deepValue === undefined
+		|| amountInput.deepValue === undefined || repBalance.deepValue === undefined || amountInput.deepValue > repBalance.deepValue
 	)
 
 	const maxStakeAmount = useComputed(() => {
@@ -213,11 +216,11 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	}
 
 	const setMaxStake = () => {
-		if (maxStakeAmount.value === undefined) {
+		if (maxStakeAmount.value === undefined || repBalance.deepValue === undefined) {
 			amountInput.deepValue = 0n
 			return
 		}
-		amountInput.deepValue = maxStakeAmount.value
+		amountInput.deepValue = min(repBalance.deepValue, maxStakeAmount.value)
 	}
 
 	const minValue = useComputed(() => marketData.deepValue?.displayPrices[0] || 0n)
@@ -350,9 +353,11 @@ interface ReportingProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
 	selectedMarket: OptionalSignal<AccountAddress>
+	repBalance: OptionalSignal<bigint>
+	updateTokenBalancesSignal: Signal<number>
 }
 
-export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: ReportingProps) => {
+export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
@@ -434,6 +439,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 	}
 
 	const refreshDataButton = async () => {
+		updateTokenBalancesSignal.value++
 		refreshData(maybeReadClient.deepValue, selectedMarket.deepValue)
 	}
 
@@ -442,6 +448,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (marketData.deepValue === undefined) throw new Error('missing market data')
 		await finalizeMarket(writeClient, marketData.deepValue.marketAddress)
+		updateTokenBalancesSignal.value++
 		await refreshData(maybeReadClient.deepValue, selectedMarket.deepValue)
 	}
 
@@ -476,7 +483,7 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 				</> }>
 					{ showReporting.value === false ? <></> : <>
 						<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-						<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
+						<DisplayStakes repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 						{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
 					</> }
 					<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
