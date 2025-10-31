@@ -9,7 +9,7 @@ import { MarketData } from './Market.js'
 export type OutcomeStake = {
 	outcomeName: string
 	repStake: bigint
-	status: 'Winning' | 'Losing'
+	status: 'Winning' | 'Losing' | 'Tie'
 	payoutNumerators: readonly EthereumQuantity[]
 	alreadyContributedToOutcomeStake: undefined | bigint
 }
@@ -50,8 +50,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outco
 					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
 				/>
 				<div class = 'outcome-info'>
-					<b>{ outcomeStake.outcomeName } ({ outcomeStake.status })</b>
-
+					<b>{ outcomeStake.outcomeName } { outcomeStake.status !== 'Tie' ? `(${ outcomeStake.status })` : '' }</b>
 					{ totalStake.value !== 0n && (
 						<>
 							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>

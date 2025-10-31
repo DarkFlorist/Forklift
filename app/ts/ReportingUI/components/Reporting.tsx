@@ -5,7 +5,7 @@ import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
 import { MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutComeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
+import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutcomeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
 import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
@@ -103,7 +103,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 			if (minPrice === undefined || maxPrice === undefined) return undefined
 			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
-			return getOutComeName(payoutNumerators, marketData.deepValue)
+			return getOutcomeName(payoutNumerators, marketData.deepValue)
 		} else {
 			if (outcomeStakes.deepValue === undefined) return undefined
 			if (selectedOutcome.value === null) return undefined
@@ -132,7 +132,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 			const existingOutComestake = outcomeStakes.deepValue.find((outcome) => areEqualArrays(outcome.payoutNumerators, payoutNumerators))
 			const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
 			const outcomeStake = existingOutComestake !== undefined ? existingOutComestake : {
-				outcomeName: getOutComeName(payoutNumerators, marketData.deepValue),
+				outcomeName: getOutcomeName(payoutNumerators, marketData.deepValue),
 				repStake: 0n,
 				status: 'Losing',
 				payoutNumerators,
@@ -189,7 +189,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
 			const invalidOutcomeStake = outcomeStakes.deepValue.find((outcome) => areEqualArrays(outcome.payoutNumerators, payoutNumerators))
 			const reportingOutcomeStake = invalidOutcomeStake !== undefined ? invalidOutcomeStake : {
-				outcomeName: getOutComeName(payoutNumerators, marketData.deepValue),
+				outcomeName: getOutcomeName(payoutNumerators, marketData.deepValue),
 				repStake: 0n,
 				status: 'Losing',
 				payoutNumerators,
@@ -326,7 +326,7 @@ export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, 
 
 			const marketType = marketData.deepValue.marketType
 			if (marketType === undefined) throw new Error(`Invalid market type Id: ${ marketData.deepValue.marketType }`)
-			const outcomeName = getOutComeName(round.payoutNumerators, marketData.deepValue)
+			const outcomeName = getOutcomeName(round.payoutNumerators, marketData.deepValue)
 
 			return <div class = 'reporting-round'>
 				<span><b>{ round.type } Round { round.round }</b></span>
@@ -411,9 +411,9 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 			const payoutNumerators = info.payoutNumerators
 			const payoutHash = EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, currentMarketData.numTicks, currentMarketData.numOutcomes))
 			return {
-				outcomeName: getOutComeName(payoutNumerators, currentMarketData),
+				outcomeName: getOutcomeName(payoutNumerators, currentMarketData),
 				repStake: info.stake,
-				status: index === winningIndex ? 'Winning' : 'Losing',
+				status: index === winningIndex ? 'Winning' : (winningIndex === -1 ? 'Tie' : 'Losing'),
 				payoutNumerators,
 				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(readClient, currentMarketData.marketAddress, payoutHash))?.stake
 			}
