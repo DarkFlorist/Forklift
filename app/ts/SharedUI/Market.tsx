@@ -188,7 +188,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 		</> : <></> }
 		<div className = 'market-card'>
 			{ addressComponent }
-			{ marketData.deepValue.reportingState !== 'CrowdsourcingDispute' ? <></> : <>
+			{ marketData.deepValue.reportingState !== 'CrowdsourcingDispute' && marketData.deepValue.reportingState !== 'AwaitingNextWindow' ? <></> : <>
 				<ResolvingTo marketData = { marketData } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</> }
 			<header className = 'market-header'>
