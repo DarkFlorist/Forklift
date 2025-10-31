@@ -50,14 +50,14 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outco
 					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
 				/>
 				<div class = 'outcome-info'>
-					<b>{ outcomeStake.outcomeName } { outcomeStake.status !== 'Tie' ? `(${ outcomeStake.status })` : '' }</b>
+					<b>{ outcomeStake.outcomeName }</b>
 					{ totalStake.value !== 0n && (
 						<>
 							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
 							<span>
 								{ outcomeStake.status === 'Winning'
 									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
-									: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
+									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
 								}
 							</span>
 						</>
@@ -69,6 +69,18 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outco
 						</span>
 					)}
 				</div>
+				{ outcomeStake.status === 'Winning' ? <>
+					<span class = 'outcome-status-winning'>
+						{ outcomeStake.status }
+					</span>
+					</> : <></>
+				}
+				{ outcomeStake.status === 'Losing' ? <>
+					<span class = 'outcome-status-losing'>
+						{ outcomeStake.status }
+					</span>
+					</> : <></>
+				}
 			</div>
 		))
 	} </div>

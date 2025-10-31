@@ -19,6 +19,7 @@ interface MigrationProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 	pathSignal: Signal<string>
 	currentTimeInBigIntSeconds: Signal<bigint>
+	updateTokenBalancesSignal: Signal<number>
 }
 
 interface GetForkValuesProps {
@@ -37,7 +38,7 @@ export const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
 
 const GENESIS_REPUTATION_V2_TOKEN_ADDRESS = '0x221657776846890989a759BA2973e427DfF5C9bB'
 
-export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
+export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const v1ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const isGenesisUniverseField = useComputed(() => isGenesisUniverse(universe.deepValue))
@@ -59,11 +60,10 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 	})
 
 	const update = async (readClient: ReadClient | undefined ) => {
-		if (readClient === undefined) throw new Error('missing readClient')
-		if (readClient.account?.address === undefined) throw new Error('missing own address')
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
+		if (readClient === undefined) return
+		if (readClient.account?.address === undefined) return
+		if (reputationTokenAddress.deepValue === undefined) return
 		isRepV1ApprovedForMigration.deepValue = undefined
-		v1ReputationBalance.deepValue = undefined
 		v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
 		if (isGenesisUniverse(universe.deepValue)) {
 			// retrieve v1 balance only for genesis universe as its only relevant there
@@ -93,6 +93,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (repV2ToMigrateToNewUniverse.value.trim() === '') throw new Error ('Input missing')
 		const repV2ToMigrateToNewUniverseBigInt = decimalStringToBigint(repV2ToMigrateToNewUniverse.value, 18n)
 		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, repV2ToMigrateToNewUniverseBigInt)
+
+		updateTokenBalancesSignal.value++
 		await update(writeClient)
 	}
 
@@ -100,6 +102,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		await migrateFromRepV1toRepV2GenesisToken(writeClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
+
+		updateTokenBalancesSignal.value++
 		await update(writeClient)
 	}
 
@@ -108,6 +112,8 @@ export const Migration = ({ maybeReadClient, maybeWriteClient, reputationTokenAd
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (v1ReputationBalance.deepValue === undefined) throw new Error('missing v1ReputationBalance balance')
 		await approveErc20Token(writeClient, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
+
+		updateTokenBalancesSignal.value++
 		await update(writeClient)
 	}
 

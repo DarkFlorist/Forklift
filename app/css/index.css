@@ -562,7 +562,7 @@ h3 {
 
 .outcome-option {
 	display: grid;
-	grid-template-columns: auto 1fr;
+	grid-template-columns: auto auto 1fr;
 	column-gap: 0.75rem;
 	row-gap: 0.25rem;
 	align-items: center;
@@ -592,6 +592,19 @@ h3 {
 .outcome-contrib {
 	font-size: 0.8rem;
 	color: #9ca3af;
+}
+
+.outcome-status-winning {
+	font-size: 2rem;
+	color: #00ffc6;
+	margin-left: auto;
+	margin-right: 0;
+}
+.outcome-status-losing {
+	font-size: 2rem;
+	color: #ef4444;
+	margin-left: auto;
+	margin-right: 0;
 }
 
 .error-box {

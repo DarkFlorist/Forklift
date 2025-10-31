@@ -231,9 +231,10 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 interface ClaimFundsProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
+	updateTokenBalancesSignal: Signal<number>
 }
 
-export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProps) => {
+export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
@@ -269,7 +270,9 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 		const reportingParticipants = Array.from(selectedReports.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		const disputeWindows = Array.from(selectedDisputes.value) // Dispute Windows (Participation Tokens) the msg sender has tokens for
 		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
-		return await redeemStake(writeClient, reportingParticipants, disputeWindows)
+		await redeemStake(writeClient, reportingParticipants, disputeWindows)
+		updateTokenBalancesSignal.value++
+		await queryForData(writeClient)
 	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
@@ -279,7 +282,9 @@ export const ClaimFunds = ({ maybeReadClient, maybeWriteClient }: ClaimFundsProp
 		if (writeClient === undefined) throw new Error('account missing')
 		const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		if (selected.length === 0) return
-		return await forkReportingParticipants(writeClient, selected)
+		await forkReportingParticipants(writeClient, selected)
+		updateTokenBalancesSignal.value++
+		await queryForData(writeClient)
 	}
 
 	const claimWinningSharesDisabled = useComputed(() => selectedShares.value.size == 0)

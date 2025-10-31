@@ -157,7 +157,7 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 	})
 	if (endDate.value === undefined) return <></>
 	if (winningOptionName.value === undefined) return <></>
-	return <SomeTimeAgo priorTimestamp = { endDate.value } countBackwards = { true } diffToText = {
+	return <SomeTimeAgo priorTimestamp = { endDate.value } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } countBackwards = { true } diffToText = {
 		(time: number) => {
 			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName.value }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>

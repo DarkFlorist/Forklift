@@ -32,14 +32,15 @@ const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 
 interface UniverseForkingNoticeProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
-const UniverseForkingNotice = ({ universeForkingInformation }: UniverseForkingNoticeProps) => {
+const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigIntSeconds }: UniverseForkingNoticeProps) => {
 	if (universeForkingInformation.deepValue !== undefined && universeForkingInformation.deepValue.isForking) {
 		const forkingEndTime = bigintSecondsToDate(universeForkingInformation.deepValue.forkEndTime)
 		return <div style = 'padding: 10px; background-color: red;'>
 			<p>
-				<SomeTimeAgo priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
+				<SomeTimeAgo currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
 					(time: number) => {
 						if (universeForkingInformation.deepValue === undefined) return <></>
 						if (universeForkingInformation.deepValue.isForking === false) return <></>
@@ -200,13 +201,14 @@ export function App() {
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 
 	const pathSignal = useSignal<string>('')
+	const updateTokenBalancesSignal = useSignal<number>(0)
 
 	const tabs = [
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
-		{ title: 'Migration', path: 'migration', component: <Migration maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
+		{ title: 'Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
 	] as const
 
 	useEffect(() => {
@@ -347,6 +349,7 @@ export function App() {
 	}
 
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
+		console.log('update token balances')
 		if (writeClient === undefined) return
 		const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
 		const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
@@ -368,7 +371,7 @@ export function App() {
 		universeInfo(maybeReadClient.deepValue, universe.deepValue).catch(console.error)
 	})
 
-	useSignalEffect(() => { updateTokenBalances(maybeWriteClient.deepValue, reputationTokenAddress.deepValue).catch(console.error) })
+	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, reputationTokenAddress.deepValue).catch(console.error) })
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
@@ -398,7 +401,7 @@ export function App() {
 					</WalletComponent>
 				</div>
 			</div>
-			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation }/>
+			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 		</div>
 		<Tabs tabs = { tabs } activeTab = { activeTab }/>
 		<footer class = 'site-footer'>
