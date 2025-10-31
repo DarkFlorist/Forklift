@@ -446,40 +446,42 @@ export const Reporting = ({ maybeReadClient, maybeWriteClient, universe, forkVal
 	}
 
 	return <div class = 'subApplication'>
-		<div style = 'display: grid; width: 100%; gap: 10px;'>
-			<Market marketData = { marketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
-				<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
-					<Input
-						style = 'height: fit-content;'
-						key = 'market-reporting-input'
-						class = 'input'
-						type = 'text'
-						width = '100%'
-						placeholder = 'Market address'
-						value = { selectedMarket }
-						sanitize = { (addressString: string) => addressString }
-						tryParse = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return { ok: false } as const
-							const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-							if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-							return { ok: false } as const
-						}}
-						serialize = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.trim()
-						} }
-						invalidSignal = { isInvalidMarketAddress }
-					/>
-					<button class = 'button button-primary' onClick = { refreshDataButton }>Refresh</button>
-				</div>
-			</> }>
-				{ showReporting.value === false ? <></> : <>
-					<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-					<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
-					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
-				</> }
-				<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
-			</Market>
-		</div>
+		<section class = 'subApplication-card'>
+			<div style = 'display: grid; width: 100%; gap: 10px;'>
+				<Market marketData = { marketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
+					<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
+						<Input
+							style = 'height: fit-content;'
+							key = 'market-reporting-input'
+							class = 'input'
+							type = 'text'
+							width = '100%'
+							placeholder = 'Market address'
+							value = { selectedMarket }
+							sanitize = { (addressString: string) => addressString }
+							tryParse = { (marketAddressString: string | undefined) => {
+								if (marketAddressString === undefined) return { ok: false } as const
+								const parsed = EthereumAddress.safeParse(marketAddressString.trim())
+								if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
+								return { ok: false } as const
+							}}
+							serialize = { (marketAddressString: string | undefined) => {
+								if (marketAddressString === undefined) return ''
+								return marketAddressString.trim()
+							} }
+							invalidSignal = { isInvalidMarketAddress }
+						/>
+						<button class = 'button button-primary' onClick = { refreshDataButton }>Refresh</button>
+					</div>
+				</> }>
+					{ showReporting.value === false ? <></> : <>
+						<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
+						<DisplayStakes outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
+						{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
+					</> }
+					<ForkMigration marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
+				</Market>
+			</div>
+		</section>
 	</div>
 }
