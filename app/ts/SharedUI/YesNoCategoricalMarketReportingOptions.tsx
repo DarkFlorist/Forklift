@@ -99,20 +99,23 @@ type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 
 export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
-	return outcomeStakes.deepValue.map((outcomeStake) => (
-		<span key = { outcomeStake.outcomeName }>
-			<label>
-				<input
-					disabled = { disabled }
-					type = 'radio'
-					class = 'custom-input'
-					name = 'selectedOutcome'
-					checked = { selectedOutcome.value === outcomeStake.outcomeName }
-					onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-				/>
-				{' '}
-				{ outcomeStake.outcomeName }
-			</label>
-		</span>
-	))
+	return <div class = 'outcome-options'>
+		{
+			outcomeStakes.deepValue.map((outcomeStake) => (
+				<div class = 'outcome-option' key = { outcomeStake.outcomeName }>
+					<input
+						disabled = { disabled }
+						type = 'radio'
+						class = 'custom-input'
+						name = 'selectedOutcome'
+						checked = { selectedOutcome.value === outcomeStake.outcomeName }
+						onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+					/>
+					<div class = 'outcome-info'>
+						<b>{ outcomeStake.outcomeName }</b>
+					</div>
+				</div>
+			))
+		}
+	</div>
 }

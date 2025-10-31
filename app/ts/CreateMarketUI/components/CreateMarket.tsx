@@ -483,7 +483,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 
 			<Costs marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationCasCost = { marketCreationCasCost }/>
 			<div class = 'button-group'>
-				<button class = 'button button-primary' onClick = { createMarket } disabled = { createMarketDisabled.value } style = { { width: '100%' } }>
+				<button class = 'button button-primary button-group-button' onClick = { createMarket } disabled = { createMarketDisabled.value } style = { { width: '100%' } }>
 					Create Market
 				</button>
 			</div>
