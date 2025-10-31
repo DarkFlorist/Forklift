@@ -2,46 +2,11 @@ import * as path from 'path'
 import * as url from 'url';
 import { promises as fs } from 'fs'
 import { FileType, recursiveDirectoryCopy } from '@zoltu/file-copier'
-import * as funtypes from 'funtypes'
 
 const directoryOfThisFile = path.dirname(url.fileURLToPath(import.meta.url))
 const VENDOR_OUTPUT_PATH = path.join(directoryOfThisFile, '..', 'app', 'vendor')
 const MODULES_ROOT_PATH = path.join(directoryOfThisFile, '..', 'node_modules')
 const INDEX_HTML_PATH = path.join(directoryOfThisFile, '..', 'app', 'index.html')
-const AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_APP = path.join(directoryOfThisFile, '..', 'app', 'ts', 'VendoredAugurConstantProductMarket.ts')
-const AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_SOLIDITY = path.join(directoryOfThisFile, '..', 'solidity', 'ts', 'abi', 'VendoredAugurConstantProductMarket.ts')
-
-const CompileError = funtypes.ReadonlyObject({
-	severity: funtypes.String,
-	formattedMessage: funtypes.String
-})
-
-type CompileResult = funtypes.Static<typeof CompileResult>
-const CompileResult = funtypes.ReadonlyObject({
-	errors: funtypes.Array(CompileError),
-	contracts: funtypes.Record(funtypes.String, funtypes.Record(funtypes.String, funtypes.ReadonlyObject({
-		abi: funtypes.ReadonlyArray(funtypes.ReadonlyPartial({
-			inputs: funtypes.ReadonlyArray(funtypes.ReadonlyObject({
-				internalType: funtypes.String,
-				name: funtypes.String,
-				type: funtypes.String
-			})),
-			stateMutability: funtypes.String,
-			type: funtypes.String,
-			name: funtypes.String,
-			outputs: funtypes.ReadonlyArray(funtypes.ReadonlyObject({
-				internalType: funtypes.String,
-				name: funtypes.String,
-				type: funtypes.String
-			}))
-		})),
-		evm: funtypes.ReadonlyObject({
-			bytecode: funtypes.ReadonlyObject({ object: funtypes.String }),
-			deployedBytecode: funtypes.ReadonlyObject({ object: funtypes.String })
-		})
-	}))),
-	sources: funtypes.Unknown,
-})
 
 type Dependency = { packageName: string, packageToVendor?: string, subfolderToVendor: string, mainEntrypointFile: string, alternateEntrypoints: Record<string, string> }
 const dependencyPaths: Dependency[] = [
@@ -93,25 +58,6 @@ async function vendorDependencies() {
 	await fs.writeFile(INDEX_HTML_PATH, newIndexHtml)
 }
 
-const copySolidityContractArtifact = async () => {
-	const contractLocation = path.join(directoryOfThisFile, '..', 'solidity/artifacts/AugurConstantProductMarket.json')
-	const solidityContract = CompileResult.parse(JSON.parse(await fs.readFile(contractLocation, 'utf8')))
-	const contracts = Object.entries(solidityContract.contracts).flatMap(([_filename, contract]) => {
-		if (contract === undefined) throw new Error('missing contract')
-		return Object.entries(contract).map(([contractName, contractData]) => ({ contractName, contractData }))
-	})
-
-	if (new Set(contracts.map((x) => x.contractName)).size !== contracts.length) throw new Error('duplicated contract name!')
-
-	const typescriptString = contracts.map((contract) => `export const ${ contract.contractName } = ${ JSON.stringify(contract.contractData, null, 4) } as const`).join('\r\n')
-	await fs.writeFile(AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_APP, typescriptString)
-
-	const nonParsedSolidityContract = JSON.parse(await fs.readFile(contractLocation, 'utf8'))
-	const typescript = `export const augurConstantProductMarketContractArtifact = ${ JSON.stringify(nonParsedSolidityContract) } as const`
-
-	await fs.writeFile(AUGUR_CONSTANT_PRODUCT_MARKET_CONTRACT_PATH_SOLIDITY, typescript)
-}
-
 // rewrite the source paths in sourcemap files so they show up in the debugger in a reasonable location and if two source maps refer to the same (relative) path, we end up with them distinguished in the browser debugger
 async function rewriteSourceMapSourcePath(packageName: string, sourcePath: string, destinationPath: string) {
 	const fileExtension = path.extname(sourcePath)
@@ -129,7 +75,6 @@ async function rewriteSourceMapSourcePath(packageName: string, sourcePath: strin
 
 const vendor = async () => {
 	await vendorDependencies()
-	await copySolidityContractArtifact()
 }
 
 vendor().catch(error => {
