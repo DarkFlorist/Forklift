@@ -19,6 +19,7 @@ import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
 import { paramsToHashPath, parseHashPath } from './utils/hashRouter.js'
+import { RepV1Migration } from './RepV1Migration/RepV1Migration.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -46,13 +47,14 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 						if (universeForkingInformation.deepValue.isForking === false) return <></>
 						if (time <= 0) return <>
 							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) } </b> has forked off.
-							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
+							A disagreement on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
 							Please use some other universe.
 						</>
 						return <>
-							The Universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is forking.
-							The fork ends in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
-							Disagreements on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
+							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is currently forking.
+							The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
+							This fork was triggered by a disagreement over the outcome of the market { universeForkingInformation.deepValue.forkingMarket }.
+							Please migrate your reputation tokens before the fork ends to avoid losing them.
 						</>
 					}
 				}/>
@@ -208,7 +210,8 @@ export function App() {
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
-		{ title: 'Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
+		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
+		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false }
 	] as const
 
 	useEffect(() => {
