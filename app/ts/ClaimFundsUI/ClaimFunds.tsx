@@ -6,15 +6,13 @@ import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redee
 import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 
-const removeIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
+const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
 		return array.filter(((entry) => entry !== newEntry))
 	} else {
 		return [...array, newEntry]
 	}
 }
-
-const exists = (array: readonly AccountAddress[], newEntry: AccountAddress) => array.find((entry) => entry === newEntry) !== undefined
 
 const ClaimInfo = ({ text }: { text: Signal<string | undefined> }) => {
 	if (text.value === undefined) return <></>
@@ -61,10 +59,10 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 							type = 'checkbox'
 							class = 'custom-input'
 							name = 'selectedOutcome'
-							checked = { useComputed(() => exists(selectedShares.value, shareEntry.market)) }
+							checked = { useComputed(() => selectedShares.value.includes(shareEntry.market)) }
 							disabled = { shareEntry.payout === 0n }
 							onChange = { () => {
-								selectedShares.value = removeIfExistsAddOtherwise(selectedShares.value, shareEntry.market)
+								selectedShares.value = filterIfExistsAddOtherwise(selectedShares.value, shareEntry.market)
 							} }
 						/>
 						<div class = 'claim-info'>
@@ -112,10 +110,10 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 								type = 'checkbox'
 								class = 'custom-input'
 								name = 'selectedOutcome'
-								checked = { useComputed(() => exists(selectedDisputes.value, disputeEntry.market)) }
+								checked = { useComputed(() => selectedDisputes.value.includes(disputeEntry.market)) }
 								disabled = { disputeEntry.amount === 0n }
 								onChange = { () => {
-									selectedDisputes.value = removeIfExistsAddOtherwise(selectedDisputes.value, disputeEntry.bond)
+									selectedDisputes.value = filterIfExistsAddOtherwise(selectedDisputes.value, disputeEntry.bond)
 								} }
 							/>
 							<div class = 'claim-info'>
@@ -164,10 +162,10 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 								type = 'checkbox'
 								class = 'custom-input'
 								name = 'selectedOutcome'
-								checked = { useComputed(() => exists(selectedForkedCrowdSourcers.value, disputeEntry.market)) }
+								checked = { useComputed(() => selectedForkedCrowdSourcers.value.includes(disputeEntry.market)) }
 								disabled = { disputeEntry.amount === 0n }
 								onChange = { () => {
-									selectedForkedCrowdSourcers.value = removeIfExistsAddOtherwise(selectedForkedCrowdSourcers.value, disputeEntry.bond)
+									selectedForkedCrowdSourcers.value = filterIfExistsAddOtherwise(selectedForkedCrowdSourcers.value, disputeEntry.bond)
 								} }
 							/>
 							<div class = 'claim-info'>
@@ -215,10 +213,10 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 							<input
 								type = 'radio'
 								name = 'selectedOutcome'
-								checked = { useComputed(() => exists(selectedReports.value, initialReport.market)) }
+								checked = { useComputed(() => selectedReports.value.includes(initialReport.market)) }
 								disabled = { initialReport.amount === 0n }
 								onChange = { () => {
-									selectedReports.value = removeIfExistsAddOtherwise(selectedReports.value, initialReport.bond)
+									selectedReports.value = filterIfExistsAddOtherwise(selectedReports.value, initialReport.bond)
 								} }
 							/>
 							<div class = 'claim-info'>
