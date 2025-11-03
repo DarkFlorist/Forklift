@@ -44,16 +44,16 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 			</div>
 		</div>
 	}
-	const alreadyClaimed = useComputed(() => {
+	const alreadyClaimedText = useComputed(() => {
 		const numberOfClaims = availableShareData.deepValue?.filter((data) => data.payout === 0n ).length || 0
 		if (numberOfClaims === 0) return undefined
-		return `Already redeemed ${ numberOfClaims } markets`
+		return `You have previously redeemed winnings from ${ numberOfClaims } markets.`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning shares</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimed }/>
+				<ClaimInfo text = { alreadyClaimedText }/>
 				{
 					availableShareData.deepValue.filter((data) => data.payout > 0n ).map((shareEntry) => <>
 					<span class = 'claim-option' key = { shareEntry.market }>
@@ -95,16 +95,16 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 			</div>
 		</div>
 	}
-	const alreadyClaimed = useComputed(() => {
+	const alreadyClaimedText = useComputed(() => {
 		const numberOfClaims = availableDisputes.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (numberOfClaims === 0) return undefined
-		return `Already redeemed ${ numberOfClaims } markets`
+		return `You have previously claimed participation tokens from ${ numberOfClaims } different rounds.`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem Participation Token rewards</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimed }/>
+				<ClaimInfo text = { alreadyClaimedText }/>
 				{
 					availableDisputes.deepValue.filter((data) => data.amount > 0n).map((disputeEntry) => <>
 						<span class = 'claim-option' key = { disputeEntry.bond }>
@@ -147,16 +147,16 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 			</div>
 		</div>
 	}
-	const alreadyClaimed = useComputed(() => {
+	const alreadyClaimedText = useComputed(() => {
 		const numberOfClaims = availableClaimsFromForkingDisputeCrowdSourcers.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (numberOfClaims === 0) return undefined
-		return `Already redeemed ${ numberOfClaims } markets`
+		return `You have previously claimed proceeds from ${ numberOfClaims } forks.`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem forked dispute crowdsourcers</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimed }/>
+				<ClaimInfo text = { alreadyClaimedText }/>
 				{
 					availableClaimsFromForkingDisputeCrowdSourcers.deepValue.filter((data) => data.amount > 0n).map((disputeEntry) => <>
 						<span class = 'claim-option'  key = { disputeEntry.bond }>
@@ -199,16 +199,16 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 			</div>
 		</div>
 	}
-	const alreadyClaimed = useComputed(() => {
+	const alreadyClaimedText = useComputed(() => {
 		const numberOfMarkets = availableReports.deepValue?.filter((data) => data.amount === 0n ).length || 0
 		if (numberOfMarkets === 0) return undefined
-		return `Already redeemed ${ numberOfMarkets } markets`
+		return `You have previously claimed ${ numberOfMarkets } initial reporter and dispute crowdsourcer bonds.`
 	})
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimed }/>
+				<ClaimInfo text = { alreadyClaimedText }/>
 				{
 					availableReports.deepValue.filter((data) => data.amount > 0n).map((initialReport) => <>
 						<span key = { initialReport.bond }>
