@@ -39,7 +39,7 @@ interface UniverseForkingNoticeProps {
 const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigIntSeconds }: UniverseForkingNoticeProps) => {
 	if (universeForkingInformation.deepValue !== undefined && universeForkingInformation.deepValue.isForking) {
 		const forkingEndTime = bigintSecondsToDate(universeForkingInformation.deepValue.forkEndTime)
-		return <div style = 'padding: 10px; background-color: red;'>
+		return <div class = 'universe-forking-notice'>
 			<p>
 				<SomeTimeAgo currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
 					(time: number) => {

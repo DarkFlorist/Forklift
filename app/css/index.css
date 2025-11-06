@@ -487,6 +487,7 @@ input[type="checkbox"].custom-input:checked::before {
 
 .app {
 	background: rgba(0, 0, 0, 0.75);
+	padding-bottom: 5px;
 }
 
 .reporting-history {
@@ -983,10 +984,20 @@ h3 {
 }
 
 .universe-forking {
-    background-color: red;
-    border-radius: var(--btn-radius);
-    box-shadow: var(--btn-shadow);
-    padding: 10px;
+	background-color: #ef444433;
+	border-radius: 4px;
+	box-shadow: 0 0 0 3px #ef4444;
+	outline: none;
+	padding: 10px;
+}
+
+.universe-forking-notice {
+	background-color: #ef444433;
+	border-radius: 4px;
+	box-shadow: 0 0 0 3px #ef4444;
+	outline: none;
+	padding: 10px;
+	margin: 10px
 }
 
 h2 {
