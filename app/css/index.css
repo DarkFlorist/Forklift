@@ -614,6 +614,7 @@ h3 {
 	background-color: var(--error-box-color);
 	border-radius: 0.5rem;
 	text-align: center;
+	margin-bottom: 10px;
 }
 
 .warning-box {
