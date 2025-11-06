@@ -58,7 +58,7 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 							The universe <b> <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
 							The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
 							This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
-							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from here: <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/>
+							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/>.
 						</>
 					}
 				}/>
