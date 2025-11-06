@@ -10,6 +10,7 @@ import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
 import { useEffect } from 'preact/hooks'
 import { Input } from '../../SharedUI/Input.js'
 import { useThrottledSignalEffect } from '../../SharedUI/useThrottledSignalEffect.js'
+import { ContractFunctionExecutionError } from 'viem'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -62,11 +63,13 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		daiAllowanceToBeSet.deepValue = 2n ** 256n - 1n
 	}
 
+	const daiAllowanceText = useComputed(() => `Allowed DAI: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
+	const repAllowanceText = useComputed(() => `Allowed REP: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } REP (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } REP)`)
 	return <div class = 'form-grid'>
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
 			<div style = { { alignContent: 'center' } }>
-				Allowed DAI: { bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: { bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)
+				{ daiAllowanceText }
 			</div>
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
@@ -91,12 +94,12 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<span class = 'unit'>DAI</span>
 				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxDaiAllowance }>Max</button>
 			</div>
-			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetDaiAllowance } onClick = { approveDai }>
+			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetDaiAllowance.value } onClick = { approveDai }>
 				Set DAI allowance
 			</button>
 
 			<div style = { { alignContent: 'center' } }>
-				Allowed REP: { bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } REP (required: { bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } REP)
+				{ repAllowanceText }
 			</div>
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
@@ -121,7 +124,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<span class = 'unit'>REP</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
 			</div>
-			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetRepAllowance } onClick = { approveRep }>
+			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetRepAllowance.value } onClick = { approveRep }>
 				Set REP allowance
 			</button>
 		</div>
@@ -221,7 +224,6 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 		if (designatedReporterAddress.deepValue === undefined) return true
 		if (description.value.length === 0) return true
 		if (longDescription.value.length === 0) return true
-		if (longDescription.value.length < description.value.length) return true
 		if (marketCreationCostRep.deepValue === undefined) return true
 		if (marketCreationCostDai.deepValue === undefined) return true
 		if (allowedRep.deepValue === undefined) return true
@@ -282,7 +284,12 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				const readClient = maybeReadClient.deepPeek()
 				if (readClient === undefined) return
 				if (marketEndTimeUnixTimeStamp === undefined) return
-				marketCreationCasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+				try {
+				    marketCreationCasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+				} catch(error: unknown) {
+					if (error instanceof ContractFunctionExecutionError) return
+					throw error
+				}
 			}
 			estimate()
 		}
