@@ -30,10 +30,10 @@ export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/N
 	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
 }
 
-const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minPrice: bigint, maxPrice: bigint) => {
+const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minValue: bigint, maxValue: bigint) => {
 	if (payoutNumerators[0] > 0n) return 'Invalid'
-	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	return `${ bigintToDecimalString((payoutNumerators[1] + minPrice) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
+	const tradeInterval = getTradeInterval(maxValue - minValue, numTicks)
+	return `${ bigintToDecimalString((payoutNumerators[1] + minValue) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
 }
 
 export const getOutcomeName = (payoutNumerators: readonly bigint[], marketData: MarketData) => {
@@ -101,21 +101,21 @@ export function getTradeInterval(displayRange: bigint, numTicks: bigint): bigint
 	return displayInterval * displayRange / numTicks / ( 10n ** 18n )
 }
 
-export const areValidScalarPayoutNumeratorOptions = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
+export const areValidScalarPayoutNumeratorOptions = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minValue: bigint, maxValue: bigint, numTicks: bigint) => {
 	if (invalid) return true
 	if (selectedScalarOutcome === undefined) return false
-	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	const scaled = (selectedScalarOutcome - minPrice) / tradeInterval
+	const tradeInterval = getTradeInterval(maxValue - minValue, numTicks)
+	const scaled = (selectedScalarOutcome - minValue) / tradeInterval
 	if (scaled > numTicks) return false
 	if (scaled < 0n) return false
 	return true
 }
 
-export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minPrice: bigint, maxPrice: bigint, numTicks: bigint) => {
+export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minValue: bigint, maxValue: bigint, numTicks: bigint) => {
 	if (invalid) return [numTicks, 0n, 0n] as const
 	if (selectedScalarOutcome === undefined) throw new Error('selectedScalarOutcome is undefined')
-	const tradeInterval = getTradeInterval(maxPrice - minPrice, numTicks)
-	const scaled = (selectedScalarOutcome - minPrice) / tradeInterval
+	const tradeInterval = getTradeInterval(maxValue - minValue, numTicks)
+	const scaled = (selectedScalarOutcome - minValue) / tradeInterval
 	if (scaled > numTicks) throw new Error('selectedScalarOutcome is is too big')
 	if (scaled < 0n) throw new Error('selectedScalarOutcome is is too small')
 	return [0n, scaled, numTicks - scaled] as const
