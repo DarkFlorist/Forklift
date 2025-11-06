@@ -14,12 +14,11 @@ const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: 
 	}
 }
 
-const ClaimInfo = ({ text }: { text: Signal<string | undefined> }) => {
-	if (text.value === undefined) return <></>
+const ClaimInfo = ({ text }: { text: string }) => {
 	return <div class = 'claim-option'>
 		<div class = 'claim-info'>
 			<span>
-				{ text.value }
+				{ text }
 			</span>
 		</div>
 	</div>
@@ -31,46 +30,33 @@ interface DisplayShareDataProps {
 }
 
 const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDataProps) => {
-	if (availableShareData.deepValue === undefined) return <></>
-	if (availableShareData.deepValue.length === 0) {
-		return <div class = 'claim'>
-			<div style = 'display: grid'>
-				<span><h1>Redeem winning shares</h1></span>
-				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
+	const results = useComputed(() => {
+		if (availableShareData.deepValue === undefined) return <p> loading... </p>
+		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
+		return availableShareData.deepValue.map((shareEntry) => <>
+			<span class = 'claim-option' key = { shareEntry.market }>
+				<input
+					type = 'checkbox'
+					class = 'custom-input'
+					name = 'selectedOutcome'
+					checked = { selectedShares.value.includes(shareEntry.market) }
+					disabled = { shareEntry.payout === 0n }
+					onChange = { () => {
+						selectedShares.value = filterIfExistsAddOtherwise(selectedShares.value, shareEntry.market)
+					} }
+				/>
+				<div class = 'claim-info'>
+					<span><b>Market { shareEntry.market }</b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
 				</div>
-			</div>
-		</div>
-	}
-	const alreadyClaimedText = useComputed(() => {
-		const numberOfClaims = availableShareData.deepValue?.filter((data) => data.payout === 0n ).length || 0
-		if (numberOfClaims === 0) return undefined
-		return `You have previously redeemed winnings from ${ numberOfClaims } markets.`
+			</span>
+		</>)
 	})
+
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning shares</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimedText }/>
-				{
-					availableShareData.deepValue.filter((data) => data.payout > 0n ).map((shareEntry) => <>
-					<span class = 'claim-option' key = { shareEntry.market }>
-						<input
-							type = 'checkbox'
-							class = 'custom-input'
-							name = 'selectedOutcome'
-							checked = { useComputed(() => selectedShares.value.includes(shareEntry.market)) }
-							disabled = { shareEntry.payout === 0n }
-							onChange = { () => {
-								selectedShares.value = filterIfExistsAddOtherwise(selectedShares.value, shareEntry.market)
-							} }
-						/>
-						<div class = 'claim-info'>
-							<span><b>Market { shareEntry.market }</b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
-						</div>
-					</span>
-					</>)
-				}
+				{ results }
 			</div>
 		</div>
 	</div>
@@ -82,47 +68,34 @@ interface DisplayDisputesDataProps {
 }
 
 const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDisputesDataProps) => {
-	if (availableDisputes.deepValue === undefined) return <></>
-	if (availableDisputes.deepValue.length === 0) {
-		return <div class = 'claim'>
-			<div style = 'display: grid'>
-				<span><h1>Redeem Participation Token rewards</h1></span>
-				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
+	const results = useComputed(() => {
+		if (availableDisputes.deepValue === undefined) return <p> loading... </p>
+		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
+		return availableDisputes.deepValue.map((disputeEntry) => <>
+			<span class = 'claim-option' key = { disputeEntry.bond }>
+				<input
+					type = 'checkbox'
+					class = 'custom-input'
+					name = 'selectedOutcome'
+					checked = { selectedDisputes.value.includes(disputeEntry.market) }
+					disabled = { disputeEntry.amount === 0n }
+					onChange = { () => {
+						selectedDisputes.value = filterIfExistsAddOtherwise(selectedDisputes.value, disputeEntry.bond)
+					} }
+				/>
+				<div class = 'claim-info'>
+					<span><b>Market { disputeEntry.market }{ ': ' }</b>
+					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
-			</div>
-		</div>
-	}
-	const alreadyClaimedText = useComputed(() => {
-		const numberOfClaims = availableDisputes.deepValue?.filter((data) => data.amount === 0n ).length || 0
-		if (numberOfClaims === 0) return undefined
-		return `You have previously claimed participation tokens from ${ numberOfClaims } different rounds.`
+			</span>
+		</>)
 	})
+
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem Participation Token rewards</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimedText }/>
-				{
-					availableDisputes.deepValue.filter((data) => data.amount > 0n).map((disputeEntry) => <>
-						<span class = 'claim-option' key = { disputeEntry.bond }>
-							<input
-								type = 'checkbox'
-								class = 'custom-input'
-								name = 'selectedOutcome'
-								checked = { useComputed(() => selectedDisputes.value.includes(disputeEntry.market)) }
-								disabled = { disputeEntry.amount === 0n }
-								onChange = { () => {
-									selectedDisputes.value = filterIfExistsAddOtherwise(selectedDisputes.value, disputeEntry.bond)
-								} }
-							/>
-							<div class = 'claim-info'>
-								<span><b>Market { disputeEntry.market }{ ': ' }</b>
-								{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
-							</div>
-						</span>
-					</>)
-				}
+				{ results }
 			</div>
 		</div>
 	</div>
@@ -134,47 +107,34 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 }
 
 const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers }: ForkAndRedeemDisputeCrowdSourcersProps) => {
-	if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <></>
-	if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) {
-		return <div class = 'claim'>
-			<div style = 'display: grid'>
-				<span><h1>Redeem forked dispute crowdsourcers</h1></span>
-				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
+	const results = useComputed(() => {
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <p> loading... </p>
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
+		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
+			<span class = 'claim-option' key = { disputeEntry.bond }>
+				<input
+					type = 'checkbox'
+					class = 'custom-input'
+					name = 'selectedOutcome'
+					checked = { selectedForkedCrowdSourcers.value.includes(disputeEntry.market) }
+					disabled = { disputeEntry.amount === 0n }
+					onChange = { () => {
+						selectedForkedCrowdSourcers.value = filterIfExistsAddOtherwise(selectedForkedCrowdSourcers.value, disputeEntry.bond)
+					} }
+				/>
+				<div class = 'claim-info'>
+					<span><b>Market { disputeEntry.market }{ ': ' }</b>
+					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
-			</div>
-		</div>
-	}
-	const alreadyClaimedText = useComputed(() => {
-		const numberOfClaims = availableClaimsFromForkingDisputeCrowdSourcers.deepValue?.filter((data) => data.amount === 0n ).length || 0
-		if (numberOfClaims === 0) return undefined
-		return `You have previously claimed proceeds from ${ numberOfClaims } forks.`
+			</span>
+		</>)
 	})
+
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem forked dispute crowdsourcers</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimedText }/>
-				{
-					availableClaimsFromForkingDisputeCrowdSourcers.deepValue.filter((data) => data.amount > 0n).map((disputeEntry) => <>
-						<span class = 'claim-option'  key = { disputeEntry.bond }>
-							<input
-								type = 'checkbox'
-								class = 'custom-input'
-								name = 'selectedOutcome'
-								checked = { useComputed(() => selectedForkedCrowdSourcers.value.includes(disputeEntry.market)) }
-								disabled = { disputeEntry.amount === 0n }
-								onChange = { () => {
-									selectedForkedCrowdSourcers.value = filterIfExistsAddOtherwise(selectedForkedCrowdSourcers.value, disputeEntry.bond)
-								} }
-							/>
-							<div class = 'claim-info'>
-								<span><b>Market { disputeEntry.market }{ ': ' }</b>
-								{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
-							</div>
-						</span>
-					</>)
-				}
+				{ results }
 			</div>
 		</div>
 	</div>
@@ -186,46 +146,34 @@ interface DisplayReportsDataProps {
 }
 
 const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReportsDataProps) => {
-	if (availableReports.deepValue === undefined) return <></>
-	if (availableReports.deepValue.length === 0) {
-		return <div class = 'claim'>
-			<div style = 'display: grid'>
-				<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
-				<div class = 'claim-options'>
-					<ClaimInfo text = { useComputed(() => 'No claims available') }/>
+	const results = useComputed(() => {
+		if (availableReports.deepValue === undefined) return <p> loading... </p>
+		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
+		return availableReports.deepValue.map((initialReport) => <>
+			<span class = 'claim-option' key = { initialReport.bond }>
+				<input
+					type = 'checkbox'
+					class = 'custom-input'
+					name = 'selectedOutcome'
+					checked = { selectedReports.value.includes(initialReport.market) }
+					disabled = { initialReport.amount === 0n }
+					onChange = { () => {
+						selectedReports.value = filterIfExistsAddOtherwise(selectedReports.value, initialReport.bond)
+					} }
+				/>
+				<div class = 'claim-info'>
+					<span><b>Market { initialReport.market }{ ': ' }</b>
+					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } REP` }</span>
 				</div>
-			</div>
-		</div>
-	}
-	const alreadyClaimedText = useComputed(() => {
-		const numberOfMarkets = availableReports.deepValue?.filter((data) => data.amount === 0n ).length || 0
-		if (numberOfMarkets === 0) return undefined
-		return `You have previously claimed ${ numberOfMarkets } initial reporter and dispute crowdsourcer bonds.`
+			</span>
+		</>)
 	})
+
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
 			<div class = 'claim-options'>
-				<ClaimInfo text = { alreadyClaimedText }/>
-				{
-					availableReports.deepValue.filter((data) => data.amount > 0n).map((initialReport) => <>
-						<span key = { initialReport.bond }>
-							<input
-								type = 'radio'
-								name = 'selectedOutcome'
-								checked = { useComputed(() => selectedReports.value.includes(initialReport.market)) }
-								disabled = { initialReport.amount === 0n }
-								onChange = { () => {
-									selectedReports.value = filterIfExistsAddOtherwise(selectedReports.value, initialReport.bond)
-								} }
-							/>
-							<div class = 'claim-info'>
-								<span><b>Market { initialReport.market }{ ': ' }</b>
-								{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } REP` }</span>
-							</div>
-						</span>
-					</>)
-				}
+				{ results }
 			</div>
 		</div>
 	</div>
@@ -261,10 +209,10 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		selectedDisputes.value = []
 		selectedReports.value = []
 		if (readClient.account?.address === undefined) throw new Error('account missing')
-		availableShareData.deepValue = await getAvailableShareData(readClient, readClient.account.address)
-		availableDisputes.deepValue = await getAvailableDisputes(readClient, readClient.account.address)
-		availableReports.deepValue = await getAvailableReports(readClient, readClient.account.address)
-		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)
+		availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
+		availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+		availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
 	}
 
 	const claim = async () => {
@@ -306,12 +254,12 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
 					<DisplayShareData availableShareData = { availableShareData } selectedShares = { selectedShares }/>
-					<button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Redeem Winning shares from { selectedShares.value.length } markets</button>
+					{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Redeem Winning shares from { selectedShares.value.length } markets</button> }
 					<DisplayDisputesData availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 					<DisplayReportsData availableReports = { availableReports } selectedReports = { selectedReports }/>
-					<button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Redeem { useComputed(() => selectedDisputes.value.length + selectedReports.value.length) } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button>
+					{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Redeem { useComputed(() => selectedDisputes.value.length + selectedReports.value.length) } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button> }
 					<ForkAndRedeemDisputeCrowdSourcers availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-					<button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Redeem { selectedForkedCrowdSourcers.value.length } fork disputes</button>
+					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Redeem { selectedForkedCrowdSourcers.value.length } fork disputes</button> }
 				</div>
 			</div>
 		</section>
