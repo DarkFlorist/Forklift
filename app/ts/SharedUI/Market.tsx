@@ -129,7 +129,7 @@ const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | u
 		return () => clearInterval(timer)
 	}, [end, currentTimeInBigIntSeconds])
 
-	return <span className = 'countdown'>{ timeLeft }</span>
+	return <span className = 'countdown'>Ends in: { timeLeft }</span>
 }
 
 interface ResolvingToProps {
