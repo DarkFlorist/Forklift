@@ -15,7 +15,7 @@ import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
-import { encodePacked, keccak256 } from 'viem'
+import { ContractFunctionExecutionError, encodePacked, keccak256 } from 'viem'
 import * as funtypes from 'funtypes'
 import { LiteralConverterParserFactory } from '../types/types.js'
 
@@ -59,19 +59,19 @@ const parseMarketExtraInfo = (extraInfo: string) => {
 }
 
 export const fetchMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
+	const repBondPromise = getRepBond(readClient, marketAddress)
 	const hotLoadingMarketData = await readClient.readContract({
 		abi: HOT_LOADING_ABI,
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
 		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
 	})
-	const repBond = await getRepBond(readClient, marketAddress)
 	const marketType = MARKET_TYPES[hotLoadingMarketData.marketType]
 	if (marketType === undefined) throw new Error(`unknown market type: ${ hotLoadingMarketData.marketType }`)
 	const reportingState = REPORTING_STATES[hotLoadingMarketData.reportingState]
 	if (reportingState === undefined) throw new Error(`unknown reporting state type: ${ hotLoadingMarketData.reportingState }`)
 	const lastCompletedCrowdSourcer = reportingState === 'PreReporting'	? undefined : await getLastCompletedCrowdSourcer(readClient, marketAddress, hotLoadingMarketData.disputeRound)
-	return { ...hotLoadingMarketData, marketType, reportingState, repBond, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
+	return { ...hotLoadingMarketData, marketType, reportingState, repBond: await repBondPromise, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
 }
 
 export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {
@@ -442,6 +442,25 @@ export const migrateThroughOneFork = async (writeClient: WriteClient, market: Ac
 	})
 }
 
+export const getForkingMarket = async (readClient: ReadClient, market: AccountAddress) => {
+	return await readClient.readContract({
+		abi: MARKET_ABI,
+		functionName: 'getForkingMarket',
+		address: market,
+		args: []
+	})
+}
+
+export const isForkingMarketFinalizedForCurrentMarketsUniverse = async (readClient: ReadClient, market: AccountAddress) => {
+	const forkingMarket = await getForkingMarket(readClient, market)
+	return await readClient.readContract({
+		abi: MARKET_ABI,
+		functionName: 'isFinalized',
+		address: forkingMarket,
+		args: []
+	})
+}
+
 export const disavowCrowdsourcers = async (writeClient: WriteClient, market: AccountAddress) => {
 	return await writeClient.writeContract({
 		abi: MARKET_ABI,
@@ -576,4 +595,38 @@ export const getMarketRepBondForNewMarket = async (client: ReadClient, universe:
 		address: universe,
 		args: []
 	})
+}
+
+export const getRepTotalTheoreticalSupply = async (client: ReadClient, repToken: AccountAddress) => {
+	return await client.readContract({
+		abi: REPUTATION_TOKEN_ABI,
+		functionName: 'getTotalTheoreticalSupply',
+		address: repToken,
+		args: []
+	})
+}
+
+export const getTotalSupply = async (client: ReadClient, repToken: AccountAddress) => {
+	return await client.readContract({
+		abi: REPUTATION_TOKEN_ABI,
+		functionName: 'totalSupply',
+		address: repToken,
+		args: []
+	})
+}
+
+export const getWinningChildUniverse = async (client: ReadClient, universe: AccountAddress) => {
+	try {
+		return await client.readContract({
+			abi: UNIVERSE_ABI,
+			functionName: 'getWinningChildUniverse',
+			address: universe,
+			args: []
+		})
+	} catch(error: unknown) {
+		if (error instanceof ContractFunctionExecutionError) { // fails if we don't know yet which universe won
+			return undefined
+		}
+		throw error
+	}
 }
