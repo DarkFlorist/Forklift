@@ -3,6 +3,7 @@ import { MarketData } from './Market.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOptions.js'
 import { ScalarInput } from './ScalarMarketReportingOptions.js'
+import { getPayoutNumeratorsFromScalarOutcome } from '../utils/augurUtils.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
@@ -28,13 +29,7 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 		selectedPayoutNumerators.deepValue = payoutNumerators
 	})
 	useSignalEffect(() => {
-		if (selectedScalarOutcomeInvalid.value) {
-			selectedPayoutNumerators.deepValue = [numTicks.value, 0n, 0n]
-		} else if (selectedScalarOutcome.deepValue === undefined) {
-			selectedPayoutNumerators.deepValue = undefined
-		} else {
-			selectedPayoutNumerators.deepValue = [0n, selectedScalarOutcome.deepValue, numTicks.value - selectedScalarOutcome.deepValue]
-		}
+		selectedPayoutNumerators.deepValue = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minValue.value, maxValue.value, numTicks.value)
 	})
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.marketType === 'Scalar') {
