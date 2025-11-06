@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
-import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getUniverseForkingInformation, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
+import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getRepTotalTheoreticalSupply, getTotalSupply, getUniverseForkingInformation, getWinningChildUniverse, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse, getOutcomeName } from '../../utils/augurUtils.js'
@@ -10,6 +10,7 @@ import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
+import { humanReadableDateDelta } from '../../utils/utils.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -45,6 +46,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
 	const isRepV1ApprovedForMigration = useOptionalSignal<boolean>(true)
+	const repTotalTheoreticalSupply = useOptionalSignal<EthereumQuantity>(undefined)
+	const repSupply = useOptionalSignal<EthereumQuantity>(undefined)
+	const winningUniverse = useOptionalSignal<AccountAddress>(undefined)
+
 	useSignalEffect(() => {
 		universe.deepValue
 		universeForkingInformation.deepValue
@@ -55,7 +60,18 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (readClient === undefined) return
 		if (readClient.account?.address === undefined) return
 		if (reputationTokenAddress.deepValue === undefined) return
+		if (universe.deepValue === undefined) return
+		winningUniverse.deepValue = undefined
+		parentUniverse.deepValue = undefined
+		disputeWindowInfo.deepValue = undefined
+		disputeWindowAddress.deepValue = undefined
 		isRepV1ApprovedForMigration.deepValue = undefined
+		forkingMarketData.deepValue = undefined
+		forkingoutcomeStakes.deepValue = undefined
+		forkValues.deepValue = undefined
+		repTotalTheoreticalSupply.deepValue = undefined
+		repSupply.deepValue = undefined
+		reputationBalance.deepValue = undefined
 		reputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
 		if (isGenesisUniverse(universe.deepValue)) {
 			// retrieve v1 balance only for genesis universe as its only relevant there
@@ -71,8 +87,11 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
 				disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
 			}
+			winningUniverse.deepValue = await getWinningChildUniverse(readClient, universe.deepValue)
 			await refreshChildUniverse()
 		}
+		repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, reputationTokenAddress.deepValue)
+		repSupply.deepValue = await getTotalSupply(readClient, reputationTokenAddress.deepValue)
 	}
 
 	const migrateReputationToChildUniverseByPayoutButton = async () => {
@@ -120,20 +139,57 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const universeValues = useComputed(() => {
 		if (universeForkingInformation.deepValue === undefined) return <></>
 		if (parentUniverse.deepValue === undefined) return <></>
+		if (repTotalTheoreticalSupply.deepValue === undefined) return <></>
+		if (repSupply.deepValue === undefined) return <></>
+
 		return [
 			['Universe Address', universe.deepValue],
 			...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { getUniverseName(parentUniverse.deepValue) }</a>]],
 			['Reputation Address For The Universe', reputationTokenAddress.deepValue],
-			['Is Universe Forking', universeForkingInformation.deepValue.isForking ? 'Yes' : 'No'],
-			['Forking End Time', universeForkingInformation.deepValue.forkEndTime === undefined ? 'Not Forking' : formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime)],
-			['Has Forking Time Ended', universeForkingInformation.deepValue.forkEndTime !== undefined && universeForkingInformation.deepValue.forkEndTime < currentTimeInBigIntSeconds.value ? 'Yes' : 'No'],
-			['Forking Market', universeForkingInformation.deepValue.forkingMarket === undefined ? 'No Forking Market' : universeForkingInformation.deepValue.forkingMarket],
+			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } REP/${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } REP (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
+			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
+			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', universeForkingInformation.deepValue.forkingMarket]],
+			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', winningUniverse.deepValue]],
 		].map(([label, val]) => (
 			<div className = 'detail' key = { label }>
 				<strong>{ label }</strong>
 				<span>{ val }</span>
 			</div>
 		))
+	})
+
+	const isMigrationPeriodActive = useComputed(() => {
+		if (universeForkingInformation.deepValue === undefined) return false
+		if (!universeForkingInformation.deepValue.isForking) return false
+		if (universeForkingInformation.deepValue.forkEndTime > currentTimeInBigIntSeconds.value) return true
+		return false
+	})
+
+	const forkingText = useComputed(() => {
+		if (universeForkingInformation.deepValue === undefined) return <p></p>
+		if (!universeForkingInformation.deepValue.isForking) return <p></p>
+		if (universeForkingInformation.deepValue.forkEndTime > currentTimeInBigIntSeconds.value) {
+			return <span class = 'universe-forking'>
+				<h2>The Universe is forking! Please migrate your Reputation tokens!</h2>
+				<p>Please read the market description carefully and migrate your Reputation tokens to the outcome that you believe is the truthfull outcome of this market. Please also check the market against Augur V2 Reporting rules.</p>
+			</span>
+		}
+		return <span class = 'universe-forking'>
+			<h2>The Universe has forked!</h2>
+			<p>Reputation token migration period has ended.</p>
+		</span>
+	})
+
+	const migrationButton = useComputed(() => {
+		if (!isMigrationPeriodActive.value) return <></>
+		return <div class = 'button-group'>
+			<button class = 'button button-primary button-group-button' onClick = { migrateReputationToChildUniverseByPayoutButton } disabled = { isMigrateDisabled.value }>Migrate { reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } REP to the "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe</button>
+		</div>
+	})
+
+	const forkValuesComponent = useComputed(() => {
+		if (!isMigrationPeriodActive.value) return <></>
+		return <DisplayForkValues forkValues = { forkValues }/>
 	})
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
@@ -144,10 +200,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 				{ universeValues.value }
 			</section>
 			{ universeForkingInformation.deepValue.isForking ? <>
-				<span class ='universe-forking'>
-					<h2>The Universe is forking! Please migrate your Reputation tokens!</h2>
-					<p>Please read the market description carefully and migrate your Reputation tokens to the outcome that you believe is the truthfull outcome of this market. Please also check the market against Augur V2 Reporting rules.</p>
-				</span>
+				{ forkingText }
 				<div class = 'reportingRules detail'>
 					<h2>Reporting Rules</h2>
 					<p>The market should resolve invalid if: </p>
@@ -166,16 +219,13 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
 							<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
-							<DisplayForkValues forkValues = { forkValues }/>
+							{ forkValuesComponent }
 						</span>
 					</Market>
-					{ childUniverseAddress.deepValue !== undefined && BigInt(childUniverseAddress.deepValue) !== 0n ? <p> "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe address: <a href = { childUniverseUrl.value } onClick = { (event) => {
+					{ childUniverseAddress.deepValue !== undefined && BigInt(childUniverseAddress.deepValue) !== 0n && selectedPayoutNumerators.deepValue !== undefined && forkingMarketData.deepValue !== undefined ? <p> "{ getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe address: <a href = { childUniverseUrl.value } onClick = { (event) => {
 						event.preventDefault(); pathSignal.value = childUniverseUrl.value
-						console.log(`pathSignal.value = ${ childUniverseUrl.value }`)
-						} }> { childUniverseAddress.value }</a></p> : <></> }
-					<div class = 'button-group'>
-						<button class = 'button button-primary button-group-button' onClick = { migrateReputationToChildUniverseByPayoutButton } disabled = { isMigrateDisabled.value }>Migrate { forkValues.deepValue === undefined ? '?' : bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n, 2) } REP to the "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe</button>
-					</div>
+					} }> { childUniverseAddress.value }</a></p> : <></> }
+					{ migrationButton }
 				</div>
 			</> : <></> }
 		</section>
