@@ -25,9 +25,10 @@ type MarketReportingOptionsForYesNoAndCategoricalProps = {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	areOptionsDisabled: Signal<boolean>
 	canInitialReport: Signal<boolean>
+	repTokenName: Signal<string>
 }
 
-export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
+export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -55,11 +56,11 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outco
 					<b>{ outcomeStake.outcomeName }</b>
 					{ totalStake.value !== 0n && (
 						<>
-							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } REP</span>
+							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { repTokenName }</span>
 							<span>
 								{ outcomeStake.status === 'Winning'
-									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } REP`
-									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP`
+									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ repTokenName }`
+									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ repTokenName }`
 								}
 							</span>
 						</>
@@ -67,7 +68,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ marketData, outco
 
 					{ outcomeStake.alreadyContributedToOutcomeStake !== undefined && (
 						<span class = 'outcome-contrib'>
-							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } REP / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } REP)
+							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { repTokenName })
 						</span>
 					)}
 				</div>
@@ -104,9 +105,10 @@ type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	pathSignal: Signal<string>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
 	disabled: Signal<boolean>
+	repTokenName: Signal<string>
 }
 
-export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
+export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal, repTokenName }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	return <div class = 'outcome-options'>
 		{
@@ -125,7 +127,7 @@ export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStake
 					</div>
 					<div style = { 'justify-self: end;' }>
 						{ outcomeStake.universeAddress === undefined || BigInt(outcomeStake.universeAddress) === 0n ? <p>Universe address not known</p> : <>
-							<p> Universe: <UniverseLink address = { useComputed(() => outcomeStake.universeAddress) } pathSignal = { pathSignal }/></p>
+							<p> Universe: <UniverseLink address = { useComputed(() => outcomeStake.universeAddress) } pathSignal = { pathSignal }/> ({ repTokenName })</p>
 						</> }
 					</div>
 				</div>

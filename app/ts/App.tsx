@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { batch, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumQuantity } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
@@ -8,13 +8,13 @@ import { assertNever, ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
-import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
+import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE, GENESIS_REPUTATION_V2_TOKEN_ADDRESS } from './utils/constants.js'
 import { bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getUniverseName } from './utils/augurUtils.js'
 import { getForkValues, getReputationTokenForUniverse, getUniverseForkingInformation, isKnownUniverse } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
-import { getErc20TokenBalance } from './utils/erc20.js'
+import { getErc20TokenBalance, getErc20TokenSymbol } from './utils/erc20.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
@@ -24,12 +24,13 @@ import { MarketLink, UniverseLink } from './SharedUI/links.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
+	repTokenName: Signal<string>
 }
 
-const UniverseComponent = ({ universe }: UniverseComponentProps) => {
+const UniverseComponent = ({ universe, repTokenName }: UniverseComponentProps) => {
 	if (universe.deepValue === undefined) return <p> No universe selected</p>
 	const universeName = getUniverseName(universe.deepValue)
-	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b></p>
+	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b> ({ repTokenName })</p>
 }
 
 interface UniverseForkingNoticeProps {
@@ -99,12 +100,13 @@ interface WalletBalancesProps {
 	daiBalance: OptionalSignal<EthereumQuantity>
 	repBalance: OptionalSignal<EthereumQuantity>
 	ethBalance: OptionalSignal<EthereumQuantity>
+	repTokenName: Signal<string>
 }
 
-const WalletBalances = ({ daiBalance, repBalance, ethBalance }: WalletBalancesProps) => {
+const WalletBalances = ({ daiBalance, repBalance, ethBalance, repTokenName }: WalletBalancesProps) => {
 	const balances = []
 	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
-	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } REP`)
+	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ repTokenName }`)
 	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
 	return <div class = 'wallet-balances'>
 		{ balances.map((balance, i) => (
@@ -209,12 +211,14 @@ export function App() {
 	const pathSignal = useSignal<string>('')
 	const updateTokenBalancesSignal = useSignal<number>(0)
 
+	const repTokenName = useSignal<string>('REP')
+
 	const tabs = [
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
-		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
+		{ title: 'Universe Migration', path: 'migration', component: <Migration repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
 		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false }
 	] as const
 
@@ -370,9 +374,20 @@ export function App() {
 		const universeInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
 			if (readClient === undefined) return
 			if (universe === undefined) return
+			batch(() => {
+				reputationTokenAddress.deepValue = undefined
+				repTokenName.value = 'REP'
+				universeForkingInformation.deepValue = undefined
+			})
 			const universeForkingPromise = getUniverseForkingInformation(readClient, universe)
-			reputationTokenAddress.deepValue = await getReputationTokenForUniverse(readClient, universe)
-			universeForkingInformation.deepValue = await universeForkingPromise
+			const reputationTokenAddressNotSignal = await getReputationTokenForUniverse(readClient, universe)
+			const repTokenNameNotSignal = reputationTokenAddressNotSignal === GENESIS_REPUTATION_V2_TOKEN_ADDRESS ? `RepV2` : await getErc20TokenSymbol(readClient, reputationTokenAddressNotSignal)
+			const universeForkingInformationNotSignal = await universeForkingPromise
+			batch(() => {
+				reputationTokenAddress.deepValue = reputationTokenAddressNotSignal
+				repTokenName.value = repTokenNameNotSignal
+				universeForkingInformation.deepValue = universeForkingInformationNotSignal
+			})
 		}
 		universeInfo(maybeReadClient.deepValue, universe.deepValue).catch(console.error)
 	})
@@ -396,13 +411,13 @@ export function App() {
 					<img src = 'favicon.ico' alt = 'Icon' />
 					<div>
 						<span>Augur Forklift</span>
-						<UniverseComponent universe = { universe}/>
+						<UniverseComponent universe = { universe } repTokenName = { repTokenName }/>
 					</div>
 				</div>
 				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ? <button class = 'button button-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button> : <div></div> }
 				<div style = 'display: flex; align-items: center;'>
 					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }>
-						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance }/>
+						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } repTokenName = { repTokenName }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
 				</div>

@@ -30,3 +30,12 @@ export const getErc20TokenBalance = async(readClient: ReadClient, tokenAddress: 
 		args: [account]
 	})
 }
+
+export const getErc20TokenSymbol = async(readClient: ReadClient, tokenAddress: AccountAddress) => {
+	return await readClient.readContract({
+		abi: ERC20_ABI,
+		functionName: 'symbol',
+		address: tokenAddress,
+		args: []
+	})
+}

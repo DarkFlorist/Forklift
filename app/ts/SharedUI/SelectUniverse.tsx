@@ -12,9 +12,10 @@ type SelectUniverseProps = {
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 	pathSignal: Signal<string>
+	repTokenName: Signal<string>
 }
 
-export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
+export function SelectUniverse({ repTokenName, marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
@@ -43,5 +44,5 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 	if (marketData.deepValue.marketType === 'Scalar') {
 		return <ScalarInput selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
 	}
-	return <MarketReportingForYesNoAndCategoricalWithoutStake pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
+	return <MarketReportingForYesNoAndCategoricalWithoutStake repTokenName = { repTokenName } pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
 }

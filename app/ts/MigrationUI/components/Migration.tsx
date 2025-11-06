@@ -22,18 +22,20 @@ interface MigrationProps {
 	pathSignal: Signal<string>
 	currentTimeInBigIntSeconds: Signal<bigint>
 	updateTokenBalancesSignal: Signal<number>
+	repTokenName: Signal<string>
 }
 
 interface GetForkValuesProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	repTokenName: Signal<string>
 }
 // todo modify this to show this with the current rep in different universes and not just the goal
-const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
+const DisplayForkValues = ({ forkValues, repTokenName }: GetForkValuesProps) => {
 	if (forkValues.deepValue === undefined) return <></>
-	return <div style = 'padding-top: 10px; padding-bottom: 10px'>Fork Reputation Goal (REP required for universe to win): { bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n, 2) } REP</div>
+	return <div style = 'padding-top: 10px; padding-bottom: 10px'>Fork Reputation Goal ({ repTokenName } required for universe to win): { bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n, 2) } { repTokenName }</div>
 }
 
-export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
+export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
@@ -153,7 +155,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			['Universe Address', universe.deepValue],
 			...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <OptionalUniverseLink address = { parentUniverse } pathSignal = { pathSignal }/> ]],
 			['Reputation Address For The Universe', reputationTokenAddress.deepValue],
-			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } REP/${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } REP (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
+			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } ${ repTokenName } / ${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ repTokenName } (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
 			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', universeForkingInformation.deepValue.forkingMarket]],
 			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', winningUniverse.deepValue]],
@@ -190,19 +192,19 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const migrationButton = useComputed(() => {
 		if (!isMigrationPeriodActive.value) return <></>
 		return <div class = 'button-group'>
-			<button class = 'button button-primary button-group-button' onClick = { migrateReputationToChildUniverseByPayoutButton } disabled = { isMigrateDisabled.value }>Migrate { reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } REP to the "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe</button>
+			<button class = 'button button-primary button-group-button' onClick = { migrateReputationToChildUniverseByPayoutButton } disabled = { isMigrateDisabled.value }>Migrate { reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } { repTokenName } to the "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe</button>
 		</div>
 	})
 
 	const forkValuesComponent = useComputed(() => {
 		if (!isMigrationPeriodActive.value) return <></>
-		return <DisplayForkValues forkValues = { forkValues }/>
+		return <DisplayForkValues repTokenName = { repTokenName } forkValues = { forkValues }/>
 	})
 
 	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
-			<h1>Universe { getUniverseName(universe.deepValue) }</h1>
+			<h1>Universe { getUniverseName(universe.deepValue) } ({ repTokenName })</h1>
 			<section class = 'details-grid'>
 				{ universeValues.value }
 			</section>
@@ -223,9 +225,9 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 
 				<div class = 'forkMarket'>
 					<span class = 'border-text'>Forking Market</span>
-					<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
+					<Market repTokenName = { repTokenName } marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
-							<SelectUniverse pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+							<SelectUniverse repTokenName = { repTokenName } pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 							{ forkValuesComponent }
 						</span>
 					</Market>

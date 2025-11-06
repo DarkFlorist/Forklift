@@ -20,9 +20,10 @@ interface AllowancesProps {
 	marketCreationCostRep: OptionalSignal<bigint>
 	allowedRep: OptionalSignal<bigint>
 	allowedDai: OptionalSignal<bigint>
+	repTokenName: Signal<string>
 }
 
-export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai }: AllowancesProps) => {
+export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, repTokenName }: AllowancesProps) => {
 	const daiAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 	const repAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 	const cannotSetDaiAllowance = useComputed(() => {
@@ -64,7 +65,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 	}
 
 	const daiAllowanceText = useComputed(() => `Allowed DAI: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
-	const repAllowanceText = useComputed(() => `Allowed REP: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } REP (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } REP)`)
+	const repAllowanceText = useComputed(() => `Allowed ${ repTokenName }: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ repTokenName } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ repTokenName })`)
 	return <div class = 'form-grid'>
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
@@ -75,7 +76,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<Input
 					class = 'input reporting-panel-input'
 					type = 'text'
-					placeholder = 'REP to allow'
+					placeholder = { useComputed(() => `${ repTokenName } to allow`) }
 					disabled = { useComputed(() => false) }
 					style = { { maxWidth: '300px' } }
 					value = { daiAllowanceToBeSet }
@@ -121,11 +122,11 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 						return bigintToDecimalString(amount, 18n, 18)
 					}}
 				/>
-				<span class = 'unit'>REP</span>
+				<span class = 'unit'>{ repTokenName }</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
 			</div>
 			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetRepAllowance.value } onClick = { approveRep }>
-				Set REP allowance
+				Set { repTokenName } allowance
 			</button>
 		</div>
 	</div>
@@ -136,12 +137,13 @@ interface CostsParams {
 	marketCreationCostRep: OptionalSignal<bigint>
 	baseFee: OptionalSignal<bigint>
 	marketCreationCasCost: OptionalSignal<bigint>
+	repTokenName: Signal<string>
 }
 
-export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationCasCost }: CostsParams) => {
+export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationCasCost, repTokenName }: CostsParams) => {
 	const ethCost = useComputed(() => marketCreationCasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationCasCost.deepValue * baseFee.deepValue, 18n, 6))
 	return <p>
-		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } REP</b> to create a market. The REP will be returned to you after a succesfull initial report and the DAI will be returned to you if the market resolves to non-invalid.
+		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } { repTokenName }</b> to create a market. The { repTokenName } will be returned to you after a succesfull initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
 }
 
@@ -153,6 +155,7 @@ interface CreateYesNoMarketProps {
 	daiBalance: OptionalSignal<bigint>
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
+	repTokenName: Signal<string>
 }
 
 const isValidDate = (dateStr: string): boolean => {
@@ -174,7 +177,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance, repTokenName }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -486,9 +489,9 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				</div>
 			</div>
 
-			<Allowances maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai }/>
+			<Allowances repTokenName = { repTokenName } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai }/>
 
-			<Costs marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationCasCost = { marketCreationCasCost }/>
+			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationCasCost = { marketCreationCasCost }/>
 			<div class = 'button-group'>
 				<button class = 'button button-primary button-group-button' onClick = { createMarket } disabled = { createMarketDisabled.value } style = { { width: '100%' } }>
 					Create Market

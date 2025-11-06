@@ -22,9 +22,10 @@ interface ForkMigrationProps {
 	forkingMarketFinalized: OptionalSignal<boolean>
 	refreshData: () => Promise<void>
 	pathSignal: Signal<string>
+	repTokenName: Signal<string>
 }
 
-export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData, pathSignal }: ForkMigrationProps) => {
+export const ForkMigration = ({ repTokenName, marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData, pathSignal }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	if (disabled.value === true) return <></>
 	const initialReportReason = useSignal<string>('')
@@ -53,7 +54,7 @@ export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteCl
 	return <>
 		<div style = 'display: grid; gap: 1.5rem;'>
 			<span><b>Market Fork Migration:</b></span>
-			<SelectUniverse pathSignal = { pathSignal } marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+			<SelectUniverse repTokenName = { repTokenName } pathSignal = { pathSignal } marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input
@@ -83,9 +84,10 @@ interface DisplayStakesProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	repBalance: OptionalSignal<bigint>
 	refreshData: () => Promise<void>
+	repTokenName: Signal<string>
 }
 
-export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
+export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	if (forkValues.deepValue === undefined) return <></>
 
@@ -242,11 +244,11 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 		if (marketData.deepValue === undefined) return <></>
 		if (marketData.deepValue.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
-				<ReportedScalarInputs outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
+				<ReportedScalarInputs repTokenName = { repTokenName } outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
 				<ScalarInput pathSignal = { pathSignal } selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOptionsDisabled } />
 			</div>
 		} else {
-			return <MarketReportingOptionsForYesNoAndCategorical outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
+			return <MarketReportingOptionsForYesNoAndCategorical repTokenName = { repTokenName } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
 		}
 	})
 
@@ -278,7 +280,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 					<Input
 						class = 'input reporting-panel-input'
 						type = 'text'
-						placeholder = 'REP to stake'
+						placeholder = { useComputed(()=> `${ repTokenName } to stake`) }
 						disabled = { isDisabled.value }
 						style = { { maxWidth: '300px' } }
 						value = { amountInput }
@@ -294,10 +296,10 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 							return bigintToDecimalString(amount, 18n, 18)
 						}}
 					/>
-					<span class = 'unit'>REP</span>
+					<span class = 'unit'>{ repTokenName }</span>
 					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
 						<>
-							<span style = 'white-space: nowrap'>/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } REP</span>
+							<span style = 'white-space: nowrap'>/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2) } { repTokenName }</span>
 							<button class = 'button button-primary button-small' onClick = { setMaxStake }>Max</button>
 							{ marketData.deepValue?.repBond !== undefined && isInitialReporting.value && (
 								<span style = 'white-space: nowrap'>+ { bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } (initial reporter bond)</span>
@@ -314,7 +316,7 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				class = 'button button-primary'
 				disabled = { reportDisabled.value }
 				onClick = { handleReport }>
-				{ selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) } REP` : 'Report'}
+				{ selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) } ${ repTokenName }` : 'Report'}
 			</button>
 		</div>
 	</div>
@@ -325,8 +327,9 @@ interface ReportingHistoryProps {
 	marketData: OptionalSignal<MarketData>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
+	repTokenName: Signal<string>
 }
-export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, forkValues }: ReportingHistoryProps) => {
+export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, forkValues, repTokenName }: ReportingHistoryProps) => {
 	if (reportingHistory.deepValue === undefined) return <></>
 	if (marketData.deepValue === undefined) return <></>
 	if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
@@ -344,14 +347,14 @@ export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, 
 			return <div class = 'reporting-round'>
 				<span><b>{ round.type } Round { round.round }</b></span>
 				<span>Outcome: { outcomeName }</span>
-				<span>Stake: { bigintToDecimalString(round.stake, 18n, 2) } REP</span>
-				<span>Size: { bigintToDecimalString(round.size, 18n, 2) } REP</span>
+				<span>Stake: { bigintToDecimalString(round.stake, 18n, 2) } { repTokenName }</span>
+				<span>Size: { bigintToDecimalString(round.size, 18n, 2) } { repTokenName }</span>
 			</div>
 		})}
 
 		<div class = 'reporting-summary'>
-			<span><b>Total REP Staked:</b> { bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2) } REP</span>
-			<span><b>Forking Augur After:</b> { bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2) } REP staked within one round</span>
+			<span><b>Total { repTokenName } Staked:</b> { bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2) } { repTokenName }</span>
+			<span><b>Forking Augur After:</b> { bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2) } { repTokenName } staked within one round</span>
 		</div>
 	</div>
 }
@@ -365,9 +368,10 @@ interface ReportingProps {
 	selectedMarket: OptionalSignal<AccountAddress>
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
+	repTokenName: Signal<string>
 }
 
-export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: ReportingProps) => {
+export const Reporting = ({ repTokenName, updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
@@ -486,7 +490,7 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
-				<Market marketData = { marketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
+				<Market repTokenName = { repTokenName } marketData = { marketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } addressComponent = { <>
 					<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
 						<Input
 							style = 'height: fit-content;'
@@ -513,11 +517,11 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 					</div>
 				</> }>
 					{ showReporting.value ? <>
-						<ReportingHistory marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-						<DisplayStakes repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
+						<ReportingHistory repTokenName = { repTokenName } marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
+						<DisplayStakes repTokenName = { repTokenName } repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 					</> : <></> }
 					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
-					<ForkMigration pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
+					<ForkMigration repTokenName = { repTokenName } pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
 				</Market>
 			</div>
 		</section>
