@@ -1,10 +1,11 @@
 import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { EthereumQuantity } from '../types/types.js'
+import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 import { MarketData } from './Market.js'
+import { UniverseLink } from './links.js'
 
 export type OutcomeStake = {
 	outcomeName: string
@@ -12,6 +13,7 @@ export type OutcomeStake = {
 	status: 'Winning' | 'Losing' | 'Tie'
 	payoutNumerators: readonly EthereumQuantity[]
 	alreadyContributedToOutcomeStake: undefined | bigint
+	universeAddress: AccountAddress | undefined
 }
 
 type MarketReportingOptionsForYesNoAndCategoricalProps = {
@@ -91,18 +93,25 @@ export type MarketOutcomeOption = {
 	payoutNumerators: readonly EthereumQuantity[]
 }
 
+export type MarketOutcomeOptionWithUniverse = {
+	outcomeName: string
+	payoutNumerators: readonly EthereumQuantity[]
+	universeAddress: AccountAddress | undefined
+}
+
 type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
-	outcomeStakes: OptionalSignal<readonly MarketOutcomeOption[]>
+	pathSignal: Signal<string>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
 	disabled: Signal<boolean>
 }
 
-export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
+export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	return <div class = 'outcome-options'>
 		{
 			outcomeStakes.deepValue.map((outcomeStake) => (
-				<div class = 'outcome-option' key = { outcomeStake.outcomeName }>
+				<div class = 'outcome-option' key = { outcomeStake.outcomeName } style = { 'grid-template-columns: max-content max-content 1fr;'}>
 					<input
 						disabled = { disabled }
 						type = 'radio'
@@ -113,6 +122,11 @@ export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStake
 					/>
 					<div class = 'outcome-info'>
 						<b>{ outcomeStake.outcomeName }</b>
+					</div>
+					<div style = { 'justify-self: end;' }>
+						{ outcomeStake.universeAddress === undefined || BigInt(outcomeStake.universeAddress) === 0n ? <p>Universe address not known</p> : <>
+							<p> Universe: <UniverseLink address = { useComputed(() => outcomeStake.universeAddress) } pathSignal = { pathSignal }/></p>
+						</> }
 					</div>
 				</div>
 			))

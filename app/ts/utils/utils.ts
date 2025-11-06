@@ -35,3 +35,9 @@ export const indexOfMax = (array: readonly bigint[]) => {
 }
 
 export const isNumeric = (value: string) => /^-?\d+$/.test(value)
+
+export function areEqualArrays<T>(first: T[], second: T[]) {
+	if (first === second) return true
+	if (first.length !== second.length) return false
+	return first.every((value, index) => value === second[index])
+}

@@ -1,4 +1,4 @@
-import { NonHexBigInt } from '../types/types.js'
+import { AccountAddress, NonHexBigInt } from '../types/types.js'
 import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
@@ -6,6 +6,7 @@ import { getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
 import { OutcomeStake } from './YesNoCategoricalMarketReportingOptions.js'
+import { UniverseLink } from './links.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
@@ -15,9 +16,11 @@ type ScalarInputProps = {
 	unit: Signal<string>
 	invalid: Signal<boolean>
 	disabled: Signal<boolean>
+	selectedOutcomeUniverseAddress: Signal<AccountAddress | undefined>
+	pathSignal: Signal<string>
 }
 
-export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled }: ScalarInputProps) {
+export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverseAddress, pathSignal }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
 	const invalidInput = useSignal<boolean>(false)
@@ -85,6 +88,7 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 				<span class = 'invalid-tag'>Invalid</span>
 			</label>
 		</div>
+		<p> Universe Address: <UniverseLink address = { selectedOutcomeUniverseAddress } pathSignal = { pathSignal }/></p>
 	</div>
 }
 

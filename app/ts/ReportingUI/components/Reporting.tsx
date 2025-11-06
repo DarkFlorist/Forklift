@@ -1,9 +1,9 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getForkingMarket, isForkingMarketFinalizedForCurrentMarketsUniverse } from '../../utils/augurContractUtils.js'
+import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getForkingMarket, isForkingMarketFinalizedForCurrentMarketsUniverse, getWinningChildUniverse } from '../../utils/augurContractUtils.js'
 import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
-import { MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeOptionWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutcomeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -16,14 +16,15 @@ import { min } from '../../utils/utils.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
-	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	disabled: Signal<boolean>
 	forkingMarketFinalized: OptionalSignal<boolean>
 	refreshData: () => Promise<void>
+	pathSignal: Signal<string>
 }
 
-export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData }: ForkMigrationProps) => {
+export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData, pathSignal }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	if (disabled.value === true) return <></>
 	const initialReportReason = useSignal<string>('')
@@ -52,7 +53,7 @@ export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteCl
 	return <>
 		<div style = 'display: grid; gap: 1.5rem;'>
 			<span><b>Market Fork Migration:</b></span>
-			<SelectUniverse marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+			<SelectUniverse pathSignal = { pathSignal } marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input
@@ -143,7 +144,8 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				repStake: 0n,
 				status: 'Losing',
 				payoutNumerators,
-				alreadyContributedToOutcomeStake: undefined
+				alreadyContributedToOutcomeStake: undefined,
+				universeAddress: undefined
 			} as const
 			return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing, marketData.deepValue.lastCompletedCrowdSourcer)
 		} else {
@@ -200,7 +202,8 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 				repStake: 0n,
 				status: 'Losing',
 				payoutNumerators,
-				alreadyContributedToOutcomeStake: undefined
+				alreadyContributedToOutcomeStake: undefined,
+				universeAddress: undefined
 			} as const
 			try {
 				await report(reportingOutcomeStake, reason.value, amountInput.deepValue)
@@ -232,12 +235,15 @@ export const DisplayStakes = ({ outcomeStakes, maybeWriteClient, marketData, dis
 	const numTicks = useComputed(() => marketData.deepValue?.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
 
+	const selectedOutcomeUniverseAddress = new Signal<AccountAddress | undefined>(undefined)
+	const pathSignal = new Signal<string>(undefined)
+
 	const ReportingComponent = useComputed(() => {
 		if (marketData.deepValue === undefined) return <></>
 		if (marketData.deepValue.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
 				<ReportedScalarInputs outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
-				<ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOptionsDisabled } />
+				<ScalarInput pathSignal = { pathSignal } selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOptionsDisabled } />
 			</div>
 		} else {
 			return <MarketReportingOptionsForYesNoAndCategorical outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
@@ -372,9 +378,11 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 	const forkingMarketFinalized = useOptionalSignal<boolean>(undefined)
 	const isMarketDisavowed = useOptionalSignal<boolean>(undefined)
 	const isForkingMarket = useOptionalSignal<boolean>(undefined)
+	const pathSignal = new Signal<string>(undefined)
+	const winningUniverse = new OptionalSignal<AccountAddress>(undefined)
 
 	const finalizeDisabled = useComputed(() => {
-		if (marketData.deepValue?.reportingState === 'Forking' && isForkingMarket.deepValue) return false
+		if (marketData.deepValue?.reportingState === 'Forking' && isForkingMarket.deepValue && winningUniverse.deepValue !== undefined && BigInt(winningUniverse.deepValue) != 0x0n) return false
 		if (marketData.deepValue?.reportingState === 'AwaitingFinalization') return false
 		return true
 	})
@@ -393,6 +401,9 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 		preemptiveDisputeCrowdsourcerAddress.deepValue = undefined
 		preemptiveDisputeCrowdsourcerStake.deepValue = 0n
 		reportingHistory.deepValue = undefined
+		isMarketDisavowed.deepValue = undefined
+		isForkingMarket.deepValue = undefined
+		winningUniverse.deepValue  = undefined
 	})
 
 	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue).catch(console.error) })
@@ -403,6 +414,7 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 		if (universe.deepValue === undefined) return
 		forkingMarketFinalized.deepValue = undefined
 		isMarketDisavowed.deepValue = undefined
+		winningUniverse.deepValue = undefined
 
 		marketData.deepValue = await fetchMarketData(maybeReadClient, selectedMarket)
 		const currentMarketData = marketData.deepValue
@@ -434,7 +446,8 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 				repStake: info.stake,
 				status: index === winningIndex ? 'Winning' : (winningIndex === -1 ? 'Tie' : 'Losing'),
 				payoutNumerators,
-				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(maybeReadClient, currentMarketData.marketAddress, payoutHash))?.stake
+				alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(maybeReadClient, currentMarketData.marketAddress, payoutHash))?.stake,
+				universeAddress: undefined
 			}
 		}))
 		const disputeWindowAddress = await getDisputeWindow(maybeReadClient, selectedMarket)
@@ -450,8 +463,10 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 			|| currentMarketData.reportingState === 'DesignatedReporting')) {
 			reportingHistory.deepValue = await getReportingHistory(maybeReadClient, selectedMarket, currentMarketData.disputeRound)
 		}
-
 		forkingMarketFinalized.deepValue = await isForkingMarketFinalizedForCurrentMarketsUniverse(maybeReadClient, selectedMarket)
+		if (currentMarketData.reportingState === 'Forking') {
+			winningUniverse.deepValue = await getWinningChildUniverse(maybeReadClient, currentMarketData.universe)
+		}
 	}
 
 	const refreshDataButton = async () => {
@@ -502,7 +517,7 @@ export const Reporting = ({ updateTokenBalancesSignal, repBalance, maybeReadClie
 						<DisplayStakes repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 					</> : <></> }
 					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <button class = 'button button-primary' onClick = { finalizeMarketButton } disabled = { finalizeDisabled }>Finalize Market</button> }
-					<ForkMigration forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
+					<ForkMigration pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
 				</Market>
 			</div>
 		</section>

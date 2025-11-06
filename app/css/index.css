@@ -530,6 +530,12 @@ input[type="checkbox"].custom-input:checked::before {
 	color: #f0f0f0;
 }
 
+a {
+	color: blueviolet;
+	text-decoration: none;
+	transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
 h3 {
 	font-size: 1.1rem;
 	font-weight: 600;

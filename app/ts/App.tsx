@@ -20,6 +20,7 @@ import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurE
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
 import { paramsToHashPath, parseHashPath } from './utils/hashRouter.js'
 import { RepV1Migration } from './RepV1Migration/RepV1Migration.js'
+import { MarketLink, UniverseLink } from './SharedUI/links.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -34,9 +35,10 @@ const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 interface UniverseForkingNoticeProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
+	pathSignal: Signal<string>
 }
 
-const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigIntSeconds }: UniverseForkingNoticeProps) => {
+const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigIntSeconds, pathSignal }: UniverseForkingNoticeProps) => {
 	if (universeForkingInformation.deepValue !== undefined && universeForkingInformation.deepValue.isForking) {
 		const forkingEndTime = bigintSecondsToDate(universeForkingInformation.deepValue.forkEndTime)
 		return <div class = 'universe-forking-notice'>
@@ -45,16 +47,18 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 					(time: number) => {
 						if (universeForkingInformation.deepValue === undefined) return <></>
 						if (universeForkingInformation.deepValue.isForking === false) return <></>
+						const forkingMarketSignal = new Signal(universeForkingInformation.deepValue.forkingMarket)
+						const universeSignal = new Signal(universeForkingInformation.deepValue.universe)
 						if (time <= 0) return <>
 							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) } </b> has forked off.
-							A disagreement on the outcome of the market { universeForkingInformation.deepValue.forkingMarket } has caused the fork.
+							A disagreement on the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/> has caused the fork.
 							Please use some other universe.
 						</>
 						return <>
-							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) }</b> is currently forking.
+							The universe <b> <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
 							The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
-							This fork was triggered by a disagreement over the outcome of the market { universeForkingInformation.deepValue.forkingMarket }.
-							Please migrate your reputation tokens before the fork ends to avoid losing them.
+							This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
+							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from here: <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/>
 						</>
 					}
 				}/>
@@ -209,7 +213,7 @@ export function App() {
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance }/>, hide: false },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket }/>, hide: false },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false },
 		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>, hide: false },
 		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }/>, hide: false }
 	] as const
@@ -352,7 +356,6 @@ export function App() {
 	}
 
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
-		console.log('update token balances')
 		if (writeClient === undefined) return
 		const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
 		const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
@@ -404,7 +407,7 @@ export function App() {
 					</WalletComponent>
 				</div>
 			</div>
-			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } pathSignal = { pathSignal }/>
 		</div>
 		<Tabs tabs = { tabs } activeTab = { activeTab }/>
 		<footer class = 'site-footer'>
