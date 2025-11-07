@@ -112,6 +112,7 @@ interface MarketProps {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
+	repTokenName: Signal<string>
 }
 
 const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | undefined>, currentTimeInBigIntSeconds: Signal<bigint> }) => {
@@ -173,7 +174,7 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 	}/>
 }
 
-export const Market = ({ marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
+export const Market = ({ repTokenName, marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
 	if (marketData.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
@@ -229,7 +230,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 					['Affiliate Fee', marketData.deepValue.affiliateFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.affiliateFeeDivisor)).toFixed(2) }%` ],
 
 					['Validity Bond', `${ bigintToDecimalString(marketData.deepValue.validityBond, 18n, 2) } DAI`],
-					['Rep Bond', `${ bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } REP `],
+					['Rep Bond', `${ bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } ${ repTokenName } `],
 
 					['Categories', (marketData.deepValue.parsedExtraInfo?.categories || []).join(', ')],
 					['Tags', (marketData.deepValue.parsedExtraInfo?.tags || []).join(', ')],

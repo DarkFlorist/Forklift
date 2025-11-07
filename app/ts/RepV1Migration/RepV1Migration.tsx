@@ -2,7 +2,7 @@ import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity } from '../types/types.js'
 import { migrateFromRepV1toRepV2GenesisToken } from '../utils/augurContractUtils.js'
 import { approveErc20Token, getAllowanceErc20Token, getErc20TokenBalance } from '../utils/erc20.js'
-import { REPUTATION_V1_TOKEN_ADDRESS } from '../utils/constants.js'
+import { GENESIS_REPUTATION_V2_TOKEN_ADDRESS, REPUTATION_V1_TOKEN_ADDRESS } from '../utils/constants.js'
 import { Signal, useComputed, useSignalEffect } from '@preact/signals'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
@@ -23,8 +23,6 @@ const Info = ({ text }: { text: Signal<string | undefined> }) => {
 		</div>
 	</div>
 }
-
-const GENESIS_REPUTATION_V2_TOKEN_ADDRESS = '0x221657776846890989a759BA2973e427DfF5C9bB'
 
 export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient }: RepV1MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)

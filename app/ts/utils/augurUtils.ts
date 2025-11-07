@@ -1,6 +1,6 @@
 import { MarketData } from '../SharedUI/Market.js'
 import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOptions.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { AccountAddress, EthereumQuantity, MarketType } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
 import { GENESIS_UNIVERSE, YES_NO_OPTIONS } from './constants.js'
 import { assertNever } from './errorHandling.js'
@@ -17,7 +17,6 @@ export const isGenesisUniverse = (universeAddress: AccountAddress | undefined) =
 
 export const getAllPayoutNumeratorCombinations = (numOutcomes: bigint, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: Number(numOutcomes) }, (_, outcome) => Array.from({ length: Number(numOutcomes) }, (_, index) => index === outcome ? numTicks : 0n))
 
-type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
 export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
 	if (index === 0) return 'Invalid'
 	if (marketType === 'Yes/No') {

@@ -460,3 +460,5 @@ type ToWireType<T> =
 	: T extends funtypes.ParsedValue<infer U, infer _> ? ToWireType<U>
 	: T extends funtypes.Codec<infer U> ? U
 	: never
+
+export type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
