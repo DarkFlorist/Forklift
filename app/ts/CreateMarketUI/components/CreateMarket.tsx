@@ -136,12 +136,12 @@ interface CostsParams {
 	marketCreationCostDai: OptionalSignal<bigint>
 	marketCreationCostRep: OptionalSignal<bigint>
 	baseFee: OptionalSignal<bigint>
-	marketCreationCasCost: OptionalSignal<bigint>
+	marketCreationGasCost: OptionalSignal<bigint>
 	repTokenName: Signal<string>
 }
 
-export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationCasCost, repTokenName }: CostsParams) => {
-	const ethCost = useComputed(() => marketCreationCasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationCasCost.deepValue * baseFee.deepValue, 18n, 6))
+export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationGasCost, repTokenName }: CostsParams) => {
+	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6))
 	return <p>
 		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } { repTokenName }</b> to create a market. The { repTokenName } will be returned to you after a succesfull initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
@@ -192,7 +192,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	const marketCreationCostDai = useOptionalSignal<bigint>(undefined)
 	const allowedDai = useOptionalSignal<bigint>(undefined)
 	const allowedRep = useOptionalSignal<bigint>(undefined)
-	const marketCreationCasCost = useOptionalSignal<bigint>(undefined)
+	const marketCreationGasCost = useOptionalSignal<bigint>(undefined)
 	const baseFee = useOptionalSignal<bigint>(undefined)
 
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined, reputationTokenAddress: AccountAddress | undefined) => {
@@ -288,7 +288,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				if (readClient === undefined) return
 				if (marketEndTimeUnixTimeStamp === undefined) return
 				try {
-				    marketCreationCasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
 				} catch(error: unknown) {
 					if (error instanceof ContractFunctionExecutionError) return
 					throw error
@@ -491,7 +491,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 
 			<Allowances repTokenName = { repTokenName } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai }/>
 
-			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationCasCost = { marketCreationCasCost }/>
+			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
 			<div class = 'button-group'>
 				<button class = 'button button-primary button-group-button' onClick = { createMarket } disabled = { createMarketDisabled.value } style = { { width: '100%' } }>
 					Create Market
