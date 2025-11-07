@@ -13,6 +13,7 @@ import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { min } from '../../utils/utils.js'
+import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -88,9 +89,6 @@ interface DisplayStakesProps {
 }
 
 export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
-	if (outcomeStakes.deepValue === undefined) return <></>
-	if (forkValues.deepValue === undefined) return <></>
-
 	const selectedOutcome = useSignal<string | null>(null)
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
@@ -252,6 +250,11 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 		}
 	})
 
+	if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <div class = 'reporting-panel'>
+		<h3>Market Reporting:</h3>
+		<CenteredBigSpinner/>
+	</div>
+
 	return <div class = 'reporting-panel'>
 		<h3>Market Reporting:</h3>
 		{ isDisabled.value && (<span><b>The reporting is closed for this round. Please check again in the next round.</b></span>)}
@@ -330,9 +333,12 @@ interface ReportingHistoryProps {
 	repTokenName: Signal<string>
 }
 export const ReportingHistory = ({ reportingHistory, marketData, outcomeStakes, forkValues, repTokenName }: ReportingHistoryProps) => {
-	if (reportingHistory.deepValue === undefined) return <></>
-	if (marketData.deepValue === undefined) return <></>
-	if (outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) return <></>
+	if (reportingHistory.deepValue === undefined || marketData.deepValue === undefined || outcomeStakes.deepValue === undefined || forkValues.deepValue === undefined) {
+		return <div class = 'reporting-history'>
+			<h3>Reporting History:</h3>
+			<CenteredBigSpinner/>
+		</div>
+	}
 
 	return <div class = 'reporting-history'>
 		<h3>Reporting History:</h3>
@@ -393,6 +399,7 @@ export const Reporting = ({ repTokenName, updateTokenBalancesSignal, repBalance,
 	const migrationDisabled = useComputed(() => marketData.deepValue?.reportingState !== 'AwaitingForkMigration')
 	const showReporting = useComputed(() => {
 		const state = marketData.deepValue?.reportingState
+		if (state === undefined) return undefined
 		return state === 'CrowdsourcingDispute' || state === 'DesignatedReporting' || state === 'OpenReporting' || state === 'AwaitingNextWindow'
 	})
 
@@ -466,6 +473,8 @@ export const Reporting = ({ repTokenName, updateTokenBalancesSignal, repBalance,
 			|| currentMarketData.reportingState === 'OpenReporting'
 			|| currentMarketData.reportingState === 'DesignatedReporting')) {
 			reportingHistory.deepValue = await getReportingHistory(maybeReadClient, selectedMarket, currentMarketData.disputeRound)
+		} else {
+			reportingHistory.deepValue = []
 		}
 		forkingMarketFinalized.deepValue = await isForkingMarketFinalizedForCurrentMarketsUniverse(maybeReadClient, selectedMarket)
 		if (currentMarketData.reportingState === 'Forking') {
@@ -516,7 +525,7 @@ export const Reporting = ({ repTokenName, updateTokenBalancesSignal, repBalance,
 						<button class = 'button button-primary' onClick = { refreshDataButton }>Refresh</button>
 					</div>
 				</> }>
-					{ showReporting.value ? <>
+					{ showReporting.value === true ? <>
 						<ReportingHistory repTokenName = { repTokenName } marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
 						<DisplayStakes repTokenName = { repTokenName } repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 					</> : <></> }

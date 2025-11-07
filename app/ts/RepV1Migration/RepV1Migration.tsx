@@ -6,6 +6,7 @@ import { GENESIS_REPUTATION_V2_TOKEN_ADDRESS, REPUTATION_V1_TOKEN_ADDRESS } from
 import { Signal, useComputed, useSignalEffect } from '@preact/signals'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
+import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 
 interface RepV1MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -13,12 +14,11 @@ interface RepV1MigrationProps {
 	updateTokenBalancesSignal: Signal<number>
 }
 
-const Info = ({ text }: { text: Signal<string | undefined> }) => {
-	if (text.value === undefined) return <></>
+const Info = ({ text }: { text: string }) => {
 	return <div class = 'claim-option'>
 		<div class = 'claim-info'>
 			<span>
-				{ text.value }
+				{ text }
 			</span>
 		</div>
 	</div>
@@ -76,15 +76,14 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 	})
 
 	const repV1Info = useComputed(() => {
-		if (v1ReputationBalance.deepValue === undefined) return undefined
-		if (v2ReputationBalance.deepValue === undefined) return undefined
-		return `You have ${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2`
+		if (v1ReputationBalance.deepValue === undefined || v2ReputationBalance.deepValue === undefined) return <CenteredBigSpinner/>
+		return <Info text = { `You have ${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` } />
 	})
 
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<h1>Reputation V1 to V2 Migration</h1>
-			<Info text = { repV1Info } />
+			{ repV1Info }
 			<div class = 'button-group'>
 				<button class = 'button button-primary button-group-button' disabled = { isApproveRepV1ForMigrationDisabled } onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
 				<button class = 'button button-primary button-group-button' disabled = { isMigrateFromRepV1toRepV2GenesisTokenButtonDisabled } onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>

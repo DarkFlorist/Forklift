@@ -10,6 +10,7 @@ import { JSX } from 'preact/jsx-runtime'
 import { Signal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 import { EtherScanAddress } from './links.js'
+import { CenteredBigSpinner } from './Spinner.js'
 
 export type MarketData = Awaited<ReturnType<typeof fetchMarketData>>
 
@@ -157,8 +158,7 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 		if (disputeWindowInfo.deepValue === undefined) return undefined
 		return bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
 	})
-	if (endDate.value === undefined) return <></>
-	if (winningOptionName.value === undefined) return <></>
+	if (endDate.value === undefined || winningOptionName.value === undefined) return <CenteredBigSpinner/>
 	return <SomeTimeAgo priorTimestamp = { endDate.value } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } countBackwards = { true } diffToText = {
 		(time: number) => {
 			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName.value }</b>"</p>
@@ -176,9 +176,10 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 }
 
 export const Market = ({ repTokenName, marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
-	if (marketData.deepValue === undefined) return <div>
+	if (marketData.deepValue === undefined || universe.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
+			<CenteredBigSpinner/>
 		</div>
 	</div>
 	const endTime = useComputed(() => marketData.deepValue?.endTime)

@@ -12,6 +12,7 @@ import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
 import { EtherScanAddress, MarketLink, OptionalUniverseLink } from '../../SharedUI/links.js'
+import { CenteredBigSpinner, PageLoadingSpinner } from '../../SharedUI/Spinner.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -41,7 +42,6 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
-	const childUniverseAddress = useOptionalSignal<AccountAddress>(undefined)
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 	const migrationDisabled = useComputed(() => false)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
@@ -97,7 +97,6 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 				disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
 			}
 			winningUniverse.deepValue = await getWinningChildUniverse(readClient, universe.deepValue)
-			await refreshChildUniverse()
 		}
 		repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, reputationTokenAddress.deepValue)
 		repSupply.deepValue = await getTotalSupply(readClient, reputationTokenAddress.deepValue)
@@ -116,24 +115,6 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		await update(writeClient)
 	}
 
-	const refreshChildUniverse = async () => {
-		childUniverseAddress.deepValue = undefined
-		const writeClient = maybeWriteClient.deepPeek()
-		if (writeClient === undefined) return
-		if (forkingOutcomeStakes.deepValue === undefined) return
-		if (selectedPayoutNumerators.deepValue === undefined) return
-		if (forkingMarketData.deepValue === undefined) return
-		childUniverseAddress.deepValue = await getChildUniverse(writeClient, forkingMarketData.deepValue.universe, selectedPayoutNumerators.deepValue, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.numOutcomes)
-	}
-
-	useSignalEffect(() => {
-		if (maybeWriteClient.deepValue === undefined) return
-		if (forkingOutcomeStakes.deepValue === undefined) return
-		if (selectedPayoutNumerators.deepValue === undefined) return
-		if (forkingMarketData.deepValue === undefined) return
-		refreshChildUniverse().catch(console.error)
-	})
-
 	const isMigrateDisabled = useComputed(() => {
 		if (forkValues.deepValue === undefined) return true
 		if (selectedPayoutNumerators.deepValue === undefined) return true
@@ -141,15 +122,11 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		if (reputationTokenAddress.deepValue === undefined) return true
 		if (reputationBalance.deepValue === undefined) return true
 		if (reputationBalance.deepValue === 0n) return true
-
 		return false
 	})
 
 	const universeValues = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined) return <></>
-		if (parentUniverse.deepValue === undefined) return <></>
-		if (repTotalTheoreticalSupply.deepValue === undefined) return <></>
-		if (repSupply.deepValue === undefined) return <></>
+		if (universeForkingInformation.deepValue === undefined || parentUniverse.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined || repSupply.deepValue === undefined) return <CenteredBigSpinner/>
 
 		return [
 			['Universe Address', <EtherScanAddress address = { new Signal(universe.deepValue) } />],
@@ -175,7 +152,7 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	})
 
 	const forkingText = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined) return <p></p>
+		if (universeForkingInformation.deepValue === undefined) return <CenteredBigSpinner/>
 		if (!universeForkingInformation.deepValue.isForking) return <p></p>
 		if (universeForkingInformation.deepValue.forkEndTime > currentTimeInBigIntSeconds.value) {
 			return <span class = 'universe-forking'>
@@ -197,11 +174,12 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	})
 
 	const forkValuesComponent = useComputed(() => {
+		if (universeForkingInformation.deepValue === undefined) return <CenteredBigSpinner/>
 		if (!isMigrationPeriodActive.value) return <></>
 		return <DisplayForkValues repTokenName = { repTokenName } forkValues = { forkValues }/>
 	})
 
-	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <></>
+	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <PageLoadingSpinner/>
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<h1>Universe { getUniverseName(universe.deepValue) } ({ repTokenName })</h1>

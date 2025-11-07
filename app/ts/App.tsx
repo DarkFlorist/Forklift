@@ -21,6 +21,7 @@ import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
 import { paramsToHashPath, parseHashPath } from './utils/hashRouter.js'
 import { RepV1Migration } from './RepV1Migration/RepV1Migration.js'
 import { MarketLink, UniverseLink } from './SharedUI/links.js'
+import { Spinner } from './SharedUI/Spinner.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<AccountAddress>
@@ -108,10 +109,12 @@ const WalletBalances = ({ daiBalance, repBalance, ethBalance, repTokenName }: Wa
 	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
 	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ repTokenName }`)
 	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
+
 	return <div class = 'wallet-balances'>
 		{ balances.map((balance, i) => (
 			<span key = { i }>{ balance }</span>
 		)) }
+		{ balances.length !== 3 ? <Spinner/> : <></>}
 	</div>
 }
 
