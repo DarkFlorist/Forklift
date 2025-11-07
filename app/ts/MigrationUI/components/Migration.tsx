@@ -12,7 +12,7 @@ import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
 import { EtherScanAddress, MarketLink, OptionalUniverseLink } from '../../SharedUI/links.js'
-import { CenteredBigSpinner, PageLoadingSpinner } from '../../SharedUI/Spinner.js'
+import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 
 interface MigrationProps {
@@ -193,7 +193,13 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		return <DisplayForkValues repTokenName = { repTokenName } forkValues = { forkValues }/>
 	})
 
-	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) return <PageLoadingSpinner/>
+	if (universe.deepValue === undefined || reputationTokenAddress.deepValue === undefined || universeForkingInformation.deepValue === undefined) {
+		return <div class = 'subApplication'>
+			<section class = 'subApplication-card'>
+				<CenteredBigSpinner/>
+			</section>
+		</div>
+	}
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<h1>Universe { getUniverseName(universe.deepValue) } ({ repTokenName })</h1>
