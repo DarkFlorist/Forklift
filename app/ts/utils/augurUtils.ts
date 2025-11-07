@@ -63,15 +63,16 @@ export const getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket = 
 	return allPayoutNumerators.map((payoutNumerators, index) => {
 		const outcomeName = getYesNoCategoricalOutcomeName(index, marketType, outcomes)
 		if (outcomeName === undefined) throw new Error(`outcome did not found for index: ${ index }. Outcomes: [${ outcomes.join(',') }]`)
-		return { outcomeName, payoutNumerators }
+		return { outcomeName, payoutNumerators, universeAddress: undefined }
 	})
 }
 
-// todo, make path typesafe
-export const getUniverseUrl = (universe: AccountAddress, path: string) => {
-	if (BigInt(universe) === BigInt(GENESIS_UNIVERSE)) return `#/${ path }`
-	return `#/${ path }?universe=${ universe }`
+export const getUniverseUrl = (universe: AccountAddress) => {
+	if (BigInt(universe) === BigInt(GENESIS_UNIVERSE)) return `#/migration`
+	return `#/migration?universe=${ universe }`
 }
+
+export const getMarketUrl = (universe: AccountAddress) => `#/reporting?market=${ universe }`
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
 export const requiredStake = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)

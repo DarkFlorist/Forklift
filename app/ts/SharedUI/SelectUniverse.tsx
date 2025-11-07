@@ -1,18 +1,20 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { MarketData } from './Market.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { MarketOutcomeOption, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeOptionWithUniverse, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOptions.js'
 import { ScalarInput } from './ScalarMarketReportingOptions.js'
 import { getPayoutNumeratorsFromScalarOutcome } from '../utils/augurUtils.js'
+import { areEqualArrays } from '../utils/ethereumUtils.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
 	disabled: Signal<boolean>
-	outcomeStakes: OptionalSignal<readonly MarketOutcomeOption[]>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
+	pathSignal: Signal<string>
 }
 
-export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators }: SelectUniverseProps) {
+export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
@@ -21,7 +23,12 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 	const maxValue = useComputed(() => marketData.deepValue?.displayPrices[1] || 0n)
 	const numTicks = useComputed(() => marketData.deepValue?.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
-
+	const selectedOutcomeUniverseAddress = useComputed(() => {
+		const selected = selectedPayoutNumerators.deepValue
+		if (selected === undefined) return undefined
+		if (outcomeStakes.deepValue === undefined) return undefined
+		return outcomeStakes.deepValue.find((outcomeStake) => areEqualArrays(outcomeStake.payoutNumerators, selected))?.universeAddress
+	})
 	useSignalEffect(() => {
 		const payoutNumerators = outcomeStakes.deepValue?.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
 		if (!payoutNumerators) return
@@ -29,11 +36,12 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 		selectedPayoutNumerators.deepValue = payoutNumerators
 	})
 	useSignalEffect(() => {
+		if (selectedScalarOutcome.deepValue === undefined) return
 		selectedPayoutNumerators.deepValue = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minValue.value, maxValue.value, numTicks.value)
 	})
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.marketType === 'Scalar') {
-		return <ScalarInput value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
+		return <ScalarInput selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
 	}
-	return <MarketReportingForYesNoAndCategoricalWithoutStake outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
+	return <MarketReportingForYesNoAndCategoricalWithoutStake pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
 }

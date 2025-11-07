@@ -5,6 +5,7 @@ import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
 import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
+import { MarketLink } from '../SharedUI/links.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -27,9 +28,10 @@ const ClaimInfo = ({ text }: { text: string }) => {
 interface DisplayShareDataProps {
 	availableShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
 	selectedShares: Signal<readonly AccountAddress[]>
+	pathSignal: Signal<string>
 }
 
-const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDataProps) => {
+const DisplayShareData = ({ availableShareData, selectedShares, pathSignal }: DisplayShareDataProps) => {
 	const results = useComputed(() => {
 		if (availableShareData.deepValue === undefined) return <p> loading... </p>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
@@ -46,7 +48,7 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market { shareEntry.market }</b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
+					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
 				</div>
 			</span>
 		</>)
@@ -65,9 +67,10 @@ const DisplayShareData = ({ availableShareData, selectedShares }: DisplayShareDa
 interface DisplayDisputesDataProps {
 	availableDisputes: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>
 	selectedDisputes: Signal<readonly AccountAddress[]>
+	pathSignal: Signal<string>
 }
 
-const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDisputesDataProps) => {
+const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal }: DisplayDisputesDataProps) => {
 	const results = useComputed(() => {
 		if (availableDisputes.deepValue === undefined) return <p> loading... </p>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
@@ -84,7 +87,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market { disputeEntry.market }{ ': ' }</b>
+					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
@@ -104,9 +107,10 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes }: DisplayDis
 interface ForkAndRedeemDisputeCrowdSourcersProps {
 	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>
 	selectedForkedCrowdSourcers: Signal<readonly AccountAddress[]>
+	pathSignal: Signal<string>
 }
 
-const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers }: ForkAndRedeemDisputeCrowdSourcersProps) => {
+const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal }: ForkAndRedeemDisputeCrowdSourcersProps) => {
 	const results = useComputed(() => {
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <p> loading... </p>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
@@ -123,7 +127,7 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market { disputeEntry.market }{ ': ' }</b>
+					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
@@ -143,9 +147,10 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 interface DisplayReportsDataProps {
 	availableReports: OptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>
 	selectedReports: Signal<readonly AccountAddress[]>
+	pathSignal: Signal<string>
 }
 
-const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReportsDataProps) => {
+const DisplayReportsData = ({ availableReports, selectedReports, pathSignal }: DisplayReportsDataProps) => {
 	const results = useComputed(() => {
 		if (availableReports.deepValue === undefined) return <p> loading... </p>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
@@ -162,7 +167,7 @@ const DisplayReportsData = ({ availableReports, selectedReports }: DisplayReport
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market { initialReport.market }{ ': ' }</b>
+					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
@@ -183,9 +188,10 @@ interface ClaimFundsProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	updateTokenBalancesSignal: Signal<number>
+	pathSignal: Signal<string>
 }
 
-export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient }: ClaimFundsProps) => {
+export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
@@ -253,12 +259,12 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		<section class = 'subApplication-card'>
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
-					<DisplayShareData availableShareData = { availableShareData } selectedShares = { selectedShares }/>
+					<DisplayShareData pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
 					{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Redeem Winning shares from { selectedShares.value.length } markets</button> }
-					<DisplayDisputesData availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
-					<DisplayReportsData availableReports = { availableReports } selectedReports = { selectedReports }/>
+					<DisplayDisputesData pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
+					<DisplayReportsData pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
 					{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Redeem { useComputed(() => selectedDisputes.value.length + selectedReports.value.length) } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button> }
-					<ForkAndRedeemDisputeCrowdSourcers availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+					<ForkAndRedeemDisputeCrowdSourcers pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
 					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Redeem { selectedForkedCrowdSourcers.value.length } fork disputes</button> }
 				</div>
 			</div>

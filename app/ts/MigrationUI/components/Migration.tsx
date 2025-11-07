@@ -3,14 +3,15 @@ import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/t
 import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getRepTotalTheoreticalSupply, getTotalSupply, getUniverseForkingInformation, getWinningChildUniverse, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
-import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, getUniverseUrl, isGenesisUniverse, getOutcomeName } from '../../utils/augurUtils.js'
+import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignalEffect } from '@preact/signals'
 import { addressString, bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { MarketOutcomeOption } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeOptionWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
+import { OptionalUniverseLink } from '../../SharedUI/links.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -34,13 +35,11 @@ const DisplayForkValues = ({ forkValues }: GetForkValuesProps) => {
 
 export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
-	const forkingoutcomeStakes = useOptionalSignal<readonly MarketOutcomeOption[]>(undefined)
+	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)
 	const childUniverseAddress = useOptionalSignal<AccountAddress>(undefined)
-	const childUniverseUrl = useComputed(() => childUniverseAddress.deepValue === undefined ? '' : getUniverseUrl(childUniverseAddress.deepValue, 'migration'))
-	const parentUniverseUrl = useComputed(() => parentUniverse.deepValue === undefined ? '' : getUniverseUrl(parentUniverse.deepValue, 'migration'))
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 	const migrationDisabled = useComputed(() => false)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
@@ -67,7 +66,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		disputeWindowAddress.deepValue = undefined
 		isRepV1ApprovedForMigration.deepValue = undefined
 		forkingMarketData.deepValue = undefined
-		forkingoutcomeStakes.deepValue = undefined
+		forkingOutcomeStakes.deepValue = undefined
 		forkValues.deepValue = undefined
 		repTotalTheoreticalSupply.deepValue = undefined
 		repSupply.deepValue = undefined
@@ -80,8 +79,16 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
 		}
 		if (universeForkingInformation.deepValue?.isForking) {
-			forkingMarketData.deepValue = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
-			forkingoutcomeStakes.deepValue = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
+			const forkingMarket = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
+			forkingMarketData.deepValue = forkingMarket
+			const outcomeStakes = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
+			forkingOutcomeStakes.deepValue = await Promise.all(outcomeStakes.map(async (outcomeStakes) => {
+				return {
+					...outcomeStakes,
+					universeAddress: await getChildUniverse(readClient, forkingMarket.universe, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes)
+				}
+			}))
+
 			forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
 			disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket)
 			if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
@@ -98,7 +105,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationTokenAddress')
-		if (forkingoutcomeStakes.deepValue === undefined) throw new Error('missing forkingoutcomeStakes')
+		if (forkingOutcomeStakes.deepValue === undefined) throw new Error('missing forkingOutcomeStakes')
 		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not selected')
 		if (reputationBalance.deepValue === undefined) throw new Error('reputationBalance not selected')
 		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, reputationBalance.deepValue)
@@ -111,7 +118,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		childUniverseAddress.deepValue = undefined
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) return
-		if (forkingoutcomeStakes.deepValue === undefined) return
+		if (forkingOutcomeStakes.deepValue === undefined) return
 		if (selectedPayoutNumerators.deepValue === undefined) return
 		if (forkingMarketData.deepValue === undefined) return
 		childUniverseAddress.deepValue = await getChildUniverse(writeClient, forkingMarketData.deepValue.universe, selectedPayoutNumerators.deepValue, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.numOutcomes)
@@ -119,7 +126,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 
 	useSignalEffect(() => {
 		if (maybeWriteClient.deepValue === undefined) return
-		if (forkingoutcomeStakes.deepValue === undefined) return
+		if (forkingOutcomeStakes.deepValue === undefined) return
 		if (selectedPayoutNumerators.deepValue === undefined) return
 		if (forkingMarketData.deepValue === undefined) return
 		refreshChildUniverse().catch(console.error)
@@ -144,7 +151,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 
 		return [
 			['Universe Address', universe.deepValue],
-			...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <a href = '#' onClick = { (event) => { event.preventDefault(); pathSignal.value = parentUniverseUrl.value } }> { getUniverseName(parentUniverse.deepValue) }</a>]],
+			...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <OptionalUniverseLink address = { parentUniverse } pathSignal = { pathSignal }/> ]],
 			['Reputation Address For The Universe', reputationTokenAddress.deepValue],
 			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } REP/${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } REP (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
@@ -218,13 +225,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					<span class = 'border-text'>Forking Market</span>
 					<Market marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
-							<SelectUniverse marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingoutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+							<SelectUniverse pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 							{ forkValuesComponent }
 						</span>
 					</Market>
-					{ childUniverseAddress.deepValue !== undefined && BigInt(childUniverseAddress.deepValue) !== 0n && selectedPayoutNumerators.deepValue !== undefined && forkingMarketData.deepValue !== undefined ? <p> "{ getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe address: <a href = { childUniverseUrl.value } onClick = { (event) => {
-						event.preventDefault(); pathSignal.value = childUniverseUrl.value
-					} }> { childUniverseAddress.value }</a></p> : <></> }
 					{ migrationButton }
 				</div>
 			</> : <></> }
