@@ -46,8 +46,8 @@ export const MARKET_TYPES = [
 
 export const YES_NO_OPTIONS = [
 	'Invalid',
+	'No',
 	'Yes',
-	'No'
 ] as const
 
 export const InvalidRules = [
