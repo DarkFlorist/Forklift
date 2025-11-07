@@ -3,10 +3,11 @@ import { EthereumQuantity } from '../types/types.js'
 import { migrateFromRepV1toRepV2GenesisToken } from '../utils/augurContractUtils.js'
 import { approveErc20Token, getAllowanceErc20Token, getErc20TokenBalance } from '../utils/erc20.js'
 import { GENESIS_REPUTATION_V2_TOKEN_ADDRESS, REPUTATION_V1_TOKEN_ADDRESS } from '../utils/constants.js'
-import { Signal, useComputed, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
+import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 
 interface RepV1MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -28,6 +29,10 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const v1ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const isRepV1ApprovedForMigration = useOptionalSignal<boolean>(true)
+
+	const pendingApproveTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const pendingMigrateTransactionStatus = useSignal<TransactionStatus>(undefined)
+
 	useSignalEffect(() => {
 		update(maybeReadClient.deepValue).catch(console.error)
 	})
@@ -44,18 +49,19 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
-		await migrateFromRepV1toRepV2GenesisToken(writeClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
-
-		updateTokenBalancesSignal.value++
-		await update(writeClient)
+		return await migrateFromRepV1toRepV2GenesisToken(writeClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS)
 	}
 
 	const approveRepV1ForMigration = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (v1ReputationBalance.deepValue === undefined) throw new Error('missing v1ReputationBalance balance')
-		await approveErc20Token(writeClient, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
+		return await approveErc20Token(writeClient, REPUTATION_V1_TOKEN_ADDRESS, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, v1ReputationBalance.deepValue)
+	}
 
+	const refresh = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		updateTokenBalancesSignal.value++
 		await update(writeClient)
 	}
@@ -85,8 +91,24 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 			<h1>Reputation V1 to V2 Migration</h1>
 			{ repV1Info }
 			<div class = 'button-group'>
-				<button class = 'button button-primary button-group-button' disabled = { isApproveRepV1ForMigrationDisabled } onClick = { approveRepV1ForMigration }>Approve Reputation V1 For Migration</button>
-				<button class = 'button button-primary button-group-button' disabled = { isMigrateFromRepV1toRepV2GenesisTokenButtonDisabled } onClick = { migrateFromRepV1toRepV2GenesisTokenButton }>Migrate Reputation V1 Tokens To Reputation V2</button>
+				<SendTransactionButton
+					className = 'button button-primary button-group-button'
+					transactionStatus = { pendingApproveTransactionStatus }
+					sendTransaction = { approveRepV1ForMigration }
+					maybeWriteClient = { maybeWriteClient }
+					disabled = { isApproveRepV1ForMigrationDisabled }
+					text = { useComputed(() => 'Approve Reputation V1 For Migration') }
+					callBackWhenIncluded = { refresh }
+				/>
+				<SendTransactionButton
+					className = 'button button-primary button-group-button'
+					transactionStatus = { pendingMigrateTransactionStatus }
+					sendTransaction = { migrateFromRepV1toRepV2GenesisTokenButton }
+					maybeWriteClient = { maybeWriteClient }
+					disabled = { isMigrateFromRepV1toRepV2GenesisTokenButtonDisabled }
+					text = { useComputed(() => 'Migrate Reputation V1 Tokens To Reputation V2') }
+					callBackWhenIncluded = { refresh }
+				/>
 			</div>
 		</section>
 	</div>

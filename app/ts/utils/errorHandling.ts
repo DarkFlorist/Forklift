@@ -1,3 +1,4 @@
+import { UserRejectedRequestError } from 'viem'
 import { hexToBytes } from './ethereumUtils.js'
 
 export function jsonStringify(value: unknown, space?: string | number | undefined): string {
@@ -28,5 +29,15 @@ export function ensureError(caught: unknown) {
 
 export function assertNever(value: never): never {
 	throw new Error(`Unhandled discriminated union member: ${ JSON.stringify(value) }`)
+}
+
+export const isUserRejectedRequest = (error: unknown) => {
+	if (error instanceof UserRejectedRequestError) return true
+	const potentialError = error as { code?: unknown; name?: unknown; message?: unknown } | undefined
+	if (!potentialError) return false
+	if (potentialError.code === 4001) return true
+	if (potentialError.name === 'UserRejectedRequestError') return true
+	if (typeof potentialError.message === 'string' && /user rejected|user denied|transaction rejected/i.test(potentialError.message)) return true
+	return false
 }
 

@@ -7,6 +7,7 @@ import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
+import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -203,6 +204,11 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 	const selectedReports = useSignal<readonly AccountAddress[]>([])
 	const selectedForkedCrowdSourcers = useSignal<readonly AccountAddress[]>([])
 
+
+	const pendingClaimSharesTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const pendingDisputesAndReportsTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const pendingForkDisputesTransactionStatus = useSignal<TransactionStatus>(undefined)
+
 	useSignalEffect(() => {
 		queryForData(maybeReadClient.deepValue).catch(console.error)
 	})
@@ -227,29 +233,41 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		if (writeClient === undefined) throw new Error('writeClient missing')
 		const reportingParticipants = Array.from(selectedReports.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		const disputeWindows = Array.from(selectedDisputes.value) // Dispute Windows (Participation Tokens) the msg sender has tokens for
-		if (reportingParticipants.length === 0 && disputeWindows.length === 0) return
-		await redeemStake(writeClient, reportingParticipants, disputeWindows)
+		if (reportingParticipants.length === 0 && disputeWindows.length === 0) throw new Error('nothing to claim')
+		return await redeemStake(writeClient, reportingParticipants, disputeWindows)
+	}
+
+	const refreshClaim = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('writeClient missing')
 		updateTokenBalancesSignal.value++
-		await queryForData(writeClient)
 		selectedDisputes.value = []
 		selectedReports.value = []
+		return await queryForData(writeClient)
 	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
-		/*updateTokenBalancesSignal.value++
+	}
+	const refreshShares = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
+		updateTokenBalancesSignal.value++
 		selectedShares.value = []
-		await queryForData(writeClient)
-		*/
+		return await queryForData(writeClient)
 	}
 	const claimForkDisputes = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('account missing')
 		const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
-		if (selected.length === 0) return
-		await forkReportingParticipants(writeClient, selected)
+		if (selected.length === 0) throw new Error('nothing to claim')
+		return await forkReportingParticipants(writeClient, selected)
+	}
+	const refreshClaimForkDisputes = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('account missing')
 		updateTokenBalancesSignal.value++
 		selectedForkedCrowdSourcers.value = []
-		await queryForData(writeClient)
+		return await queryForData(writeClient)
 	}
 
 	const claimWinningSharesDisabled = useComputed(() => selectedShares.value.length === 0)
@@ -261,12 +279,42 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
 					<DisplayShareData pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
-					{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimWinningShares } disabled = { claimWinningSharesDisabled.value }>Redeem Winning shares from { selectedShares.value.length } markets</button> }
+					{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <>
+						<SendTransactionButton
+							className = 'button button-primary'
+							transactionStatus = { pendingClaimSharesTransactionStatus }
+							sendTransaction = { claimWinningShares }
+							maybeWriteClient = { maybeWriteClient }
+							disabled = { claimWinningSharesDisabled }
+							text = { useComputed(() => `Redeem Winning shares from ${ selectedShares.value.length } markets`) }
+							callBackWhenIncluded = { refreshShares }
+						/>
+					</> }
 					<DisplayDisputesData pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 					<DisplayReportsData pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
-					{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claim } disabled = { participationTokensDisabled.value }>Redeem { useComputed(() => selectedDisputes.value.length + selectedReports.value.length) } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds</button> }
+					{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <>
+						<SendTransactionButton
+							className = 'button button-primary'
+							transactionStatus = { pendingDisputesAndReportsTransactionStatus }
+							sendTransaction = { claim }
+							maybeWriteClient = { maybeWriteClient }
+							disabled = { participationTokensDisabled }
+							text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds` )}
+							callBackWhenIncluded = { refreshClaim }
+						/>
+					</> }
 					<ForkAndRedeemDisputeCrowdSourcers pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <button class = 'button button-primary' onClick = { claimForkDisputes } disabled = { claimForkDisputesDisabled.value }>Redeem { selectedForkedCrowdSourcers.value.length } fork disputes</button> }
+					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <>
+						<SendTransactionButton
+							className = 'button button-primary'
+							transactionStatus = { pendingForkDisputesTransactionStatus }
+							sendTransaction = { claimForkDisputes }
+							maybeWriteClient = { maybeWriteClient }
+							disabled = { claimForkDisputesDisabled }
+							text = { useComputed(() => `Redeem ${ selectedForkedCrowdSourcers.value.length } fork disputes` )}
+							callBackWhenIncluded = { refreshClaimForkDisputes }
+						/>
+					</> }
 				</div>
 			</div>
 		</section>
