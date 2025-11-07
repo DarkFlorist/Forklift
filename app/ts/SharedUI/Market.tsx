@@ -9,6 +9,7 @@ import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFrom
 import { JSX } from 'preact/jsx-runtime'
 import { Signal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
+import { EtherScanAddress } from './links.js'
 
 export type MarketData = Awaited<ReturnType<typeof fetchMarketData>>
 
@@ -219,11 +220,11 @@ export const Market = ({ repTokenName, marketData, universe, addressComponent, c
 			<section className = 'details-grid'>
 				{ [
 					...marketData.deepValue.owner === marketData.deepValue.marketCreator && marketData.deepValue.marketCreator === marketData.deepValue.designatedReporter ?
-						[['Owner/Creator/Designated Reporter', marketData.deepValue.owner]]
+						[['Owner/Creator/Designated Reporter', <EtherScanAddress address = { useComputed(() => marketData.deepValue?.owner) }/>]]
 					: [
-						['Market Owner', marketData.deepValue.owner],
-						['Market Creator', marketData.deepValue.marketCreator],
-						['Designated Reporter', marketData.deepValue.designatedReporter],
+						['Market Owner', <EtherScanAddress address = { useComputed(() => marketData.deepValue?.owner) }/>],
+						['Market Creator', <EtherScanAddress address = { useComputed(() => marketData.deepValue?.marketCreator) }/>],
+						['Designated Reporter', <EtherScanAddress address = { useComputed(() => marketData.deepValue?.designatedReporter) }/>],
 					],
 					['Fee', marketData.deepValue.feeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.feeDivisor)).toFixed(2) }%` ],
 					['Reporting Fee', marketData.deepValue.reportingFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.reportingFeeDivisor)).toFixed(2) }%` ],

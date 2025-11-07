@@ -11,7 +11,7 @@ import { MarketOutcomeOptionWithUniverse } from '../../SharedUI/YesNoCategorical
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
-import { OptionalUniverseLink } from '../../SharedUI/links.js'
+import { EtherScanAddress, MarketLink, OptionalUniverseLink } from '../../SharedUI/links.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -152,13 +152,13 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		if (repSupply.deepValue === undefined) return <></>
 
 		return [
-			['Universe Address', universe.deepValue],
+			['Universe Address', <EtherScanAddress address = { new Signal(universe.deepValue) } />],
 			...parentUniverse.deepValue === undefined || BigInt(parentUniverse.deepValue) === 0n ? [] : [['Parent Universe Address', <OptionalUniverseLink address = { parentUniverse } pathSignal = { pathSignal }/> ]],
-			['Reputation Address For The Universe', reputationTokenAddress.deepValue],
+			['Reputation Address For The Universe', <EtherScanAddress address = { new Signal(reputationTokenAddress.deepValue) } />],
 			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } ${ repTokenName } / ${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ repTokenName } (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
-			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', universeForkingInformation.deepValue.forkingMarket]],
-			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', winningUniverse.deepValue]],
+			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { new Signal(universeForkingInformation.deepValue.forkingMarket) } pathSignal = { pathSignal }/>]],
+			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', <OptionalUniverseLink address = { winningUniverse } pathSignal = { pathSignal }/>]],
 		].map(([label, val]) => (
 			<div className = 'detail' key = { label }>
 				<strong>{ label }</strong>
