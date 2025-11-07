@@ -6,6 +6,7 @@ import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redee
 import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
+import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -33,7 +34,7 @@ interface DisplayShareDataProps {
 
 const DisplayShareData = ({ availableShareData, selectedShares, pathSignal }: DisplayShareDataProps) => {
 	const results = useComputed(() => {
-		if (availableShareData.deepValue === undefined) return <p> loading... </p>
+		if (availableShareData.deepValue === undefined) return <CenteredBigSpinner/>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableShareData.deepValue.map((shareEntry) => <>
 			<span class = 'claim-option' key = { shareEntry.market }>
@@ -72,7 +73,7 @@ interface DisplayDisputesDataProps {
 
 const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal }: DisplayDisputesDataProps) => {
 	const results = useComputed(() => {
-		if (availableDisputes.deepValue === undefined) return <p> loading... </p>
+		if (availableDisputes.deepValue === undefined) return <CenteredBigSpinner/>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableDisputes.deepValue.map((disputeEntry) => <>
 			<span class = 'claim-option' key = { disputeEntry.bond }>
@@ -112,7 +113,7 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 
 const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal }: ForkAndRedeemDisputeCrowdSourcersProps) => {
 	const results = useComputed(() => {
-		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <p> loading... </p>
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <CenteredBigSpinner/>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
 		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
 			<span class = 'claim-option' key = { disputeEntry.bond }>
@@ -152,7 +153,7 @@ interface DisplayReportsDataProps {
 
 const DisplayReportsData = ({ availableReports, selectedReports, pathSignal }: DisplayReportsDataProps) => {
 	const results = useComputed(() => {
-		if (availableReports.deepValue === undefined) return <p> loading... </p>
+		if (availableReports.deepValue === undefined) return <CenteredBigSpinner/>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
 		return availableReports.deepValue.map((initialReport) => <>
 			<span class = 'claim-option' key = { initialReport.bond }>
