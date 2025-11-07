@@ -34,7 +34,7 @@ export const ExtraInfo = funtypes.Intersect(
 )
 
 export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
-	await writeClient.writeContract({
+	return await writeClient.writeContract({
 		address: universe,
 		abi: AUGUR_UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',

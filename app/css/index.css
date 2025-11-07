@@ -770,7 +770,6 @@ h3 {
 .button-group {
 	display: flex;
 	gap: 1rem;
-	flex-wrap: wrap;
 	justify-content: space-around;
 }
 
@@ -1044,4 +1043,13 @@ svg.spinner > circle {
 	50%,
 	75% { stroke-dashoffset: 75; transform: rotate(45deg); }
 	100% { stroke-dashoffset: 280; transform: rotate(360deg); }
+}
+
+.error-component {
+	color: #b43c42;
+	word-break: break-all;
+	white-space: break-spaces;
+	border: 2px solid rgb(180, 60, 66);
+	border-radius: 5px;
+	padding: 10px;
 }

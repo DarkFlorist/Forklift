@@ -11,6 +11,7 @@ import { useEffect } from 'preact/hooks'
 import { Input } from '../../SharedUI/Input.js'
 import { useThrottledSignalEffect } from '../../SharedUI/useThrottledSignalEffect.js'
 import { ContractFunctionExecutionError } from 'viem'
+import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -26,6 +27,10 @@ interface AllowancesProps {
 export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, repTokenName }: AllowancesProps) => {
 	const daiAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 	const repAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
+
+	const daiAllowanceTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const repAllowanceTransactionStatus = useSignal<TransactionStatus>(undefined)
+
 	const cannotSetDaiAllowance = useComputed(() => {
 		if (maybeWriteClient.deepValue === undefined) return true
 		if (daiAllowanceToBeSet.deepValue === undefined || daiAllowanceToBeSet.deepValue <= 0n) return true
@@ -45,16 +50,23 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
 		if (repAllowanceToBeSet.deepValue === undefined || repAllowanceToBeSet.deepValue <= 0n) throw new Error('not valid allowance')
-		await approveErc20Token(writeClient, reputationTokenAddress.deepValue, universe.deepValue, repAllowanceToBeSet.deepValue)
-		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress.deepValue, writeClient.account.address, universe.deepValue)
+		return await approveErc20Token(writeClient, reputationTokenAddress.deepValue, universe.deepValue, repAllowanceToBeSet.deepValue)
 	}
 
 	const approveDai = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (daiAllowanceToBeSet.deepValue === undefined || daiAllowanceToBeSet.deepValue <= 0n) throw new Error('not valid allowance')
-		await approveErc20Token(writeClient, DAI_TOKEN_ADDRESS, AUGUR_CONTRACT, daiAllowanceToBeSet.deepValue)
+		return await approveErc20Token(writeClient, DAI_TOKEN_ADDRESS, AUGUR_CONTRACT, daiAllowanceToBeSet.deepValue)
+	}
+
+	const refreshBalances = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
+		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
+		if (universe.deepValue === undefined) throw new Error('missing universe')
 		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT)
+		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress.deepValue, writeClient.account.address, universe.deepValue)
 	}
 
 	function setMaxRepAllowance() {
@@ -95,10 +107,16 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<span class = 'unit'>DAI</span>
 				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxDaiAllowance }>Max</button>
 			</div>
-			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetDaiAllowance.value } onClick = { approveDai }>
-				Set DAI allowance
-			</button>
-
+			<SendTransactionButton
+				className = 'button button-secondary button-small'
+				style = { { width: '100%', whiteSpace: 'nowrap' } }
+				transactionStatus = { daiAllowanceTransactionStatus }
+				sendTransaction = { approveDai }
+				maybeWriteClient = { maybeWriteClient }
+				disabled = { cannotSetDaiAllowance }
+				text = { useComputed(() => 'Set DAI allowance') }
+				callBackWhenIncluded = { refreshBalances }
+			/>
 			<div style = { { alignContent: 'center' } }>
 				{ repAllowanceText }
 			</div>
@@ -125,9 +143,16 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<span class = 'unit'>{ repTokenName }</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
 			</div>
-			<button class = 'button button-secondary button-small' style = { { width: '100%', whiteSpace: 'nowrap' } } disabled = { cannotSetRepAllowance.value } onClick = { approveRep }>
-				Set { repTokenName } allowance
-			</button>
+			<SendTransactionButton
+				className = 'button button-secondary button-small'
+				style = { { width: '100%', whiteSpace: 'nowrap' } }
+				transactionStatus = { repAllowanceTransactionStatus }
+				sendTransaction = { approveRep }
+				maybeWriteClient = { maybeWriteClient }
+				disabled = { cannotSetRepAllowance }
+				text = { useComputed(() => `Set ${ repTokenName } allowance`) }
+				callBackWhenIncluded = { refreshBalances }
+			/>
 		</div>
 	</div>
 }
@@ -194,6 +219,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	const allowedRep = useOptionalSignal<bigint>(undefined)
 	const marketCreationGasCost = useOptionalSignal<bigint>(undefined)
 	const baseFee = useOptionalSignal<bigint>(undefined)
+	const pendingCreateMarketTransactionStatus = useSignal<TransactionStatus>(undefined)
 
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (readClient === undefined) return
@@ -257,8 +283,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 			categories: categories.deepValue?.filter((element) => element.length > 0) || [],
 			tags: tags.deepValue?.filter((element) => element.length > 0) || []
 		})
-		await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
-		updateTokenBalancesSignal.value++
+		return await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
 	}
 
 	useThrottledSignalEffect(() => {
@@ -310,6 +335,11 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	}
 	function handleLongDescription(value: string) {
 		longDescription.value = value
+	}
+
+	const marketCreated = async () => {
+		// TODO!, link to new market!
+		updateTokenBalancesSignal.value++
 	}
 
 	return <div class = 'subApplication'>
@@ -493,9 +523,15 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 
 			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
 			<div class = 'button-group'>
-				<button class = 'button button-primary button-group-button' onClick = { createMarket } disabled = { createMarketDisabled.value } style = { { width: '100%' } }>
-					Create Market
-				</button>
+				<SendTransactionButton
+					className = 'button button-primary button-group-button'
+					transactionStatus = { pendingCreateMarketTransactionStatus }
+					sendTransaction = { createMarket }
+					maybeWriteClient = { maybeWriteClient }
+					disabled = { createMarketDisabled }
+					text = { useComputed(() => 'Create Market') }
+					callBackWhenIncluded = { marketCreated }
+				/>
 			</div>
 		</section>
 	</div>

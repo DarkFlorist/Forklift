@@ -4,7 +4,7 @@ import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowIn
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName } from '../../utils/augurUtils.js'
-import { Signal, useComputed, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { addressString, bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeOptionWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
@@ -13,6 +13,7 @@ import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
 import { EtherScanAddress, MarketLink, OptionalUniverseLink } from '../../SharedUI/links.js'
 import { CenteredBigSpinner, PageLoadingSpinner } from '../../SharedUI/Spinner.js'
+import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -50,6 +51,7 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	const repTotalTheoreticalSupply = useOptionalSignal<EthereumQuantity>(undefined)
 	const repSupply = useOptionalSignal<EthereumQuantity>(undefined)
 	const winningUniverse = useOptionalSignal<AccountAddress>(undefined)
+	const pendingTransactionStatus = useSignal<TransactionStatus>(undefined)
 
 	useSignalEffect(() => {
 		universe.deepValue
@@ -109,8 +111,12 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		if (forkingOutcomeStakes.deepValue === undefined) throw new Error('missing forkingOutcomeStakes')
 		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not selected')
 		if (reputationBalance.deepValue === undefined) throw new Error('reputationBalance not selected')
-		await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, reputationBalance.deepValue)
+		return await migrateReputationToChildUniverseByPayout(writeClient, reputationTokenAddress.deepValue, selectedPayoutNumerators.deepValue, reputationBalance.deepValue)
+	}
 
+	const refresh = async () => {
+		const writeClient = maybeWriteClient.deepPeek()
+		if (writeClient === undefined) throw new Error('missing writeClient')
 		updateTokenBalancesSignal.value++
 		await update(writeClient)
 	}
@@ -169,7 +175,15 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	const migrationButton = useComputed(() => {
 		if (!isMigrationPeriodActive.value) return <></>
 		return <div class = 'button-group'>
-			<button class = 'button button-primary button-group-button' onClick = { migrateReputationToChildUniverseByPayoutButton } disabled = { isMigrateDisabled.value }>Migrate { reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } { repTokenName } to the "{ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe</button>
+			<SendTransactionButton
+				className = 'button button-primary button-group-button'
+				transactionStatus = { pendingTransactionStatus }
+				sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
+				maybeWriteClient = { maybeWriteClient }
+				disabled = { isMigrateDisabled }
+				text = { useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ repTokenName } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
+				callBackWhenIncluded = { refresh }
+			/>
 		</div>
 	})
 
