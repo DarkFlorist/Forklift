@@ -7,3 +7,5 @@ app/ts/VendoredAugurConstantProductMarket.ts
 /solidity/js
 solidity/user-config.json
 solidity/ts/abi/VendoredAugurConstantProductMarket.ts
+app/ts/ABI/VendoredForkLift.ts
+build/vendor.mjs
