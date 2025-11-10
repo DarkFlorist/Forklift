@@ -239,6 +239,11 @@ export function App() {
 	}, [])
 
 	useSignalEffect(() => {
+		if (pathSignal.value === '' || pathSignal.value === '#' || pathSignal.value === '#/') {
+			window.location.hash = '#/reporting'
+			return
+		}
+
 		const hashpath = parseHashPath(pathSignal.value, tabs.map((tab) => tab.path))
 		window.history.pushState({}, '', pathSignal.value)
 
