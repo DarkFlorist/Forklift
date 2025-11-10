@@ -19,11 +19,3 @@ export function CenteredBigSpinner() {
 		<BigSpinner />
 	</div>
 }
-
-export function PageLoadingSpinner() {
-	return <div class = 'subApplication'>
-		<section class = 'subApplication-card'>
-			<CenteredBigSpinner />
-		</section>
-	</div>
-}
