@@ -22,9 +22,10 @@ interface AllowancesProps {
 	allowedRep: OptionalSignal<bigint>
 	allowedDai: OptionalSignal<bigint>
 	repTokenName: Signal<string>
+	showUnexpectedError: (error: unknown) => void
 }
 
-export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, repTokenName }: AllowancesProps) => {
+export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, repTokenName, showUnexpectedError }: AllowancesProps) => {
 	const daiAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 	const repAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 
@@ -65,8 +66,12 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
-		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT)
-		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress.deepValue, writeClient.account.address, universe.deepValue)
+		try {
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress.deepValue, writeClient.account.address, universe.deepValue)
+		} catch(error: unknown) {
+			return showUnexpectedError(error)
+		}
 	}
 
 	function setMaxRepAllowance() {
@@ -181,6 +186,7 @@ interface CreateYesNoMarketProps {
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
 	repTokenName: Signal<string>
+	showUnexpectedError: (error: unknown) => void
 }
 
 const isValidDate = (dateStr: string): boolean => {
@@ -202,7 +208,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance, repTokenName }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance, repTokenName, showUnexpectedError }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -223,15 +229,19 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (readClient === undefined) return
-		baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
-		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
-		if (universe === undefined) return
-		marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe)
-		marketCreationCostDai.deepValue = await getValidityBond(readClient, universe)
-		if (reputationTokenAddress === undefined) return
-		if (writeClient === undefined) return
-		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress, writeClient?.account.address, universe)
-		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
+		try {
+			baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
+			maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
+			if (universe === undefined) return
+			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe)
+			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe)
+			if (reputationTokenAddress === undefined) return
+			if (writeClient === undefined) return
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress, writeClient?.account.address, universe)
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
+		} catch(error: unknown) {
+			showUnexpectedError(error)
+		}
 	}
 
 	useEffect(() => {
@@ -239,7 +249,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	}, [maybeWriteClient.deepValue?.account.address])
 
 	useSignalEffect(() => {
-		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue, reputationTokenAddress.deepValue).catch(console.error)
+		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue, reputationTokenAddress.deepValue).catch(showUnexpectedError)
 	})
 
 	const createMarketDisabled = useComputed(() => {
@@ -316,7 +326,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
 				} catch(error: unknown) {
 					if (error instanceof ContractFunctionExecutionError) return
-					throw error
+					showUnexpectedError(error)
 				}
 			}
 			estimate()
@@ -519,7 +529,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				</div>
 			</div>
 
-			<Allowances repTokenName = { repTokenName } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai }/>
+			<Allowances repTokenName = { repTokenName } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai } showUnexpectedError = { showUnexpectedError }/>
 
 			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
 			<div class = 'button-group'>
