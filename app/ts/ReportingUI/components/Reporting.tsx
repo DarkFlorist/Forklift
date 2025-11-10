@@ -3,12 +3,12 @@ import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome,
 import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
-import { MarketOutcomeOptionWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutcomeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOptions } from '../../utils/augurUtils.js'
+import { getAllPayoutNumeratorCombinations, maxStakeAmountForOutcome, getOutcomeName, getPayoutNumeratorsFromScalarOutcome, areValidScalarPayoutNumeratorOutcomes } from '../../utils/augurUtils.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { aggregateByPayoutDistribution, getReportingParticipantsForMarket } from '../../utils/augurExtraUtilities.js'
-import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOptions.js'
+import { ReportedScalarInputs, ScalarInput } from '../../SharedUI/ScalarMarketReportingOutcomes.js'
 import { Input } from '../../SharedUI/Input.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
@@ -19,7 +19,7 @@ import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
-	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	disabled: Signal<boolean>
 	forkingMarketFinalized: OptionalSignal<boolean>
@@ -119,7 +119,7 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 	const isInitialReporting = useComputed(() => marketData.deepValue?.reportingState === 'OpenReporting' || marketData.deepValue?.reportingState === 'DesignatedReporting')
 	const canInitialReport = useComputed(() => marketData.deepValue?.reportingState === 'OpenReporting' || (marketData.deepValue?.reportingState === 'DesignatedReporting' && marketData.deepValue.designatedReporter === maybeWriteClient.deepValue?.account.address))
 
-	const areOptionsDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
+	const areOutcomesDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
 
 	const selectedOutcomeName = useComputed(() => {
 		if (marketData.deepValue === undefined) return undefined
@@ -128,7 +128,7 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 			const minPrice = marketData.deepValue?.displayPrices[0]
 			const maxPrice = marketData.deepValue?.displayPrices[1]
 			if (minPrice === undefined || maxPrice === undefined) return undefined
-			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
+			if (!areValidScalarPayoutNumeratorOutcomes(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
 			return getOutcomeName(payoutNumerators, marketData.deepValue)
 		} else {
@@ -155,7 +155,7 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 			const maxPrice = marketData.deepValue?.displayPrices[1]
 			if (minPrice === undefined || maxPrice === undefined) throw new Error('displayPrices is undefined')
 			if (!selectedScalarOutcomeInvalid.value && selectedScalarOutcome.deepValue === undefined) return undefined
-			if (!areValidScalarPayoutNumeratorOptions(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
+			if (!areValidScalarPayoutNumeratorOutcomes(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)) return undefined
 			const payoutNumerators = getPayoutNumeratorsFromScalarOutcome(selectedScalarOutcomeInvalid.value, selectedScalarOutcome.deepValue, minPrice, maxPrice, numTicks)
 			const existingOutComestake = outcomeStakes.deepValue.find((outcome) => areEqualArrays(outcome.payoutNumerators, payoutNumerators))
 			const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
@@ -239,10 +239,10 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 		if (marketData.deepValue.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
 				<ReportedScalarInputs repTokenName = { repTokenName } outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
-				<ScalarInput pathSignal = { pathSignal } selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOptionsDisabled } />
+				<ScalarInput pathSignal = { pathSignal } selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOutcomesDisabled } />
 			</div>
 		} else {
-			return <MarketReportingOptionsForYesNoAndCategorical repTokenName = { repTokenName } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOptionsDisabled = { areOptionsDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
+			return <MarketReportingOptionsForYesNoAndCategorical repTokenName = { repTokenName } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOutcomesDisabled = { areOutcomesDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
 		}
 	})
 
@@ -480,8 +480,8 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, repTokenName, u
 			}
 			if (showReporting.value) {
 				const allInterestingPayoutNumerators = await getAllInterestingPayoutNumerators()
-				const winningOption = await getWinningPayoutNumerators(maybeReadClient, selectedMarket)
-				const winningIndex = winningOption === undefined ? -1 : allInterestingPayoutNumerators.findIndex((option) => areEqualArrays(option.payoutNumerators, winningOption))
+				const winningOutcome = await getWinningPayoutNumerators(maybeReadClient, selectedMarket)
+				const winningIndex = winningOutcome === undefined ? -1 : allInterestingPayoutNumerators.findIndex((outcome) => areEqualArrays(outcome.payoutNumerators, winningOutcome))
 				outcomeStakes.deepValue = await Promise.all(allInterestingPayoutNumerators.map(async (info, index) => {
 					const payoutNumerators = info.payoutNumerators
 					const payoutHash = EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, currentMarketData.numTicks, currentMarketData.numOutcomes))

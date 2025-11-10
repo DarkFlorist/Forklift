@@ -44,7 +44,7 @@ export const MARKET_TYPES = [
 	'Scalar'
 ] as const
 
-export const YES_NO_OPTIONS = [
+export const YES_NO_OUTCOMES = [
 	'Invalid',
 	'No',
 	'Yes',
