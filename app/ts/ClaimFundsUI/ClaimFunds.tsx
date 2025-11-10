@@ -196,9 +196,10 @@ interface ClaimFundsProps {
 	updateTokenBalancesSignal: Signal<number>
 	pathSignal: Signal<string>
 	showUnexpectedError: (error: unknown) => void
+	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
 }
 
-export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError }: ClaimFundsProps) => {
+export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
@@ -234,7 +235,9 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 			availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
 			availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
 			availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+			if (isAugurExtraUtilitiesDeployedSignal.deepValue === true) {
+				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+			}
 		} catch(error: unknown) {
 			return showUnexpectedError(error)
 		} finally {
@@ -272,6 +275,7 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 	const claimForkDisputes = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('account missing')
+		if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
 		const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 		if (selected.length === 0) throw new Error('nothing to claim')
 		return await forkReportingParticipants(writeClient, selected)
@@ -286,7 +290,7 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 
 	const claimWinningSharesDisabled = useComputed(() => selectedShares.value.length === 0)
 	const participationTokensDisabled = useComputed(() => selectedDisputes.value.length + selectedReports.value.length === 0)
-	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0)
+	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 && isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>

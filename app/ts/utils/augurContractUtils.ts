@@ -451,13 +451,12 @@ export const getForkingMarket = async (readClient: ReadClient, market: AccountAd
 	})
 }
 
-export const isForkingMarketFinalizedForCurrentMarketsUniverse = async (readClient: ReadClient, market: AccountAddress) => {
-	const forkingMarket = await getForkingMarket(readClient, market)
-	if (BigInt(forkingMarket) === 0n) return false
+export const isMarketFinalized = async (readClient: ReadClient, market: AccountAddress) => {
+	if (BigInt(market) === 0n) return false
 	return await readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'isFinalized',
-		address: forkingMarket,
+		address: market,
 		args: []
 	})
 }
