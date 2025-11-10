@@ -1098,3 +1098,10 @@ svg.spinner > circle {
 .error-close-button:hover {
 	opacity: 0.8;
 }
+
+.loading-button {
+	width: 100%;
+	display: grid;
+	grid-template-columns: auto min-content;
+	gap: 0.5rem;
+}

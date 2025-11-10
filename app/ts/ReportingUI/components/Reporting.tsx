@@ -15,6 +15,7 @@ import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { min } from '../../utils/utils.js'
 import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
+import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -523,7 +524,12 @@ export const Reporting = ({ repTokenName, updateTokenBalancesSignal, repBalance,
 							} }
 							invalidSignal = { isInvalidMarketAddress }
 						/>
-						<button class = 'button button-primary' onClick = { refreshDataButton }>Refresh</button>
+						<LoadingButton
+							isLoading = { loading }
+							startLoading = { refreshDataButton }
+							disabled = { useComputed(() => false) }
+							text = { useComputed(() => 'Refresh') }
+						/>
 					</div>
 				</> }>
 					{ showReporting.value === true ? <>
