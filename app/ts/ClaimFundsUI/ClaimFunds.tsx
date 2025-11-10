@@ -31,11 +31,12 @@ interface DisplayShareDataProps {
 	availableShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
 	selectedShares: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
+	loading: Signal<boolean>
 }
 
-const DisplayShareData = ({ availableShareData, selectedShares, pathSignal }: DisplayShareDataProps) => {
+const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, loading }: DisplayShareDataProps) => {
 	const results = useComputed(() => {
-		if (availableShareData.deepValue === undefined) return <CenteredBigSpinner/>
+		if (availableShareData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableShareData.deepValue.map((shareEntry) => <>
 			<span class = 'claim-option' key = { shareEntry.market }>
@@ -70,11 +71,12 @@ interface DisplayDisputesDataProps {
 	availableDisputes: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>
 	selectedDisputes: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
+	loading: Signal<boolean>
 }
 
-const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal }: DisplayDisputesDataProps) => {
+const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, loading }: DisplayDisputesDataProps) => {
 	const results = useComputed(() => {
-		if (availableDisputes.deepValue === undefined) return <CenteredBigSpinner/>
+		if (availableDisputes.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableDisputes.deepValue.map((disputeEntry) => <>
 			<span class = 'claim-option' key = { disputeEntry.bond }>
@@ -110,11 +112,12 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>
 	selectedForkedCrowdSourcers: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
+	loading: Signal<boolean>
 }
 
-const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal }: ForkAndRedeemDisputeCrowdSourcersProps) => {
+const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, loading }: ForkAndRedeemDisputeCrowdSourcersProps) => {
 	const results = useComputed(() => {
-		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return <CenteredBigSpinner/>
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
 		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
 			<span class = 'claim-option' key = { disputeEntry.bond }>
@@ -150,11 +153,12 @@ interface DisplayReportsDataProps {
 	availableReports: OptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>
 	selectedReports: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
+	loading: Signal<boolean>
 }
 
-const DisplayReportsData = ({ availableReports, selectedReports, pathSignal }: DisplayReportsDataProps) => {
+const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loading }: DisplayReportsDataProps) => {
 	const results = useComputed(() => {
-		if (availableReports.deepValue === undefined) return <CenteredBigSpinner/>
+		if (availableReports.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
 		return availableReports.deepValue.map((initialReport) => <>
 			<span class = 'claim-option' key = { initialReport.bond }>
@@ -191,13 +195,16 @@ interface ClaimFundsProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
 	updateTokenBalancesSignal: Signal<number>
 	pathSignal: Signal<string>
+	showUnexpectedError: (error: unknown) => void
 }
 
-export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal }: ClaimFundsProps) => {
+export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
 	const availableClaimsFromForkingDisputeCrowdSourcers = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>(undefined)
+
+	const loading = useSignal<boolean>(false)
 
 	const selectedShares = useSignal<readonly AccountAddress[]>([])
 	const selectedDisputes = useSignal<readonly AccountAddress[]>([])
@@ -210,11 +217,12 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 	const pendingForkDisputesTransactionStatus = useSignal<TransactionStatus>(undefined)
 
 	useSignalEffect(() => {
-		queryForData(maybeReadClient.deepValue).catch(console.error)
+		queryForData(maybeReadClient.deepValue).catch(showUnexpectedError)
 	})
 
 	const queryForData = async (readClient: ReadClient | undefined) => {
 		if (readClient === undefined) return
+		loading.value = true
 		availableShareData.deepValue = undefined
 		availableDisputes.deepValue = undefined
 		availableReports.deepValue = undefined
@@ -222,10 +230,16 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		selectedDisputes.value = []
 		selectedReports.value = []
 		if (readClient.account?.address === undefined) throw new Error('account missing')
-		availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
-		availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-		availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+		try {
+			availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
+			availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+			availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+		} catch(error: unknown) {
+			return showUnexpectedError(error)
+		} finally {
+			loading.value = false
+		}
 	}
 
 	const claim = async () => {
@@ -278,7 +292,7 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		<section class = 'subApplication-card'>
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
-					<DisplayShareData pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
+					<DisplayShareData loading = { loading } pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
 					{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <>
 						<SendTransactionButton
 							className = 'button button-primary'
@@ -290,8 +304,8 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 							callBackWhenIncluded = { refreshShares }
 						/>
 					</> }
-					<DisplayDisputesData pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
-					<DisplayReportsData pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
+					<DisplayDisputesData loading = { loading } pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
+					<DisplayReportsData loading = { loading } pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
 					{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <>
 						<SendTransactionButton
 							className = 'button button-primary'
@@ -303,7 +317,7 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 							callBackWhenIncluded = { refreshClaim }
 						/>
 					</> }
-					<ForkAndRedeemDisputeCrowdSourcers pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+					<ForkAndRedeemDisputeCrowdSourcers loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
 					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <>
 						<SendTransactionButton
 							className = 'button button-primary'

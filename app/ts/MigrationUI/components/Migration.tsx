@@ -25,6 +25,7 @@ interface MigrationProps {
 	currentTimeInBigIntSeconds: Signal<bigint>
 	updateTokenBalancesSignal: Signal<number>
 	repTokenName: Signal<string>
+	showUnexpectedError: (error: unknown) => void
 }
 
 interface GetForkValuesProps {
@@ -37,7 +38,7 @@ const DisplayForkValues = ({ forkValues, repTokenName }: GetForkValuesProps) => 
 	return <div style = 'padding-top: 10px; padding-bottom: 10px'>Fork Reputation Goal ({ repTokenName } required for universe to win): { bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n, 2) } { repTokenName }</div>
 }
 
-export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds }: MigrationProps) => {
+export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds, showUnexpectedError }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
@@ -52,11 +53,12 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 	const repSupply = useOptionalSignal<EthereumQuantity>(undefined)
 	const winningUniverse = useOptionalSignal<AccountAddress>(undefined)
 	const pendingTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const loading = useSignal<boolean>(false)
 
 	useSignalEffect(() => {
 		universe.deepValue
 		universeForkingInformation.deepValue
-		update(maybeReadClient.deepValue).catch(console.error)
+		update(maybeReadClient.deepValue).catch(showUnexpectedError)
 	})
 
 	const update = async (readClient: ReadClient | undefined ) => {
@@ -64,6 +66,7 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		if (readClient.account?.address === undefined) return
 		if (reputationTokenAddress.deepValue === undefined) return
 		if (universe.deepValue === undefined) return
+		loading.value = true
 		winningUniverse.deepValue = undefined
 		parentUniverse.deepValue = undefined
 		disputeWindowInfo.deepValue = undefined
@@ -75,33 +78,39 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 		repTotalTheoreticalSupply.deepValue = undefined
 		repSupply.deepValue = undefined
 		reputationBalance.deepValue = undefined
-		reputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
-		if (isGenesisUniverse(universe.deepValue)) {
-			// retrieve v1 balance only for genesis universe as its only relevant there
-			parentUniverse.deepValue = addressString(0n) // we know that genesis doesn't have parent universe
-		} else if (universe.deepValue !== undefined) {
-			parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
-		}
-		if (universeForkingInformation.deepValue?.isForking) {
-			const forkingMarket = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
-			forkingMarketData.deepValue = forkingMarket
-			const outcomeStakes = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
-			forkingOutcomeStakes.deepValue = await Promise.all(outcomeStakes.map(async (outcomeStakes) => {
-				return {
-					...outcomeStakes,
-					universeAddress: await getChildUniverse(readClient, forkingMarket.universe, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes)
-				}
-			}))
-
-			forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
-			disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket)
-			if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
-				disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
+		try {
+			reputationBalance.deepValue = await getErc20TokenBalance(readClient, reputationTokenAddress.deepValue, readClient.account.address)
+			if (isGenesisUniverse(universe.deepValue)) {
+				// retrieve v1 balance only for genesis universe as its only relevant there
+				parentUniverse.deepValue = addressString(0n) // we know that genesis doesn't have parent universe
+			} else if (universe.deepValue !== undefined) {
+				parentUniverse.deepValue = await getParentUniverse(readClient, universe.deepValue)
 			}
-			winningUniverse.deepValue = await getWinningChildUniverse(readClient, universe.deepValue)
+			if (universeForkingInformation.deepValue?.isForking) {
+				const forkingMarket = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
+				forkingMarketData.deepValue = forkingMarket
+				const outcomeStakes = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
+				forkingOutcomeStakes.deepValue = await Promise.all(outcomeStakes.map(async (outcomeStakes) => {
+					return {
+						...outcomeStakes,
+						universeAddress: await getChildUniverse(readClient, forkingMarket.universe, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes)
+					}
+				}))
+
+				forkValues.deepValue = await getForkValues(readClient, reputationTokenAddress.deepValue)
+				disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket)
+				if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
+					disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
+				}
+				winningUniverse.deepValue = await getWinningChildUniverse(readClient, universe.deepValue)
+			}
+			repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, reputationTokenAddress.deepValue)
+			repSupply.deepValue = await getTotalSupply(readClient, reputationTokenAddress.deepValue)
+		} catch(error: unknown) {
+			return showUnexpectedError(error)
+		} finally {
+			loading.value = false
 		}
-		repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, reputationTokenAddress.deepValue)
-		repSupply.deepValue = await getTotalSupply(readClient, reputationTokenAddress.deepValue)
 	}
 
 	const migrateReputationToChildUniverseByPayoutButton = async () => {
@@ -223,7 +232,7 @@ export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadCl
 
 				<div class = 'forkMarket'>
 					<span class = 'border-text'>Forking Market</span>
-					<Market repTokenName = { repTokenName } marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
+					<Market loading = { loading } repTokenName = { repTokenName } marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
 							<SelectUniverse repTokenName = { repTokenName } pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 							{ forkValuesComponent }

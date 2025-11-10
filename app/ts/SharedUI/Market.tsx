@@ -115,6 +115,7 @@ interface MarketProps {
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
 	repTokenName: Signal<string>
+	loading: Signal<boolean>
 }
 
 const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | undefined>, currentTimeInBigIntSeconds: Signal<bigint> }) => {
@@ -175,11 +176,11 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 	}/>
 }
 
-export const Market = ({ repTokenName, marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds }: MarketProps) => {
+export const Market = ({ repTokenName, marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds, loading }: MarketProps) => {
 	if (marketData.deepValue === undefined || universe.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
-			<CenteredBigSpinner/>
+			{ loading.value === true ? <CenteredBigSpinner/>: <></> }
 		</div>
 	</div>
 	const endTime = useComputed(() => marketData.deepValue?.endTime)
