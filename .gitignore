@@ -9,3 +9,4 @@ solidity/user-config.json
 solidity/ts/abi/VendoredAugurConstantProductMarket.ts
 app/ts/ABI/VendoredForkLift.ts
 build/vendor.mjs
+app/ts/ABI/VendoredContracts.ts
