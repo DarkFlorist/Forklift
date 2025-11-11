@@ -1,19 +1,20 @@
 import { MarketData } from '../SharedUI/Market.js'
 import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
-import { AccountAddress, EthereumQuantity, MarketType } from '../types/types.js'
+import { AccountAddress, EthereumQuantity, MarketType, UniverseInformation } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
 import { GENESIS_UNIVERSE, YES_NO_OUTCOMES } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
 import { indexOfMax } from './utils.js'
 
-// TODO, try to come up with nice ways to call universes (based on market information)
-export const getUniverseName = (universeAddress: AccountAddress) => {
-	if (BigInt(universeAddress) == BigInt(GENESIS_UNIVERSE)) return 'Genesis'
-	return universeAddress
+export const getUniverseName = (universe: UniverseInformation) => {
+	if (BigInt(universe.universeAddress) == BigInt(GENESIS_UNIVERSE)) return 'Genesis'
+	return universe.repTokenName.replace('REPv2', 'Universe')
 }
 
-export const isGenesisUniverse = (universeAddress: AccountAddress | undefined) => universeAddress !== undefined && getUniverseName(universeAddress) === 'Genesis'
+export const getRepTokenName = (maybeRepTokenName: string | undefined) => maybeRepTokenName || 'REP'
+
+export const isGenesisUniverse = (universeAddress: AccountAddress | undefined) => universeAddress !== undefined && BigInt(universeAddress) == BigInt(GENESIS_UNIVERSE)
 
 export const getAllPayoutNumeratorCombinations = (numOutcomes: bigint, numTicks: EthereumQuantity): readonly bigint[][] => Array.from({ length: Number(numOutcomes) }, (_, outcome) => Array.from({ length: Number(numOutcomes) }, (_, index) => index === outcome ? numTicks : 0n))
 

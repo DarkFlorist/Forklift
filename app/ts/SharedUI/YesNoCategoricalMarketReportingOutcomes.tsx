@@ -1,19 +1,23 @@
 import { Signal, useComputed } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { EthereumQuantity, UniverseInformation } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 import { MarketData } from './Market.js'
 import { UniverseLink } from './links.js'
 
-export type OutcomeStake = {
+
+export type MarketOutcomeWithUniverse = {
 	outcomeName: string
+	payoutNumerators: readonly EthereumQuantity[]
+	universe: UniverseInformation | undefined
+}
+
+export type OutcomeStake = MarketOutcomeWithUniverse & {
 	repStake: bigint
 	status: 'Winning' | 'Losing' | 'Tie'
-	payoutNumerators: readonly EthereumQuantity[]
 	alreadyContributedToOutcomeStake: undefined | bigint
-	universeAddress: AccountAddress | undefined
 }
 
 type MarketReportingOutcomesForYesNoAndCategoricalProps = {
@@ -25,10 +29,10 @@ type MarketReportingOutcomesForYesNoAndCategoricalProps = {
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	areOutcomesDisabled: Signal<boolean>
 	canInitialReport: Signal<boolean>
-	repTokenName: Signal<string>
+	universe: Signal<UniverseInformation>
 }
 
-export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOutcomesDisabled, canInitialReport }: MarketReportingOutcomesForYesNoAndCategoricalProps) => {
+export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOutcomesDisabled, canInitialReport }: MarketReportingOutcomesForYesNoAndCategoricalProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
@@ -56,11 +60,11 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, mar
 					<b>{ outcomeStake.outcomeName }</b>
 					{ totalStake.value !== 0n && (
 						<>
-							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { repTokenName }</span>
+							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
 							<span>
 								{ outcomeStake.status === 'Winning'
-									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ repTokenName }`
-									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ repTokenName }`
+									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
+									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
 								}
 							</span>
 						</>
@@ -68,7 +72,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, mar
 
 					{ outcomeStake.alreadyContributedToOutcomeStake !== undefined && (
 						<span class = 'outcome-contrib'>
-							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { repTokenName })
+							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
 						</span>
 					)}
 				</div>
@@ -94,21 +98,14 @@ export type MarketOutcome = {
 	payoutNumerators: readonly EthereumQuantity[]
 }
 
-export type MarketOutcomeWithUniverse = {
-	outcomeName: string
-	payoutNumerators: readonly EthereumQuantity[]
-	universeAddress: AccountAddress | undefined
-}
-
 type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
 	pathSignal: Signal<string>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	disabled: Signal<boolean>
-	repTokenName: Signal<string>
 }
 
-export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal, repTokenName }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
+export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	return <div class = 'outcome-options'>
 		{
@@ -126,8 +123,8 @@ export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStake
 						<b>{ outcomeStake.outcomeName }</b>
 					</div>
 					<div style = { 'justify-self: end;' }>
-						{ outcomeStake.universeAddress === undefined || BigInt(outcomeStake.universeAddress) === 0n ? <p>Universe address not known</p> : <>
-							<p> Universe: <UniverseLink address = { useComputed(() => outcomeStake.universeAddress) } pathSignal = { pathSignal }/> ({ repTokenName })</p>
+						{ outcomeStake.universe === undefined ? <p>Universe address not known</p> : <>
+							<p> Universe: <UniverseLink universe = { useComputed(() => outcomeStake.universe) } pathSignal = { pathSignal }/> ({ outcomeStake.universe.repTokenName })</p>
 						</> }
 					</div>
 				</div>

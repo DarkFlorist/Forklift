@@ -1,4 +1,4 @@
-import { AccountAddress, NonHexBigInt } from '../types/types.js'
+import { NonHexBigInt, UniverseInformation } from '../types/types.js'
 import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
@@ -16,14 +16,15 @@ type ScalarInputProps = {
 	unit: Signal<string>
 	invalid: Signal<boolean>
 	disabled: Signal<boolean>
-	selectedOutcomeUniverseAddress: Signal<AccountAddress | undefined>
+	selectedOutcomeUniverse: Signal<UniverseInformation | undefined>
 	pathSignal: Signal<string>
 }
 
-export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverseAddress, pathSignal }: ScalarInputProps) {
+export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverse, pathSignal }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
 	const invalidInput = useSignal<boolean>(false)
+
 	return <div class = 'scalar-options-container' key = 'scalar-input-container3'>
 		<div class = 'slider-input-info-container' key = 'scalar-input-container2'>
 			<div class = 'slider-input-container' key = 'scalar-input-container'>
@@ -88,34 +89,35 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 				<span class = 'invalid-tag'>Invalid</span>
 			</label>
 		</div>
-		<p> Universe Address: <UniverseLink address = { selectedOutcomeUniverseAddress } pathSignal = { pathSignal }/></p>
+		<p> Universe Address: <UniverseLink universe = { selectedOutcomeUniverse } pathSignal = { pathSignal }/></p>
 	</div>
 }
 
 type ReportedScalarInputsProps = {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-	repTokenName: Signal<string>
+	universe: Signal<UniverseInformation>
 }
 
-export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsourcerStake, repTokenName }: ReportedScalarInputsProps) => {
+export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsourcerStake, universe }: ReportedScalarInputsProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
+
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
 	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
 		outcomeStakes.deepValue.map((outcomeStake) => <div class = 'reporting-round'>
 			<span><b>Option: { outcomeStake.outcomeName } ({ outcomeStake.status })</b></span>
 			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
-				<span>Stake: { bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { repTokenName }</span>
+				<span>Stake: { bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
 				<span>
 					{ outcomeStake.status === 'Winning'
-						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ repTokenName }`
-						: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ repTokenName }`
+						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
+						: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
 					}
 				</span>
 			</> }
 			<span>
 				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { repTokenName })
+				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
 				</> }
 			</span>
 		</div>)

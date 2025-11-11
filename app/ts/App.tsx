@@ -1,6 +1,6 @@
-import { batch, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
-import { AccountAddress, EthereumQuantity } from './types/types.js'
+import { AccountAddress, EthereumQuantity, UniverseInformation } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
 import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
@@ -8,13 +8,13 @@ import { assertNever, ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
-import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE, GENESIS_REPUTATION_V2_TOKEN_ADDRESS } from './utils/constants.js'
+import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
 import { bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
-import { getUniverseName } from './utils/augurUtils.js'
-import { getForkValues, getReputationTokenForUniverse, getUniverseForkingInformation, isKnownUniverse } from './utils/augurContractUtils.js'
+import { getRepTokenName, getUniverseName } from './utils/augurUtils.js'
+import { getForkValues, getUniverseForkingInformation, getUniverseInformation } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
-import { getErc20TokenBalance, getErc20TokenSymbol } from './utils/erc20.js'
+import { getErc20TokenBalance } from './utils/erc20.js'
 import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
@@ -25,14 +25,13 @@ import { CenteredBigSpinner, Spinner } from './SharedUI/Spinner.js'
 import { UnexpectedError } from './SharedUI/UnexpectedError.js'
 
 interface UniverseComponentProps {
-	universe: OptionalSignal<AccountAddress>
-	repTokenName: Signal<string>
+	universe: OptionalSignal<UniverseInformation>
 }
 
-const UniverseComponent = ({ universe, repTokenName }: UniverseComponentProps) => {
+const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 	if (universe.deepValue === undefined) return <p> No universe selected</p>
 	const universeName = getUniverseName(universe.deepValue)
-	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b> ({ repTokenName })</p>
+	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b> ({ universe.deepValue.repTokenName })</p>
 }
 
 interface UniverseForkingNoticeProps {
@@ -53,15 +52,15 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 						const forkingMarketSignal = new Signal(universeForkingInformation.deepValue.forkingMarket)
 						const universeSignal = new Signal(universeForkingInformation.deepValue.universe)
 						if (time <= 0) return <>
-							The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) } </b> has forked off.
+							The universe <b>{ getUniverseName(universeSignal.value) } </b> has forked off.
 							A disagreement on the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/> has caused the fork.
 							Please use some other universe.
 						</>
 						return <>
-							The universe <b> <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
+							The universe <b> <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
 							The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
 							This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
-							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink address = { universeSignal } pathSignal = { pathSignal }/>.
+							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>.
 						</>
 					}
 				}/>
@@ -102,13 +101,13 @@ interface WalletBalancesProps {
 	daiBalance: OptionalSignal<EthereumQuantity>
 	repBalance: OptionalSignal<EthereumQuantity>
 	ethBalance: OptionalSignal<EthereumQuantity>
-	repTokenName: Signal<string>
+	universe: OptionalSignal<UniverseInformation>
 }
 
-const WalletBalances = ({ daiBalance, repBalance, ethBalance, repTokenName }: WalletBalancesProps) => {
+const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe }: WalletBalancesProps) => {
 	const balances = []
 	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
-	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ repTokenName }`)
+	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) }`)
 	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
 
 	return <div class = 'wallet-balances'>
@@ -197,10 +196,10 @@ export function App() {
 	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
 	const chainId = useSignal<number | undefined>(undefined)
 	const inputTimeoutRef = useRef<number | null>(null)
-	const universe = useOptionalSignal<AccountAddress>(undefined)
+	const selectedUniverse = useOptionalSignal<AccountAddress>(undefined)
+	const currentUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const selectedMarket = useOptionalSignal<AccountAddress>(undefined)
 	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
-	const reputationTokenAddress = useOptionalSignal<AccountAddress>(undefined)
 	const account = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
 	const currentTimeInBigIntSeconds = useSignal<bigint>(BigInt(Math.floor(Date.now() / 1000)))
@@ -214,7 +213,6 @@ export function App() {
 	const pathSignal = useSignal<string>('')
 	const updateTokenBalancesSignal = useSignal<number>(0)
 
-	const repTokenName = useSignal<string>('REP')
 	const unexpectedError = useSignal<string | undefined>(undefined)
 
 	const showUnexpectedError = (error: unknown) => {
@@ -224,10 +222,10 @@ export function App() {
 
 	const tabs = [
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } repBalance = { repBalance } daiBalance = { daiBalance } showUnexpectedError = { showUnexpectedError }/>, hide: false },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { universe } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } repBalance = { repBalance } daiBalance = { daiBalance } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
-		{ title: 'Universe Migration', path: 'migration', component: <Migration repTokenName = { repTokenName } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } reputationTokenAddress = { reputationTokenAddress } universe = { universe } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false }
 	] as const
 
@@ -260,7 +258,7 @@ export function App() {
 
 		switch(hashpath.universe.type) {
 			case 'found': {
-				universe.deepValue = hashpath.universe.address
+				selectedUniverse.deepValue = hashpath.universe.address
 				break
 			}
 			case 'foundAndInvalid': {
@@ -268,7 +266,7 @@ export function App() {
 				break
 			}
 			case 'notFound': {
-				universe.deepValue = DEFAULT_UNIVERSE
+				selectedUniverse.deepValue = DEFAULT_UNIVERSE
 				break
 			}
 			default: assertNever(hashpath.universe)
@@ -293,8 +291,8 @@ export function App() {
 
 	useSignalEffect(() => {
 		const hashpath = parseHashPath(pathSignal.value, tabs.map((tab) => tab.path))
-		if (hashpath.selectedMarket.address === selectedMarket.deepValue && hashpath.universe.address === universe.deepValue) return
-		pathSignal.value = paramsToHashPath(tabs[activeTab.value]?.path || '404', selectedMarket.deepValue, universe.deepValue)
+		if (hashpath.selectedMarket.address === selectedMarket.deepValue && hashpath.universe.address === selectedUniverse.deepValue) return
+		pathSignal.value = paramsToHashPath(tabs[activeTab.value]?.path || '404', selectedMarket.deepValue, selectedUniverse.deepValue)
 	})
 
 	useEffect(() => {
@@ -325,11 +323,12 @@ export function App() {
 	const setUniverseIfValid = async () => {
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) return
-		if (universe.deepValue === undefined) return
+		if (selectedUniverse.deepValue === undefined) return
 		try {
-			if (!(await isKnownUniverse(readClient, universe.deepValue))) throw new Error(`${ universe.deepValue } is not an universe recognized by Augur.`)
+			currentUniverse.deepValue = await getUniverseInformation(readClient, selectedUniverse.deepValue, true)
 		} catch(error: unknown) {
 			showUnexpectedError(error)
+			currentUniverse.deepValue = undefined
 		}
 	}
 
@@ -378,8 +377,8 @@ export function App() {
 			showUnexpectedError(error)
 		}
 		isAugurExtraUtilitiesDeployedSignal.deepValue = true
-		await fetchUniverseInfo(maybeReadClient.deepValue, universe.deepValue).catch(showUnexpectedError)
-		await updateTokenBalances(maybeWriteClient.deepValue, reputationTokenAddress.deepValue).catch(showUnexpectedError)
+		await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
+		await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
 	}
 
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
@@ -399,32 +398,20 @@ export function App() {
 	}
 
 
-	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universe: AccountAddress | undefined) => {
+	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universeInformation: UniverseInformation | undefined) => {
+		universeForkingInformation.deepValue = undefined
 		if (readClient === undefined) return
-		if (universe === undefined) return
-		batch(() => {
-			reputationTokenAddress.deepValue = undefined
-			repTokenName.value = 'REP'
-			universeForkingInformation.deepValue = undefined
-		})
+		if (universeInformation === undefined) return
 		try {
-			const universeForkingPromise = getUniverseForkingInformation(readClient, universe)
-			const reputationTokenAddressNotSignal = await getReputationTokenForUniverse(readClient, universe)
-			const repTokenNameNotSignal = reputationTokenAddressNotSignal === GENESIS_REPUTATION_V2_TOKEN_ADDRESS ? `RepV2` : await getErc20TokenSymbol(readClient, reputationTokenAddressNotSignal)
-			const universeForkingInformationNotSignal = await universeForkingPromise
-			batch(() => {
-				reputationTokenAddress.deepValue = reputationTokenAddressNotSignal
-				repTokenName.value = repTokenNameNotSignal
-				universeForkingInformation.deepValue = universeForkingInformationNotSignal
-			})
+			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation)
 		} catch(error: unknown) {
 			showUnexpectedError(error)
 		}
 	}
 
-	useSignalEffect(() => { fetchUniverseInfo(maybeReadClient.deepValue, universe.deepValue).catch(showUnexpectedError) })
+	useSignalEffect(() => {fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError) })
 
-	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, reputationTokenAddress.deepValue).catch(showUnexpectedError) })
+	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError) })
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
@@ -432,7 +419,7 @@ export function App() {
 		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
 	}
 
-	if (universe.deepValue === undefined) return <main style = 'overflow: auto;'><div class = 'app'><CenteredBigSpinner/> </div></main>
+	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: auto;'><div class = 'app'><CenteredBigSpinner/> </div></main>
 
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
@@ -441,13 +428,13 @@ export function App() {
 					<img src = 'favicon.ico' alt = 'Icon' />
 					<div>
 						<span>Augur Forklift</span>
-						<UniverseComponent universe = { universe } repTokenName = { repTokenName }/>
+						<UniverseComponent universe = { currentUniverse }/>
 					</div>
 				</div>
 				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ? <button class = 'button button-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button> : <div></div> }
 				<div style = 'display: flex; align-items: center;'>
 					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }>
-						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } repTokenName = { repTokenName }/>
+						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
 				</div>

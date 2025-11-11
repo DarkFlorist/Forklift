@@ -1,6 +1,6 @@
 import 'viem/window'
-import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
+import { AccountAddress, EthereumBytes32, EthereumQuantity, UniverseInformation } from '../types/types.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
 import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
@@ -16,6 +16,7 @@ import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 import { ContractFunctionExecutionError, encodePacked, keccak256 } from 'viem'
 import * as funtypes from 'funtypes'
 import { LiteralConverterParserFactory } from '../types/types.js'
+import { getErc20TokenSymbol } from './erc20.js'
 
 export type ExtraInfo = funtypes.Static<typeof ExtraInfo>
 export const ExtraInfo = funtypes.Intersect(
@@ -64,12 +65,13 @@ export const fetchMarketData = async (readClient: ReadClient, marketAddress: Acc
 		address: HOT_LOADING_ADDRESS,
 		args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
 	})
+	const universePromise = getUniverseInformation(readClient, hotLoadingMarketData.universe, false)
 	const marketType = MARKET_TYPES[hotLoadingMarketData.marketType]
 	if (marketType === undefined) throw new Error(`unknown market type: ${ hotLoadingMarketData.marketType }`)
 	const reportingState = REPORTING_STATES[hotLoadingMarketData.reportingState]
 	if (reportingState === undefined) throw new Error(`unknown reporting state type: ${ hotLoadingMarketData.reportingState }`)
 	const lastCompletedCrowdSourcer = reportingState === 'PreReporting'	? undefined : await getLastCompletedCrowdSourcer(readClient, marketAddress, hotLoadingMarketData.disputeRound)
-	return { ...hotLoadingMarketData, marketType, reportingState, repBond: await repBondPromise, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
+	return { ...hotLoadingMarketData, universe: await universePromise, marketType, reportingState, repBond: await repBondPromise, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
 }
 
 export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {
@@ -459,30 +461,30 @@ export const disavowCrowdsourcers = async (writeClient: WriteClient, market: Acc
 	})
 }
 
-export const getUniverseForkingInformation = async (readClient: ReadClient, universe: AccountAddress) => {
+export const getUniverseForkingInformation = async (readClient: ReadClient, universe: UniverseInformation) => {
 	const isForking = await readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'isForking',
-		address: universe,
+		address: universe.universeAddress,
 		args: []
 	})
 	if (isForking === false) return { universe, isForking } as const
 	const forkEndTimePromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkEndTime',
-		address: universe,
+		address: universe.universeAddress,
 		args: []
 	})
 	const forkingMarketPromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkingMarket',
-		address: universe,
+		address: universe.universeAddress,
 		args: []
 	})
 	const payoutNumeratorsPromise = readClient.readContract({
 		abi: UNIVERSE_ABI,
 		functionName: 'getPayoutNumerators',
-		address: universe,
+		address: universe.universeAddress,
 		args: []
 	})
 	return {
@@ -617,5 +619,23 @@ export const getWinningChildUniverse = async (client: ReadClient, universe: Acco
 			return undefined
 		}
 		throw error
+	}
+}
+
+export const getUniverseInformation = async (client: ReadClient, universeAddress: AccountAddress, verify: boolean) => {
+	if (universeAddress === GENESIS_UNIVERSE) {
+		return {
+			universeAddress: GENESIS_UNIVERSE,
+			reputationTokenAddress: GENESIS_REPUTATION_V2_TOKEN_ADDRESS,
+			repTokenName: 'RepV2'
+		} as const
+	} else {
+		if (verify && !(await isKnownUniverse(client, universeAddress))) throw new Error(`${ universeAddress } is not an universe recognized by Augur.`)
+		const reputationTokenAddress = await getReputationTokenForUniverse(client, universeAddress)
+		return {
+			universeAddress,
+			reputationTokenAddress,
+			repTokenName: await getErc20TokenSymbol(client, reputationTokenAddress)
+		} as const
 	}
 }

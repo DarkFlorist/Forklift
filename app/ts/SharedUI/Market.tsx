@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { AccountAddress } from '../types/types.js'
+import { UniverseInformation } from '../types/types.js'
 import { fetchMarketData, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
 import { getOutcomeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
@@ -108,13 +108,12 @@ export const MarketState = ({ marketData, forkValues }: MarketStateProps) => {
 
 interface MarketProps {
 	marketData: OptionalSignal<MarketData>
-	universe: OptionalSignal<AccountAddress>
+	universe: OptionalSignal<UniverseInformation>
 	addressComponent?: JSX.Element
 	children?: preact.ComponentChildren
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
 	currentTimeInBigIntSeconds: Signal<bigint>
-	repTokenName: Signal<string>
 	loading: Signal<boolean>
 }
 
@@ -176,7 +175,7 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 	}/>
 }
 
-export const Market = ({ repTokenName, marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds, loading }: MarketProps) => {
+export const Market = ({ marketData, universe, addressComponent, children, forkValues, disputeWindowInfo, currentTimeInBigIntSeconds, loading }: MarketProps) => {
 	if (marketData.deepValue === undefined || universe.deepValue === undefined) return <div>
 		<div className = 'market-card'>
 			{ addressComponent }
@@ -185,7 +184,7 @@ export const Market = ({ repTokenName, marketData, universe, addressComponent, c
 	</div>
 	const endTime = useComputed(() => marketData.deepValue?.endTime)
 	return <div>
-		{ universe.deepValue !== undefined && BigInt(universe.deepValue) !== BigInt(marketData.deepValue.universe) ? <>
+		{ universe.deepValue !== undefined && BigInt(universe.deepValue.universeAddress) !== BigInt(marketData.deepValue.universe.universeAddress) ? <>
 			<div class = 'error-box'>
 				<p> This Market is for universe { getUniverseName(marketData.deepValue.universe) } while you are on universe { getUniverseName(universe.deepValue) }!</p>
 			</div>
@@ -238,7 +237,7 @@ export const Market = ({ repTokenName, marketData, universe, addressComponent, c
 					['Affiliate Fee', marketData.deepValue.affiliateFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.affiliateFeeDivisor)).toFixed(2) }%` ],
 
 					['Validity Bond', `${ bigintToDecimalString(marketData.deepValue.validityBond, 18n, 2) } DAI`],
-					['Rep Bond', `${ bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } ${ repTokenName } `],
+					['Rep Bond', `${ bigintToDecimalString(marketData.deepValue.repBond, 18n, 2) } ${ marketData.deepValue.universe.repTokenName } `],
 
 					['Categories', (marketData.deepValue.parsedExtraInfo?.categories || []).join(', ')],
 					['Tags', (marketData.deepValue.parsedExtraInfo?.tags || []).join(', ')],

@@ -67,3 +67,9 @@ export const EthereumBytes32 = funtypes.String.withParser(Bytes32Parser)
 export type EthereumBytes32 = funtypes.Static<typeof EthereumBytes32>
 
 export type MarketType = 'Yes/No' | 'Categorical' | 'Scalar'
+
+export type UniverseInformation = {
+	universeAddress: AccountAddress
+	reputationTokenAddress: AccountAddress
+	repTokenName: string
+}
