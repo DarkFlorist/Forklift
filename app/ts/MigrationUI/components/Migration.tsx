@@ -7,7 +7,7 @@ import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUn
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { addressString, bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
-import { MarketOutcomeOptionWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { SelectUniverse } from '../../SharedUI/SelectUniverse.js'
 import { humanReadableDateDelta } from '../../utils/utils.js'
@@ -40,7 +40,7 @@ const DisplayForkValues = ({ forkValues, repTokenName }: GetForkValuesProps) => 
 
 export const Migration = ({ repTokenName, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, reputationTokenAddress, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds, showUnexpectedError }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
-	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>(undefined)
+	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeWithUniverse[]>(undefined)
 	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const parentUniverse = useOptionalSignal<AccountAddress>(undefined)

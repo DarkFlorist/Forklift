@@ -1,15 +1,15 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { MarketData } from './Market.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { MarketOutcomeOptionWithUniverse, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOptions.js'
-import { ScalarInput } from './ScalarMarketReportingOptions.js'
+import { MarketOutcomeWithUniverse, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOutcomes.js'
+import { ScalarInput } from './ScalarMarketReportingOutcomes.js'
 import { getPayoutNumeratorsFromScalarOutcome } from '../utils/augurUtils.js'
 import { areEqualArrays } from '../utils/ethereumUtils.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
 	disabled: Signal<boolean>
-	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 	pathSignal: Signal<string>
 	repTokenName: Signal<string>

@@ -95,9 +95,9 @@ export const MarketState = ({ marketData, forkValues }: MarketStateProps) => {
 		case 'Finalized': {
 			if (marketData.deepValue === undefined) return 'Finalized'
 			const winningPayout = marketData.deepValue.winningPayout
-			const winningOptionName = getOutcomeName(winningPayout, marketData.deepValue)
-			if (winningOptionName === undefined) return 'Finalized'
-			return `Finalized as ${ winningOptionName }`
+			const winningOutcomeName = getOutcomeName(winningPayout, marketData.deepValue)
+			if (winningOutcomeName === undefined) return 'Finalized'
+			return `Finalized as ${ winningOutcomeName }`
 		}
 		case 'Forking': return 'Forking'
 		case 'OpenReporting': return 'Awaiting For Anyone To Report'
@@ -148,10 +148,10 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 		&& forkValues.deepValue !== undefined
 		&& marketData.deepValue?.lastCompletedCrowdSourcer.size >= forkValues.deepValue.disputeThresholdForDisputePacing
 	)
-	const winningOptionName = useComputed(() => {
+	const winningOutcomeName = useComputed(() => {
 		const winningPayout = marketData.deepValue?.winningPayout.length === 0 ? marketData.deepValue.lastCompletedCrowdSourcer?.payoutNumerators : marketData.deepValue?.winningPayout
 		if (winningPayout === undefined) return undefined
-		if (winningOptionName === undefined) return undefined
+		if (winningOutcomeName === undefined) return undefined
 		if (marketData.deepValue === undefined) return undefined
 		return getOutcomeName(winningPayout, marketData.deepValue)
 	})
@@ -159,18 +159,18 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 		if (disputeWindowInfo.deepValue === undefined) return undefined
 		return bigintSecondsToDate(disputeWindowInfo.deepValue.endTime)
 	})
-	if (endDate.value === undefined || winningOptionName.value === undefined) return <CenteredBigSpinner/>
+	if (endDate.value === undefined || winningOutcomeName.value === undefined) return <CenteredBigSpinner/>
 	return <SomeTimeAgo priorTimestamp = { endDate.value } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } countBackwards = { true } diffToText = {
 		(time: number) => {
-			if (time <= 0) return <p>The market has resolved to "<b>{ winningOptionName.value }</b>"</p>
+			if (time <= 0) return <p>The market has resolved to "<b>{ winningOutcomeName.value }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>
 			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName.value }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
+				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
 			</p> </div>
 			const timeUntilNext = humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, disputeWindowInfo.deepValue.startTime)
 			const nextWindowLength = humanReadableDateDeltaFromTo(disputeWindowInfo.deepValue.startTime, disputeWindowInfo.deepValue.endTime)
 			return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOptionName.value }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
 			</p> </div>
 		}
 	}/>

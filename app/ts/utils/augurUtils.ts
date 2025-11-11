@@ -1,8 +1,8 @@
 import { MarketData } from '../SharedUI/Market.js'
-import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOptions.js'
+import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { AccountAddress, EthereumQuantity, MarketType } from '../types/types.js'
 import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
-import { GENESIS_UNIVERSE, YES_NO_OPTIONS } from './constants.js'
+import { GENESIS_UNIVERSE, YES_NO_OUTCOMES } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
 import { indexOfMax } from './utils.js'
@@ -20,9 +20,9 @@ export const getAllPayoutNumeratorCombinations = (numOutcomes: bigint, numTicks:
 export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/No' | 'Categorical', outcomes: readonly `0x${ string }`[]) => {
 	if (index === 0) return 'Invalid'
 	if (marketType === 'Yes/No') {
-		const option = YES_NO_OPTIONS[index]
-		if (option === undefined) throw new Error('invalid outcome index')
-		return option
+		const outcome = YES_NO_OUTCOMES[index]
+		if (outcome === undefined) throw new Error('invalid outcome index')
+		return outcome
 	}
 	const outcomeName = outcomes[index - 1]
 	if (outcomeName === undefined) throw new Error('invalid outcome index')
@@ -101,7 +101,7 @@ export function getTradeInterval(displayRange: bigint, numTicks: bigint): bigint
 	return displayInterval * displayRange / numTicks / ( 10n ** 18n )
 }
 
-export const areValidScalarPayoutNumeratorOptions = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minValue: bigint, maxValue: bigint, numTicks: bigint) => {
+export const areValidScalarPayoutNumeratorOutcomes = (invalid: boolean, selectedScalarOutcome: undefined | bigint, minValue: bigint, maxValue: bigint, numTicks: bigint) => {
 	if (invalid) return true
 	if (selectedScalarOutcome === undefined) return false
 	const tradeInterval = getTradeInterval(maxValue - minValue, numTicks)

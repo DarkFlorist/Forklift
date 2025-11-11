@@ -16,24 +16,24 @@ export type OutcomeStake = {
 	universeAddress: AccountAddress | undefined
 }
 
-type MarketReportingOptionsForYesNoAndCategoricalProps = {
+type MarketReportingOutcomesForYesNoAndCategoricalProps = {
 	marketData: OptionalSignal<MarketData>
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
 	isSlowReporting: Signal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	areOptionsDisabled: Signal<boolean>
+	areOutcomesDisabled: Signal<boolean>
 	canInitialReport: Signal<boolean>
 	repTokenName: Signal<string>
 }
 
-export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOptionsDisabled, canInitialReport }: MarketReportingOptionsForYesNoAndCategoricalProps) => {
+export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOutcomesDisabled, canInitialReport }: MarketReportingOutcomesForYesNoAndCategoricalProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
 
-	const maxStakeAmountForEachOption = useComputed(() => {
+	const maxStakeAmountForEachOutcome = useComputed(() => {
 		if (selectedOutcome.value === null) return []
 		if (outcomeStakes.deepValue === undefined) return []
 		if (forkValues.deepValue === undefined) return []
@@ -45,7 +45,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, mar
 		outcomeStakes.deepValue.map((outcomeStake, index) => (
 			<div class = 'outcome-option' key = { outcomeStake.outcomeName }>
 				<input
-					disabled = { !canInitialReport.value && (areOptionsDisabled || maxStakeAmountForEachOption.value[index] === 0n) }
+					disabled = { !canInitialReport.value && (areOutcomesDisabled || maxStakeAmountForEachOutcome.value[index] === 0n) }
 					type = 'radio'
 					name = 'selectedOutcome'
 					class = 'custom-input'
@@ -89,12 +89,12 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ repTokenName, mar
 	} </div>
 }
 
-export type MarketOutcomeOption = {
+export type MarketOutcome = {
 	outcomeName: string
 	payoutNumerators: readonly EthereumQuantity[]
 }
 
-export type MarketOutcomeOptionWithUniverse = {
+export type MarketOutcomeWithUniverse = {
 	outcomeName: string
 	payoutNumerators: readonly EthereumQuantity[]
 	universeAddress: AccountAddress | undefined
@@ -103,7 +103,7 @@ export type MarketOutcomeOptionWithUniverse = {
 type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
 	pathSignal: Signal<string>
-	outcomeStakes: OptionalSignal<readonly MarketOutcomeOptionWithUniverse[]>
+	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	disabled: Signal<boolean>
 	repTokenName: Signal<string>
 }

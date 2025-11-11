@@ -5,7 +5,7 @@ import { Signal, useComputed, useSignal } from '@preact/signals'
 import { getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
-import { OutcomeStake } from './YesNoCategoricalMarketReportingOptions.js'
+import { OutcomeStake } from './YesNoCategoricalMarketReportingOutcomes.js'
 import { UniverseLink } from './links.js'
 
 type ScalarInputProps = {
