@@ -318,6 +318,27 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 			const affiliateFeeDivisorValue = affiliateFeeDivisor.deepValue || 0
 			const designatedReporterAddressValue = designatedReporterAddress.deepValue || '0x0000000000000000000000000000000000000000'
 			const estimate = async () => {
+				const canEstimate = () => {
+					if (universe.deepValue === undefined) return false
+					if (maybeReadClient.deepPeek() === undefined) return false
+					if (marketEndTimeUnixTimeStamp === undefined) return false
+					if (marketCreationCostRep.deepValue === undefined) return false
+					if (marketCreationCostDai.deepValue === undefined) return false
+					if (allowedRep.deepValue === undefined) return false
+					if (allowedDai.deepValue === undefined) return false
+					if (allowedRep.deepValue < marketCreationCostRep.deepValue) return false
+					if (allowedDai.deepValue < marketCreationCostDai.deepValue) return false
+					if (repBalance.deepValue === undefined) return false
+					if (daiBalance.deepValue === undefined) return false
+					if (repBalance.deepValue < marketCreationCostRep.deepValue) return false
+					if (daiBalance.deepValue < marketCreationCostDai.deepValue) return false
+					return true
+				}
+				if (!canEstimate()) {
+					marketCreationGasCost.deepValue = undefined
+					return
+				}
+
 				if (universe.deepValue === undefined) return
 				const readClient = maybeReadClient.deepPeek()
 				if (readClient === undefined) return
@@ -325,6 +346,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				try {
 				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
 				} catch(error: unknown) {
+					marketCreationGasCost.deepValue = undefined
 					if (error instanceof ContractFunctionExecutionError) return
 					showUnexpectedError(error)
 				}
