@@ -3,6 +3,7 @@ import * as url from 'url';
 import { promises as fs } from 'fs'
 import { FileType, recursiveDirectoryCopy } from '@zoltu/file-copier'
 import * as funtypes from 'funtypes'
+import esbuild from 'esbuild'
 
 const directoryOfThisFile = path.dirname(url.fileURLToPath(import.meta.url))
 const VENDOR_OUTPUT_PATH = path.join(directoryOfThisFile, '..', 'app', 'vendor')
@@ -115,7 +116,33 @@ async function rewriteSourceMapSourcePath(packageName: string, sourcePath: strin
 	await fs.writeFile(destinationPath, JSON.stringify(fileContents))
 }
 
+async function bundleViem() {
+	const viemSrcDir = path.join(MODULES_ROOT_PATH, 'viem', '_esm')
+	const viemTmpOut = path.join(directoryOfThisFile, 'tmp-viem-bundle')
+
+	await esbuild.build({
+		entryPoints: {
+			'index': path.join(viemSrcDir, 'index.js'),
+			'chains/index': path.join(viemSrcDir, 'chains', 'index.js'),
+			'window/index': path.join(viemSrcDir, 'window', 'index.js'),
+			'actions/index': path.join(viemSrcDir, 'actions', 'index.js')
+		},
+		format: 'esm',
+		outdir: viemTmpOut,
+		bundle: true,
+		platform: 'browser',
+		sourcemap: true,
+		target: 'esnext'
+	})
+
+	await fs.rm(viemSrcDir, { recursive: true, force: true })
+	await fs.mkdir(viemSrcDir, { recursive: true })
+	await recursiveDirectoryCopy(viemTmpOut, viemSrcDir, async () => true)
+	await fs.rm(viemTmpOut, { recursive: true, force: true })
+}
+
 const vendor = async () => {
+	await bundleViem()
 	await vendorDependencies()
 	await copySolidityContractArtifact()
 }
