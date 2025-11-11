@@ -1,7 +1,7 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { createYesNoMarket, estimateGasCreateYesNoMarket, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { AccountAddress, EthereumAddress, EthereumQuantity } from '../../types/types.js'
+import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { bigintToDecimalString, bigintToDecimalStringWithUnknown, bigintToDecimalStringWithUnknownAndPracticallyInfinite, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
@@ -12,20 +12,19 @@ import { Input } from '../../SharedUI/Input.js'
 import { useThrottledSignalEffect } from '../../SharedUI/useThrottledSignalEffect.js'
 import { ContractFunctionExecutionError } from 'viem'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
+import { getRepTokenName } from '../../utils/augurUtils.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
-	universe: OptionalSignal<AccountAddress>
-	reputationTokenAddress: OptionalSignal<AccountAddress>
+	universe: OptionalSignal<UniverseInformation>
 	marketCreationCostDai: OptionalSignal<bigint>
 	marketCreationCostRep: OptionalSignal<bigint>
 	allowedRep: OptionalSignal<bigint>
 	allowedDai: OptionalSignal<bigint>
-	repTokenName: Signal<string>
 	showUnexpectedError: (error: unknown) => void
 }
 
-export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, repTokenName, showUnexpectedError }: AllowancesProps) => {
+export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai, marketCreationCostRep, allowedRep, allowedDai, showUnexpectedError }: AllowancesProps) => {
 	const daiAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 	const repAllowanceToBeSet = useOptionalSignal<bigint>(undefined)
 
@@ -40,7 +39,6 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 	const cannotSetRepAllowance = useComputed(() => {
 		if (maybeWriteClient.deepValue === undefined) return true
 		if (universe.deepValue === undefined) return true
-		if (reputationTokenAddress.deepValue === undefined) return true
 		if (repAllowanceToBeSet.deepValue === undefined || repAllowanceToBeSet.deepValue <= 0n) return true
 		return false
 	})
@@ -49,9 +47,8 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
 		if (repAllowanceToBeSet.deepValue === undefined || repAllowanceToBeSet.deepValue <= 0n) throw new Error('not valid allowance')
-		return await approveErc20Token(writeClient, reputationTokenAddress.deepValue, universe.deepValue, repAllowanceToBeSet.deepValue)
+		return await approveErc20Token(writeClient, universe.deepValue.reputationTokenAddress, universe.deepValue.universeAddress, repAllowanceToBeSet.deepValue)
 	}
 
 	const approveDai = async () => {
@@ -64,11 +61,10 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 	const refreshBalances = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
-		if (reputationTokenAddress.deepValue === undefined) throw new Error('missing reputationV2Address')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		try {
 			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT)
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress.deepValue, writeClient.account.address, universe.deepValue)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.deepValue.reputationTokenAddress, writeClient.account.address, universe.deepValue.universeAddress)
 		} catch(error: unknown) {
 			return showUnexpectedError(error)
 		}
@@ -82,7 +78,8 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 	}
 
 	const daiAllowanceText = useComputed(() => `Allowed DAI: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
-	const repAllowanceText = useComputed(() => `Allowed ${ repTokenName }: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ repTokenName } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ repTokenName })`)
+	const repAllowanceText = useComputed(() => `Allowed ${ getRepTokenName(universe.deepValue?.repTokenName) }: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) })`)
+	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <div class = 'form-grid'>
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
@@ -93,7 +90,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				<Input
 					class = 'input reporting-panel-input'
 					type = 'text'
-					placeholder = { useComputed(() => `${ repTokenName } to allow`) }
+					placeholder = { useComputed(() => `${ getRepTokenName(universe.deepValue?.repTokenName) } to allow`) }
 					disabled = { useComputed(() => false) }
 					style = { { maxWidth: '300px' } }
 					value = { daiAllowanceToBeSet }
@@ -145,7 +142,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 						return bigintToDecimalString(amount, 18n, 18)
 					}}
 				/>
-				<span class = 'unit'>{ repTokenName }</span>
+				<span class = 'unit'>{ repTokenName.value }</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
 			</div>
 			<SendTransactionButton
@@ -155,7 +152,7 @@ export const Allowances = ( { maybeWriteClient, universe, reputationTokenAddress
 				sendTransaction = { approveRep }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { cannotSetRepAllowance }
-				text = { useComputed(() => `Set ${ repTokenName } allowance`) }
+				text = { useComputed(() => `Set ${ getRepTokenName(universe.deepValue?.repTokenName) } allowance`) }
 				callBackWhenIncluded = { refreshBalances }
 			/>
 		</div>
@@ -167,25 +164,24 @@ interface CostsParams {
 	marketCreationCostRep: OptionalSignal<bigint>
 	baseFee: OptionalSignal<bigint>
 	marketCreationGasCost: OptionalSignal<bigint>
-	repTokenName: Signal<string>
+	universe: OptionalSignal<UniverseInformation>
 }
 
-export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationGasCost, repTokenName }: CostsParams) => {
+export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationGasCost, universe }: CostsParams) => {
 	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6))
+	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <p>
-		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } { repTokenName }</b> to create a market. The { repTokenName } will be returned to you after a succesfull initial report and the DAI will be returned to you if the market resolves to non-invalid.
+		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a succesfull initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
 }
 
 interface CreateYesNoMarketProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
-	universe: OptionalSignal<AccountAddress>
-	reputationTokenAddress: OptionalSignal<AccountAddress>
+	universe: OptionalSignal<UniverseInformation>
 	daiBalance: OptionalSignal<bigint>
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
-	repTokenName: Signal<string>
 	showUnexpectedError: (error: unknown) => void
 }
 
@@ -208,7 +204,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, reputationTokenAddress, daiBalance, repBalance, repTokenName, showUnexpectedError }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -227,17 +223,16 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	const baseFee = useOptionalSignal<bigint>(undefined)
 	const pendingCreateMarketTransactionStatus = useSignal<TransactionStatus>(undefined)
 
-	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: AccountAddress | undefined, reputationTokenAddress: AccountAddress | undefined) => {
+	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: UniverseInformation | undefined) => {
 		if (readClient === undefined) return
 		try {
 			baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
 			maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
 			if (universe === undefined) return
-			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe)
-			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe)
-			if (reputationTokenAddress === undefined) return
+			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress)
+			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress)
 			if (writeClient === undefined) return
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, reputationTokenAddress, writeClient?.account.address, universe)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress)
 			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
 		} catch(error: unknown) {
 			showUnexpectedError(error)
@@ -249,7 +244,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	}, [maybeWriteClient.deepValue?.account.address])
 
 	useSignalEffect(() => {
-		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue, reputationTokenAddress.deepValue).catch(showUnexpectedError)
+		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError)
 	})
 
 	const createMarketDisabled = useComputed(() => {
@@ -293,7 +288,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 			categories: categories.deepValue?.filter((element) => element.length > 0) || [],
 			tags: tags.deepValue?.filter((element) => element.length > 0) || []
 		})
-		return await createYesNoMarket(universe.deepValue, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
+		return await createYesNoMarket(universe.deepValue.universeAddress, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
 	}
 
 	useThrottledSignalEffect(() => {
@@ -344,7 +339,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				if (readClient === undefined) return
 				if (marketEndTimeUnixTimeStamp === undefined) return
 				try {
-				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
 				} catch(error: unknown) {
 					marketCreationGasCost.deepValue = undefined
 					if (error instanceof ContractFunctionExecutionError) return
@@ -551,9 +546,9 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 				</div>
 			</div>
 
-			<Allowances repTokenName = { repTokenName } maybeWriteClient = { maybeWriteClient } universe = { universe } reputationTokenAddress = { reputationTokenAddress } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai } showUnexpectedError = { showUnexpectedError }/>
+			<Allowances maybeWriteClient = { maybeWriteClient } universe = { universe } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai } showUnexpectedError = { showUnexpectedError }/>
 
-			<Costs repTokenName = { repTokenName } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
+			<Costs universe = { universe } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
 			<div class = 'button-group'>
 				<SendTransactionButton
 					className = 'button button-primary button-group-button'

@@ -1,24 +1,29 @@
 import { Signal, useComputed } from '@preact/signals'
-import { AccountAddress } from '../types/types.js'
+import { AccountAddress, UniverseInformation } from '../types/types.js'
 import { getMarketUrl, getUniverseName, getUniverseUrl } from '../utils/augurUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { Hex } from 'viem'
 
-interface OptionalLinkProps {
+interface OptionalUniverseLinkProps {
+	universe: OptionalSignal<UniverseInformation>
+	pathSignal: Signal<string>
+}
+
+export const OptionalUniverseLink = ( { universe, pathSignal }: OptionalUniverseLinkProps) => {
+	if (universe.deepValue === undefined) return <p>loading...</p>
+	return <a href = { getUniverseUrl(universe.deepValue.universeAddress) } onClick = { (event) => {
+		event.preventDefault()
+		if (universe.deepValue === undefined) return
+		pathSignal.value = getUniverseUrl(universe.deepValue.universeAddress)
+	} }> { getUniverseName(universe.deepValue) }</a>
+}
+
+interface OptionalMarketLinkProps {
 	address: OptionalSignal<AccountAddress>
 	pathSignal: Signal<string>
 }
 
-export const OptionalUniverseLink = ( { address, pathSignal }: OptionalLinkProps) => {
-	if (address.deepValue === undefined) return <p>loading...</p>
-	return <a href = { getUniverseUrl(address.deepValue) } onClick = { (event) => {
-		event.preventDefault()
-		if (address.deepValue === undefined) return
-		pathSignal.value = getUniverseUrl(address.deepValue)
-	} }> { getUniverseName(address.deepValue) }</a>
-}
-
-export const OptionalMarketLink = ( { address, pathSignal }: OptionalLinkProps) => {
+export const OptionalMarketLink = ( { address, pathSignal }: OptionalMarketLinkProps) => {
 	if (address.deepValue === undefined) return <p>loading...</p>
 	return <a href = { getMarketUrl(address.deepValue) } onClick = { (event) => {
 		event.preventDefault()
@@ -27,21 +32,26 @@ export const OptionalMarketLink = ( { address, pathSignal }: OptionalLinkProps) 
 	} }> { address.deepValue }</a>
 }
 
-interface LinkProps {
+interface UniverseLinkProps {
+	universe: Signal<UniverseInformation | undefined>
+	pathSignal: Signal<string>
+}
+
+export const UniverseLink = ( { universe, pathSignal }: UniverseLinkProps) => {
+	if (universe.value === undefined) return <p></p>
+	return <a href = { getUniverseUrl(universe.value.universeAddress) } onClick = { (event) => {
+		event.preventDefault()
+		if (universe.value === undefined) return
+		pathSignal.value = getUniverseUrl(universe.value.universeAddress)
+	} }> { getUniverseName(universe.value) }</a>
+}
+
+interface MarketLinkProps {
 	address: Signal<AccountAddress | undefined>
 	pathSignal: Signal<string>
 }
 
-export const UniverseLink = ( { address, pathSignal }: LinkProps) => {
-	if (address.value === undefined) return <p></p>
-	return <a href = { getUniverseUrl(address.value) } onClick = { (event) => {
-		event.preventDefault()
-		if (address.value === undefined) return
-		pathSignal.value = getUniverseUrl(address.value)
-	} }> { getUniverseName(address.value) }</a>
-}
-
-export const MarketLink = ( { address, pathSignal }: LinkProps) => {
+export const MarketLink = ( { address, pathSignal }: MarketLinkProps) => {
 	if (address.value === undefined) return <p>loading...</p>
 	return <a href = { getMarketUrl(address.value) } onClick = { (event) => {
 		event.preventDefault()

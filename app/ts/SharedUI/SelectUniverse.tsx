@@ -12,10 +12,9 @@ type SelectUniverseProps = {
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 	pathSignal: Signal<string>
-	repTokenName: Signal<string>
 }
 
-export function SelectUniverse({ repTokenName, marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
+export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
@@ -24,11 +23,11 @@ export function SelectUniverse({ repTokenName, marketData, disabled, outcomeStak
 	const maxValue = useComputed(() => marketData.deepValue?.displayPrices[1] || 0n)
 	const numTicks = useComputed(() => marketData.deepValue?.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
-	const selectedOutcomeUniverseAddress = useComputed(() => {
+	const selectedOutcomeUniverse = useComputed(() => {
 		const selected = selectedPayoutNumerators.deepValue
 		if (selected === undefined) return undefined
 		if (outcomeStakes.deepValue === undefined) return undefined
-		return outcomeStakes.deepValue.find((outcomeStake) => areEqualArrays(outcomeStake.payoutNumerators, selected))?.universeAddress
+		return outcomeStakes.deepValue.find((outcomeStake) => areEqualArrays(outcomeStake.payoutNumerators, selected))?.universe
 	})
 	useSignalEffect(() => {
 		const payoutNumerators = outcomeStakes.deepValue?.find((outcome) => outcome.outcomeName === selectedOutcome.value)?.payoutNumerators
@@ -42,7 +41,7 @@ export function SelectUniverse({ repTokenName, marketData, disabled, outcomeStak
 	})
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.marketType === 'Scalar') {
-		return <ScalarInput selectedOutcomeUniverseAddress = { selectedOutcomeUniverseAddress } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
+		return <ScalarInput selectedOutcomeUniverse = { selectedOutcomeUniverse } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
 	}
-	return <MarketReportingForYesNoAndCategoricalWithoutStake repTokenName = { repTokenName } pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
+	return <MarketReportingForYesNoAndCategoricalWithoutStake pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
 }
