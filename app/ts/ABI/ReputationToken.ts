@@ -1,4 +1,4 @@
-export const REPUTATION_TOKEN_ABI =  [
+export const REPUTATION_TOKEN_ABI = [
 	{
 		"inputs": [
 			{

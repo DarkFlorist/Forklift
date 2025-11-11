@@ -2,26 +2,8 @@ import { getBalance } from 'viem/actions'
 import { AccountAddress } from '../types/types.js'
 import { ReadClient } from './ethereumWallet.js'
 
-export function hexToBytes(value: string) {
-	const result = new Uint8Array((value.length - 2) / 2)
-	for (let i = 0; i < result.length; ++i) {
-		result[i] = Number.parseInt(value.slice(i * 2 + 2, i * 2 + 4), 16)
-	}
-	return result
-}
-
-export function dataString(data: Uint8Array | null) {
-	if (data === null) return ''
-	return Array.from(data).map(x => x.toString(16).padStart(2, '0')).join('')
-}
-
 export const addressString = (address: bigint): `0x${ string }` => `0x${ address.toString(16).padStart(40, '0') }`
 export const bytes32String = (bytes32: bigint): `0x${ string }` => `0x${ bytes32.toString(16).padStart(64, '0') }`
-
-export function dataStringWith0xStart(data: Uint8Array | null): `0x${ string }` {
-	if (data === null) return '0x'
-	return `0x${ dataString(data) }`
-}
 
 export function bigintToUint8Array(value: bigint, numberOfBytes: number) {
 	if (typeof value === 'number') value = BigInt(value)
