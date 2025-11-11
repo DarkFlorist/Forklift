@@ -1,10 +1,9 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
 import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, BUY_PARTICIPATION_TOKENS_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
 import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
-import { BUY_PARTICIPATION_TOKENS_ABI } from '../ABI/BuyParticipationTokensAbi.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { bytes32String } from './ethereumUtils.js'
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
@@ -89,15 +88,6 @@ export const fetchHotLoadingTotalValidityBonds = async (readClient: ReadClient, 
 		functionName: 'getTotalValidityBonds',
 		address: HOT_LOADING_ADDRESS,
 		args: [marketAddresses]
-	})
-}
-
-export const buyParticipationTokens = async (writeClient: WriteClient, universe: AccountAddress, attotokens: EthereumQuantity) => {
-	return await writeClient.writeContract({
-		abi: BUY_PARTICIPATION_TOKENS_ABI,
-		functionName: 'buyParticipationTokens',
-		address: BUY_PARTICIPATION_TOKENS_CONTRACT,
-		args: [universe, attotokens]
 	})
 }
 
