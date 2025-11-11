@@ -65,7 +65,7 @@ RUN ipfs add --cid-version 1 --quieter --only-hash --recursive /export > ipfs_ha
 RUN cat ipfs_hash.txt
 
 # --------------------------------------------------------
-# Publish Script: always docker-host
+# Publish Script: when run, publishes to IPFS running on docker host.
 # --------------------------------------------------------
 
 WORKDIR /temp
