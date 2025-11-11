@@ -28,7 +28,7 @@ COPY ./solidity/tsconfig-compile.json /source/solidity/tsconfig-compile.json
 COPY ./solidity/contracts/ /source/solidity/contracts/
 COPY ./solidity/ts/ /source/solidity/ts/
 
-# Buld the app
+# Build the app
 COPY ./tsconfig.json /source/tsconfig.json
 COPY ./app/css/ /source/app/css/
 COPY ./app/ts/ /source/app/ts/
@@ -61,11 +61,11 @@ RUN ipfs init
 # Store the hash to a file
 RUN ipfs add --cid-version 1 --quieter --only-hash --recursive /export > ipfs_hash.txt
 
-# print the hash for good measure in case someone is looking at the build logs
+# Print the hash for visibility
 RUN cat ipfs_hash.txt
 
 # --------------------------------------------------------
-# Publish Script: Option to host app locally or on nft.storage
+# Publish Script: always docker-host
 # --------------------------------------------------------
 
 WORKDIR /temp
@@ -73,64 +73,13 @@ COPY <<'EOF' /entrypoint.sh
 #!/bin/sh
 set -e
 
-if [ $# -ne  1 ]; then
-  echo "Example usage: docker run --rm ghcr.io/darkflorist/forklift:latest [docker-host|nft.storage]"
-  exit  1
-fi
+echo "Build Hash: $(cat /ipfs_hash.txt)"
 
-case $1 in
+IPFS_IP4_ADDRESS=$(getent ahostsv4 host.docker.internal | grep STREAM | head -n 1 | cut -d ' ' -f 1)
 
-  docker-host)
-    # Show the IFPS build hash
-    echo "Build Hash: $(cat /ipfs_hash.txt)"
-
-    # Determine the IPV4 address of the docker-hosted IPFS instance
-    IPFS_IP4_ADDRESS=$(getent ahostsv4 host.docker.internal | grep STREAM | head -n 1 | cut -d ' ' -f 1)
-
-    echo "Adding files to docker running IPFS at $IPFS_IP4_ADDRESS"
-    IPFS_HASH=$(ipfs add --api /ip4/$IPFS_IP4_ADDRESS/tcp/5001 --cid-version 1 --quieter -r /export)
-    echo "Uploaded Hash: $IPFS_HASH"
-    ;;
-
-  nft.storage)
-    if [ -z $NFTSTORAGE_API_KEY ] || [ $NFTSTORAGE_API_KEY = "" ]; then
-      echo "NFTSTORAGE_API_KEY environment variable is not set";
-      exit  1;
-    fi
-
-    # Show the IFPS build hash
-    echo "Build Hash: $(cat /ipfs_hash.txt)"
-
-    # Create a CAR archive from build hash
-    echo "Uploading files to nft.storage..."
-    IPFS_HASH=$(ipfs add --cid-version 1 --quieter -r /export)
-    ipfs dag export $IPFS_HASH > output.car
-
-    # Upload the entire directory to nft.storage
-    UPLOAD_RESPONSE=$(curl \
-      --request POST \
-      --header "Authorization: Bearer $NFTSTORAGE_API_KEY" \
-      --header "Content-Type: application/car" \
-      --data-binary @output.car \
-      --silent \
-      https://api.nft.storage/upload)
-
-    # Show link to nft.storage (https://xxx.ipfs.nftstorage.link)
-    UPLOAD_SUCCESS=$(echo "$UPLOAD_RESPONSE" | jq -r ".ok")
-
-    if [ "$UPLOAD_SUCCESS" = "true" ]; then
-      echo "Succesfully uploaded to https://"$(echo "$UPLOAD_RESPONSE" | jq -r ".value.cid")".ipfs.nftstorage.link"
-    else
-      echo "Upload Failed: " $(echo "$UPLOAD_RESPONSE" | jq -r ".error | @json")
-    fi
-    ;;
-
-  *)
-    echo "Invalid option: $1"
-    echo "Example usage: docker run --rm ghcr.io/darkflorist/forklift:latest [docker-host|nft.storage]"
-    exit  1
-    ;;
-esac
+echo "Adding files to docker running IPFS at $IPFS_IP4_ADDRESS"
+IPFS_HASH=$(ipfs add --api /ip4/$IPFS_IP4_ADDRESS/tcp/5001 --cid-version 1 --quieter -r /export)
+echo "Uploaded Hash: $IPFS_HASH"
 EOF
 
 RUN chmod u+x /entrypoint.sh

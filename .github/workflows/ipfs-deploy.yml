@@ -61,11 +61,6 @@ jobs:
           # Make image reference available to subsequent steps
           echo "IMAGE_RELEASE_ID=$(echo $IMAGE_ID:$VERSION)" >> $GITHUB_ENV
 
-      # Run docker image script to publish app to nft.storage
-      - name: Publish to nft.storage
-        run: |
-          docker run -e NFTSTORAGE_API_KEY=${{ secrets.NFTSTORAGE_API_KEY }} $IMAGE_RELEASE_ID nft.storage
-
       - name: Create a reference for IPFS hash
         if: github.ref_type == 'tag'
         run: |
