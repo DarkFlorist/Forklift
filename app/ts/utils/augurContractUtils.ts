@@ -639,3 +639,12 @@ export const getUniverseInformation = async (client: ReadClient, universeAddress
 		} as const
 	}
 }
+
+export const createChildUniverse = async (writeClient: WriteClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[]) => {
+	return await writeClient.writeContract({
+		address: universe,
+		abi: UNIVERSE_ABI,
+		functionName: 'createChildUniverse',
+		args: [payoutNumerators]
+	})
+}

@@ -1,11 +1,13 @@
-import { Signal, useComputed } from '@preact/signals'
+import { Signal, useComputed, useSignal } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity, UniverseInformation } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
-import { getForkValues } from '../utils/augurContractUtils.js'
+import { createChildUniverse, getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 import { MarketData } from './Market.js'
 import { UniverseLink } from './links.js'
+import { SendTransactionButton, TransactionStatus } from './SendTransactionButton.js'
+import { WriteClient } from '../utils/ethereumWallet.js'
 
 
 export type MarketOutcomeWithUniverse = {
@@ -98,37 +100,72 @@ export type MarketOutcome = {
 	payoutNumerators: readonly EthereumQuantity[]
 }
 
+type OutcomeStakeComponentProps = {
+	outcomeStake: MarketOutcomeWithUniverse
+	selectedOutcome: Signal<string | null>
+	pathSignal: Signal<string>
+	disabled: Signal<boolean>
+	maybeWriteClient: OptionalSignal<WriteClient>
+	universe: OptionalSignal<UniverseInformation>
+	refreshStakes: () => Promise<void>
+}
+
+export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake, selectedOutcome, pathSignal, disabled, refreshStakes }: OutcomeStakeComponentProps) => {
+	const transactionStatus = useSignal<TransactionStatus>(undefined)
+	const createUniverse = async () => {
+		if (maybeWriteClient.deepValue === undefined) throw new Error('client missing')
+		if (universe.deepValue?.universeAddress === undefined) throw new Error('universe missing')
+		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, outcomeStake.payoutNumerators)
+	}
+
+	const universeLinkOrButton = useComputed(() => {
+		if (outcomeStake.universe === undefined) {
+			return <SendTransactionButton
+				className = 'button button-secondary'
+				transactionStatus = { transactionStatus }
+				sendTransaction = { createUniverse }
+				maybeWriteClient = { maybeWriteClient }
+				disabled = { disabled }
+				text = { new Signal(`Create "${ outcomeStake.outcomeName }" Universe`) }
+				callBackWhenIncluded = { refreshStakes }
+			/>
+		} else {
+			return <UniverseLink universe = { useComputed(() => outcomeStake.universe) } pathSignal = { pathSignal }/>
+		}
+	})
+
+	return <div class = 'outcome-option' key = { outcomeStake.outcomeName } style = { 'grid-template-columns: max-content max-content 1fr;'}>
+		<input
+			disabled = { disabled }
+			type = 'radio'
+			class = 'custom-input'
+			name = 'selectedOutcome'
+			checked = { selectedOutcome.value === outcomeStake.outcomeName }
+			onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+		/>
+		<div class = 'outcome-info'>
+			<b>{ outcomeStake.outcomeName }</b>
+		</div>
+		<div style = { 'justify-self: end;' }>
+			{ universeLinkOrButton.value }
+		</div>
+	</div>
+}
+
 type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
 	pathSignal: Signal<string>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	disabled: Signal<boolean>
+	maybeWriteClient: OptionalSignal<WriteClient>
+	universe: OptionalSignal<UniverseInformation>
+	refreshStakes: () => Promise<void>
 }
 
-export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
+export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal, refreshStakes, universe, maybeWriteClient }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
-	return <div class = 'outcome-options'>
-		{
-			outcomeStakes.deepValue.map((outcomeStake) => (
-				<div class = 'outcome-option' key = { outcomeStake.outcomeName } style = { 'grid-template-columns: max-content max-content 1fr;'}>
-					<input
-						disabled = { disabled }
-						type = 'radio'
-						class = 'custom-input'
-						name = 'selectedOutcome'
-						checked = { selectedOutcome.value === outcomeStake.outcomeName }
-						onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
-					/>
-					<div class = 'outcome-info'>
-						<b>{ outcomeStake.outcomeName }</b>
-					</div>
-					<div style = { 'justify-self: end;' }>
-						{ outcomeStake.universe === undefined ? <p>Universe address not known</p> : <>
-							<p> Universe: <UniverseLink universe = { useComputed(() => outcomeStake.universe) } pathSignal = { pathSignal }/> ({ outcomeStake.universe.repTokenName })</p>
-						</> }
-					</div>
-				</div>
-			))
-		}
-	</div>
+
+	return <div class = 'outcome-options'> {
+		outcomeStakes.deepValue.map((outcomeStake) => <OutcomeStakeComponent refreshStakes = { refreshStakes } universe = { universe } maybeWriteClient = { maybeWriteClient } outcomeStake = { outcomeStake } selectedOutcome = { selectedOutcome } disabled = { disabled } pathSignal = { pathSignal }/>)
+	} </div>
 }

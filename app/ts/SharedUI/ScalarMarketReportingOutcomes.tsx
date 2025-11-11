@@ -2,11 +2,14 @@ import { NonHexBigInt, UniverseInformation } from '../types/types.js'
 import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { getTradeInterval, requiredStake } from '../utils/augurUtils.js'
+import { getPayoutNumeratorsFromScalarOutcome, getScalarOutcomeName, getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
 import { OutcomeStake } from './YesNoCategoricalMarketReportingOutcomes.js'
 import { UniverseLink } from './links.js'
+import { SendTransactionButton, TransactionStatus } from './SendTransactionButton.js'
+import { WriteClient } from '../utils/ethereumWallet.js'
+import { createChildUniverse } from '../utils/augurContractUtils.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
@@ -18,12 +21,44 @@ type ScalarInputProps = {
 	disabled: Signal<boolean>
 	selectedOutcomeUniverse: Signal<UniverseInformation | undefined>
 	pathSignal: Signal<string>
+	maybeWriteClient: OptionalSignal<WriteClient>
+	universe: OptionalSignal<UniverseInformation>
+	refreshStakes: () => Promise<void>
 }
 
-export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverse, pathSignal }: ScalarInputProps) {
+export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverse, pathSignal }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
 	const invalidInput = useSignal<boolean>(false)
+	const transactionStatus = useSignal<TransactionStatus>(undefined)
+
+	const createUniverse = async () => {
+		if (maybeWriteClient.deepValue === undefined) throw new Error('client missing')
+		if (universe.deepValue?.universeAddress === undefined) throw new Error('universe missing')
+		const selectedPayoutNumerators = getPayoutNumeratorsFromScalarOutcome(invalid.value, value.deepValue, minValue.value, maxValue.value, numTicks.value)
+		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, selectedPayoutNumerators)
+	}
+
+	const universeLinkOrButton = useComputed(() => {
+		if (selectedOutcomeUniverse.value === undefined) {
+			const selectedPayoutNumerators = getPayoutNumeratorsFromScalarOutcome(invalid.value, value.deepValue, minValue.value, maxValue.value, numTicks.value)
+			const outcomeName = getScalarOutcomeName(selectedPayoutNumerators, unit.value, numTicks.value, minValue.value, maxValue.value)
+			return <SendTransactionButton
+				className = 'button button-secondary'
+				transactionStatus = { transactionStatus }
+				sendTransaction = { createUniverse }
+				maybeWriteClient = { maybeWriteClient }
+				disabled = { disabled }
+				text = { new Signal(`Create "${ outcomeName }" Universe`) }
+				callBackWhenIncluded = { refreshStakes }
+			/>
+		} else {
+			return <>
+				<p> <UniverseLink universe = { selectedOutcomeUniverse } pathSignal = { pathSignal }/></p>
+				( { selectedOutcomeUniverse.value?.repTokenName })
+			</>
+		}
+	})
 
 	return <div class = 'scalar-options-container' key = 'scalar-input-container3'>
 		<div class = 'slider-input-info-container' key = 'scalar-input-container2'>
@@ -89,7 +124,7 @@ export function ScalarInput({ value, minValue, maxValue, numTicks, unit, invalid
 				<span class = 'invalid-tag'>Invalid</span>
 			</label>
 		</div>
-		<p> Universe Address: <UniverseLink universe = { selectedOutcomeUniverse } pathSignal = { pathSignal }/></p>
+		{ universeLinkOrButton.value }
 	</div>
 }
 
