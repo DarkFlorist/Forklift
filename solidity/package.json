@@ -1,0 +1,17 @@
+{
+	"type": "module",
+	"scripts": {
+		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
+		"compile": "tsc --project tsconfig-compile.json && node ./js/compile.js",
+		"test": "npx tsc && node --test"
+	},
+	"license": "ISC",
+	"devDependencies": {
+		"@types/node": "22.13.10",
+		"typescript": "5.8.2",
+		"solc": "0.8.30",
+		"viem": "2.23.15",
+		"funtypes": "5.1.1",
+		"tsx": "4.19.3"
+	}
+}
