@@ -317,6 +317,7 @@ export const DisplayStakes = ({ repTokenName, outcomeStakes, maybeWriteClient, m
 			text = { useComputed(() => selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2) } ${ repTokenName }` : 'Report') }
 			callBackWhenIncluded = { refreshData }
 		/>
+		<p> Every non-prestaking and non-initial report that is decided to be correct will receive a 40% return in current or forked REP tokens once the dispute is resolved.</p>
 	</div>
 }
 
