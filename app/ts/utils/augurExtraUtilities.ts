@@ -2,21 +2,20 @@ import { encodePacked, getContractAddress, keccak256, numberToBytes } from 'viem
 import { DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, PROXY_DEPLOYER_ADDRESS } from './constants.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
-import { FORK_UTILS_ABI } from '../ABI/ForkUtils.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
-import { AugurExtraUtilities } from '../ABI/VendoredForkLift.js'
+import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContracts.js'
 
-export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
+export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
 export const deployAugurExtraUtilities = async (writeClient: WriteClient) => {
-	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: `0x${ AugurExtraUtilities.evm.bytecode.object }` })
+	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }` })
 	await writeClient.waitForTransactionReceipt({ hash })
 }
 
 export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
 	const deployedBytecode = await readClient.getCode({ address: getAugurExtraUtilitiesAddress() })
-	return deployedBytecode === `0x${ AugurExtraUtilities.evm.deployedBytecode.object }`
+	return deployedBytecode === `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.deployedBytecode.object }`
 }
 
 export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
@@ -25,7 +24,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
 		const page = await readClient.readContract({
-			abi: FORK_UTILS_ABI,
+			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getAvailableDisputesFromForkedMarkets',
 			address: getAugurExtraUtilitiesAddress(),
 			args: [DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, account, offset, pageSize]
@@ -39,7 +38,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 
 export const forkReportingParticipants = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[]) => {
 	return await writeClient.writeContract({
-		abi: FORK_UTILS_ABI,
+		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 		functionName: 'forkAndRedeemReportingParticipants',
 		address: getAugurExtraUtilitiesAddress(),
 		args: [reportingParticipants]
@@ -60,7 +59,7 @@ export const getReportingParticipantsForMarket = async (readClient: ReadClient, 
 		if (offset > numParticipants) return pages
 		const currentPageSize = min(numParticipants - offset, pageSize)
 		const page = await readClient.readContract({
-			abi: FORK_UTILS_ABI,
+			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getReportingParticipantsForMarket',
 			address: getAugurExtraUtilitiesAddress(),
 			args: [market, offset, currentPageSize]

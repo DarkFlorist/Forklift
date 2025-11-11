@@ -80,10 +80,8 @@ const compile = async () => {
 	if (errors.length) throw new CompilationError(errors)
 	const artifactsDir = path.join(process.cwd(), 'artifacts')
 	if (!await exists(artifactsDir)) await fs.mkdir(artifactsDir, { recursive: false })
-	await fs.writeFile(path.join(artifactsDir, 'ForkLift.json'), output)
-	console.log('standard input:')
-	console.log(JSON.stringify(input))
-	await fs.writeFile(path.join(artifactsDir, 'ForkLift_standard_input.json'), JSON.stringify(input))
+	await fs.writeFile(path.join(artifactsDir, 'VendoredContracts.json'), output)
+	await fs.writeFile(path.join(artifactsDir, 'VendoredContracts_standard_input.json'), JSON.stringify(input))
 }
 
 compile().catch(error => {

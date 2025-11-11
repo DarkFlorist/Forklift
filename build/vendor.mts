@@ -9,25 +9,43 @@ const directoryOfThisFile = path.dirname(url.fileURLToPath(import.meta.url))
 const VENDOR_OUTPUT_PATH = path.join(directoryOfThisFile, '..', 'app', 'vendor')
 const MODULES_ROOT_PATH = path.join(directoryOfThisFile, '..', 'node_modules')
 const INDEX_HTML_PATH = path.join(directoryOfThisFile, '..', 'app', 'index.html')
-const CONTRACT_PATH_APP = path.join(directoryOfThisFile, '..', 'app', 'ts', 'ABI', 'VendoredForkLift.ts')
+const CONTRACT_PATH_APP = path.join(directoryOfThisFile, '..', 'app', 'ts', 'ABI', 'VendoredContracts.ts')
+
+const CompileError = funtypes.ReadonlyObject({
+	severity: funtypes.String,
+	formattedMessage: funtypes.String
+})
 
 type CompileResult = funtypes.Static<typeof CompileResult>
-const CompileResult = funtypes.ReadonlyObject({
+const CompileResult = funtypes.ReadonlyPartial({
 	contracts: funtypes.Record(funtypes.String, funtypes.Record(funtypes.String, funtypes.ReadonlyObject({
 		abi: funtypes.ReadonlyArray(funtypes.ReadonlyPartial({
-			inputs: funtypes.ReadonlyArray(funtypes.ReadonlyObject({
+			inputs: funtypes.ReadonlyArray(funtypes.ReadonlyPartial({
+				indexed: funtypes.Boolean,
 				internalType: funtypes.String,
 				name: funtypes.String,
 				type: funtypes.String
 			})),
+			anonymous: funtypes.Boolean,
 			stateMutability: funtypes.String,
 			type: funtypes.String,
 			name: funtypes.String,
-			outputs: funtypes.ReadonlyArray(funtypes.ReadonlyObject({
-				internalType: funtypes.String,
-				name: funtypes.String,
-				type: funtypes.String
-			}))
+			outputs: funtypes.ReadonlyArray(funtypes.Intersect(
+				funtypes.ReadonlyObject({
+					internalType: funtypes.String,
+					name: funtypes.String,
+					type: funtypes.String
+				}),
+				funtypes.ReadonlyPartial({
+					components: funtypes.ReadonlyArray(
+						funtypes.ReadonlyObject({
+							internalType: funtypes.String,
+							name: funtypes.String,
+							type: funtypes.String
+						})
+					)
+				})
+			))
 		})),
 		evm: funtypes.ReadonlyObject({
 			bytecode: funtypes.ReadonlyObject({ object: funtypes.String }),
@@ -35,6 +53,7 @@ const CompileResult = funtypes.ReadonlyObject({
 		})
 	}))),
 	sources: funtypes.Unknown,
+	errors: funtypes.Array(CompileError)
 })
 
 type Dependency = { packageName: string, packageToVendor?: string, subfolderToVendor: string, mainEntrypointFile: string, alternateEntrypoints: Record<string, string> }
@@ -88,16 +107,15 @@ async function vendorDependencies() {
 }
 
 const copySolidityContractArtifact = async () => {
-	const contractLocation = path.join(directoryOfThisFile, '..', 'solidity/artifacts/ForkLift.json')
+	const contractLocation = path.join(directoryOfThisFile, '..', 'solidity/artifacts/VendoredContracts.json')
 	const solidityContract = CompileResult.parse(JSON.parse(await fs.readFile(contractLocation, 'utf8')))
-	const contracts = Object.entries(solidityContract.contracts).flatMap(([_filename, contract]) => {
+	if (solidityContract.contracts === undefined) throw new Error('contracts object missing')
+	const contracts = Object.entries(solidityContract.contracts).flatMap(([filename, contract]) => {
 		if (contract === undefined) throw new Error('missing contract')
-		return Object.entries(contract).map(([contractName, contractData]) => ({ contractName, contractData }))
+		return Object.entries(contract).map(([contractName, contractData]) => ({ contractName: `${ filename.replace('contracts/', '').replace(/-/g, '').replace(/\//g, '_').replace(/\\/g, '_').replace(/\.sol$/, '') }_${ contractName }`, contractData }))
 	})
-	console.log(contracts.map((x) => x.contractName).join(', '))
 	if (new Set(contracts.map((x) => x.contractName)).size !== contracts.length) throw new Error('duplicated contract name!')
-
-	const typescriptString = contracts.map((contract) => `export const ${ contract.contractName } = ${ JSON.stringify(contract.contractData, null, 4) } as const`).join('\r\n')
+	const typescriptString = contracts.map((contract) => `export const ${ contract.contractName } = ${ JSON.stringify(contract.contractData, null, 4) } as const`).join('\r\n\r\n')
 	await fs.writeFile(CONTRACT_PATH_APP, typescriptString)
 }
 
