@@ -243,9 +243,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 		designatedReporterAddress.deepValue = maybeWriteClient.deepValue?.account.address
 	}, [maybeWriteClient.deepValue?.account.address])
 
-	useSignalEffect(() => {
-		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError)
-	})
+	useSignalEffect(() => { refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue) })
 
 	const createMarketDisabled = useComputed(() => {
 		if (universe.deepValue === undefined) return true

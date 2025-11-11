@@ -56,7 +56,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	useSignalEffect(() => {
 		universe.deepValue
 		universeForkingInformation.deepValue
-		update(maybeReadClient.deepValue).catch(showUnexpectedError)
+		update(maybeReadClient.deepValue)
 	})
 
 	const update = async (readClient: ReadClient | undefined ) => {

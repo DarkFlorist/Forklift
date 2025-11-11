@@ -217,9 +217,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 	const pendingDisputesAndReportsTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const pendingForkDisputesTransactionStatus = useSignal<TransactionStatus>(undefined)
 
-	useSignalEffect(() => {
-		queryForData(maybeReadClient.deepValue).catch(showUnexpectedError)
-	})
+	useSignalEffect(() => { queryForData(maybeReadClient.deepValue) })
 
 	const queryForData = async (readClient: ReadClient | undefined) => {
 		if (readClient === undefined) return
@@ -230,7 +228,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		selectedShares.value = []
 		selectedDisputes.value = []
 		selectedReports.value = []
-		if (readClient.account?.address === undefined) throw new Error('account missing')
+		if (readClient.account?.address === undefined) return
 		try {
 			availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
 			availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)

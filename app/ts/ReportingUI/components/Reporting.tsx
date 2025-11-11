@@ -444,7 +444,7 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 		clear()
 	})
 
-	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue).catch(showUnexpectedError) })
+	useSignalEffect(() => { refreshData(maybeReadClient.deepValue, selectedMarket.deepValue) })
 
 	const refreshData = async (maybeReadClient: ReadClient | undefined, selectedMarket: AccountAddress | undefined) => {
 		if (maybeReadClient === undefined) return

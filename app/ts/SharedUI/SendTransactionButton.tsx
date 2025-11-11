@@ -68,7 +68,7 @@ export const SendTransactionButton = ({ style, className, transactionStatus, sen
 			} catch (error: unknown) {
 				console.error(error)
 				transactionStatus.value = { status: 'error', message: ensureError(error).message, hash: transactionStatus.value.hash }
-				throw error
+				return
 			}
 		}
 	}

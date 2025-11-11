@@ -371,11 +371,7 @@ export function App() {
 	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('writeClient missing')
-		try {
-			await deployAugurExtraUtilities(writeClient)
-		} catch(error: unknown) {
-			showUnexpectedError(error)
-		}
+		await deployAugurExtraUtilities(writeClient).catch(showUnexpectedError)
 		isAugurExtraUtilitiesDeployedSignal.deepValue = true
 		await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
 		await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
@@ -411,7 +407,7 @@ export function App() {
 
 	useSignalEffect(() => {fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError) })
 
-	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError) })
+	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress) })
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
