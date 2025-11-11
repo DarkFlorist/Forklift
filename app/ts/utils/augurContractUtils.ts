@@ -1,6 +1,5 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity } from '../types/types.js'
-import { AUGUR_UNIVERSE_ABI } from '../ABI/UniverseAbi.js'
 import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
 import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
@@ -35,7 +34,7 @@ export const ExtraInfo = funtypes.Intersect(
 export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	return await writeClient.writeContract({
 		address: universe,
-		abi: AUGUR_UNIVERSE_ABI,
+		abi: UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
@@ -44,7 +43,7 @@ export const createYesNoMarket = async (universe: AccountAddress, writeClient: W
 export const estimateGasCreateYesNoMarket = async (universe: AccountAddress, readClient: ReadClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	return await readClient.estimateContractGas({
 		address: universe,
-		abi: AUGUR_UNIVERSE_ABI,
+		abi: UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
@@ -162,28 +161,28 @@ export const getDisputeWindow = async (readClient: ReadClient, market: AccountAd
 }
 
 export const getDisputeWindowInfo = async (readClient: ReadClient, disputeWindow: AccountAddress) => {
-	const startTime = await readClient.readContract({
+	const startTimePromise = readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getStartTime',
 		address: disputeWindow,
 		args: []
 	})
-	const endTime = await readClient.readContract({
+	const endTimePromise = readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getEndTime',
 		address: disputeWindow,
 		args: []
 	})
-	const isActive = await readClient.readContract({
+	const isActivePromise = readClient.readContract({
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'isActive',
 		address: disputeWindow,
 		args: []
 	})
 	return {
-		startTime,
-		endTime,
-		isActive
+		startTime: await startTimePromise,
+		endTime: await endTimePromise,
+		isActive: await isActivePromise
 	}
 }
 
@@ -279,19 +278,19 @@ export type ReportingHistoryElement = {
 }
 
 export const getCrowdsourcerInfo = async (readClient: ReadClient, participantAddress: AccountAddress) => {
-	const payoutNumerators = await readClient.readContract({
+	const payoutNumeratorsPromise = readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getPayoutNumerators',
 		address: participantAddress,
 		args: []
 	})
-	const stake = await readClient.readContract({
+	const stakePromise = readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getStake',
 		address: participantAddress,
 		args: []
 	})
-	const size = await readClient.readContract({
+	const sizePromise = readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getSize',
 		address: participantAddress,
@@ -299,9 +298,9 @@ export const getCrowdsourcerInfo = async (readClient: ReadClient, participantAdd
 	})
 	return {
 		participantAddress,
-		payoutNumerators,
-		stake,
-		size
+		payoutNumerators: await payoutNumeratorsPromise,
+		stake: await stakePromise,
+		size: await sizePromise
 	}
 }
 
