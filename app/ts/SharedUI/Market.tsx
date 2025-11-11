@@ -123,17 +123,17 @@ const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | u
 	useEffect(() => {
 		const timer = setInterval(() => {
 			if (end.value === undefined) return
-			if (bigintSecondsToDate(end.value).getTime() - Date.now() <= 0) {
+			if (end.value - currentTimeInBigIntSeconds.value <= 0) {
 				setTimeLeft('The Market Has Ended')
 				clearInterval(timer)
 				return
 			}
-			setTimeLeft(humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, end.value))
+			setTimeLeft(`Ends in: ${ humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, end.value) }`)
 		}, 1000)
 		return () => clearInterval(timer)
 	}, [end, currentTimeInBigIntSeconds])
 
-	return <span className = 'countdown'>Ends in: { timeLeft }</span>
+	return <span className = 'countdown'> { timeLeft }</span>
 }
 
 interface ResolvingToProps {
@@ -192,6 +192,11 @@ export const Market = ({ repTokenName, marketData, universe, addressComponent, c
 		</> : <></> }
 		<div className = 'market-card'>
 			{ addressComponent }
+			{ marketData.deepValue.reportingState === 'Forking' ? <>
+				<div class = 'warning-box'>
+					<p> This market has triggered a fork! </p>
+				</div>
+			</> : <></> }
 			{ marketData.deepValue.reportingState !== 'CrowdsourcingDispute' && marketData.deepValue.reportingState !== 'AwaitingNextWindow' ? <></> : <>
 				<ResolvingTo marketData = { marketData } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 			</> }
