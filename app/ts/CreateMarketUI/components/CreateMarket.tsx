@@ -225,27 +225,21 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: UniverseInformation | undefined) => {
 		if (readClient === undefined) return
-		try {
-			baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
-			maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
-			if (universe === undefined) return
-			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress)
-			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress)
-			if (writeClient === undefined) return
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress)
-			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
-		} catch(error: unknown) {
-			showUnexpectedError(error)
-		}
+		baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
+		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
+		if (universe === undefined) return
+		marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress)
+		marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress)
+		if (writeClient === undefined) return
+		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress)
+		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
 	}
 
 	useEffect(() => {
 		designatedReporterAddress.deepValue = maybeWriteClient.deepValue?.account.address
 	}, [maybeWriteClient.deepValue?.account.address])
 
-	useSignalEffect(() => {
-		refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError)
-	})
+	useSignalEffect(() => { refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError) })
 
 	const createMarketDisabled = useComputed(() => {
 		if (universe.deepValue === undefined) return true

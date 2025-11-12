@@ -526,8 +526,6 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 				forkingMarketFinalized.deepValue = false
 				winningUniverse.deepValue = undefined
 			}
-		} catch(error: unknown) {
-			return showUnexpectedError(error)
 		} finally {
 			loading.value = false
 		}
@@ -535,7 +533,7 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 
 	const refreshDataButton = async () => {
 		updateTokenBalancesSignal.value++
-		await refreshData(maybeReadClient.deepValue, selectedMarket.deepValue)
+		await refreshData(maybeReadClient.deepValue, selectedMarket.deepValue).catch(showUnexpectedError)
 	}
 
 	const finalizeMarketButton = async () => {
