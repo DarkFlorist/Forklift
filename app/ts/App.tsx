@@ -394,11 +394,7 @@ export function App() {
 		universeForkingInformation.deepValue = undefined
 		if (readClient === undefined) return
 		if (universeInformation === undefined) return
-		try {
-			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation)
-		} catch(error: unknown) {
-			showUnexpectedError(error)
-		}
+		universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation)
 	}
 
 	useSignalEffect(() => { fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError) })
