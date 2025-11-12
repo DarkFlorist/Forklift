@@ -25,9 +25,10 @@ interface ForkMigrationProps {
 	forkingMarketFinalized: OptionalSignal<boolean>
 	refreshData: () => Promise<void>
 	pathSignal: Signal<string>
+	universe: OptionalSignal<UniverseInformation>
 }
 
-export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData, pathSignal }: ForkMigrationProps) => {
+export const ForkMigration = ({ universe, marketData, forkingMarketFinalized, maybeWriteClient, outcomeStakes, disabled, refreshData, pathSignal }: ForkMigrationProps) => {
 	if (outcomeStakes.deepValue === undefined) return <></>
 	if (disabled.value === true) return <></>
 	const initialReportReason = useSignal<string>('')
@@ -57,7 +58,7 @@ export const ForkMigration = ({ marketData, forkingMarketFinalized, maybeWriteCl
 	return <>
 		<div style = 'display: grid; gap: 1.5rem;'>
 			<span><b>Market Fork Migration:</b></span>
-			<SelectUniverse pathSignal = { pathSignal } marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+			<SelectUniverse maybeWriteClient = { maybeWriteClient } universe = { universe } refreshStakes = { refreshData} pathSignal = { pathSignal } marketData = { marketData } disabled = { disabled } outcomeStakes = { outcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 			<label>
 				Initial Report Reason:{' '}
 				<input
@@ -239,7 +240,7 @@ export const DisplayStakes = ({ universe, outcomeStakes, maybeWriteClient, marke
 		if (marketData.deepValue.marketType === 'Scalar') {
 			return <div key = { marketData.deepValue.marketAddress } style = { { display: 'grid', gridTemplateRows: 'max-content max-content', gap: '2rem', alignItems: 'center' } }>
 				<ReportedScalarInputs universe = { universe.value } outcomeStakes = { outcomeStakes } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake }/>
-				<ScalarInput pathSignal = { pathSignal } selectedOutcomeUniverse = { selectedOutcomeUniverse } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOutcomesDisabled } />
+				<ScalarInput refreshStakes = { refreshData } maybeWriteClient = { maybeWriteClient } universe = { universe } pathSignal = { pathSignal } selectedOutcomeUniverse = { selectedOutcomeUniverse } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { areOutcomesDisabled } />
 			</div>
 		} else {
 			return <MarketReportingOptionsForYesNoAndCategorical universe = { universe.value } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } isSlowReporting = { isSlowReporting } forkValues = { forkValues } areOutcomesDisabled = { areOutcomesDisabled } canInitialReport = { canInitialReport } marketData = { marketData }/>
@@ -591,7 +592,7 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 							callBackWhenIncluded = { refreshDataButton }
 						/>
 					</> }
-					<ForkMigration pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
+					<ForkMigration universe = { universe } pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
 				</Market>
 			</div>
 		</section>

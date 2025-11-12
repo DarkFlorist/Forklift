@@ -5,6 +5,8 @@ import { MarketOutcomeWithUniverse, MarketReportingForYesNoAndCategoricalWithout
 import { ScalarInput } from './ScalarMarketReportingOutcomes.js'
 import { getPayoutNumeratorsFromScalarOutcome } from '../utils/augurUtils.js'
 import { areEqualArrays } from '../utils/ethereumUtils.js'
+import { WriteClient } from '../utils/ethereumWallet.js'
+import { UniverseInformation } from '../types/types.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
@@ -12,9 +14,12 @@ type SelectUniverseProps = {
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 	pathSignal: Signal<string>
+	maybeWriteClient: OptionalSignal<WriteClient>
+	universe: OptionalSignal<UniverseInformation>
+	refreshStakes: () => Promise<void>
 }
 
-export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal }: SelectUniverseProps) {
+export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPayoutNumerators, pathSignal, maybeWriteClient, universe, refreshStakes }: SelectUniverseProps) {
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
 	const selectedOutcome = useSignal<string | null>(null)
@@ -41,7 +46,7 @@ export function SelectUniverse({ marketData, disabled, outcomeStakes, selectedPa
 	})
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.marketType === 'Scalar') {
-		return <ScalarInput selectedOutcomeUniverse = { selectedOutcomeUniverse } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled }/>
+		return <ScalarInput selectedOutcomeUniverse = { selectedOutcomeUniverse } pathSignal = { pathSignal } value = { selectedScalarOutcome } invalid = { selectedScalarOutcomeInvalid } minValue = { minValue } maxValue = { maxValue } numTicks = { numTicks } unit = { scalarDenomination } disabled = { disabled } maybeWriteClient = { maybeWriteClient } universe = { universe } refreshStakes = { refreshStakes }/>
 	}
-	return <MarketReportingForYesNoAndCategoricalWithoutStake pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled }/>
+	return <MarketReportingForYesNoAndCategoricalWithoutStake pathSignal = { pathSignal } outcomeStakes = { outcomeStakes } selectedOutcome = { selectedOutcome } disabled = { disabled } maybeWriteClient = { maybeWriteClient } universe = { universe } refreshStakes = { refreshStakes }/>
 }

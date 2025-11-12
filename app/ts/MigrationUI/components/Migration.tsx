@@ -88,9 +88,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 				forkingMarketData.deepValue = forkingMarket
 				const outcomeStakes = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
 				forkingOutcomeStakes.deepValue = await Promise.all(outcomeStakes.map(async (outcomeStakes) => {
+					const childUniverse = await getChildUniverse(readClient, forkingMarket.universe.universeAddress, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes)
 					return {
 						...outcomeStakes,
-						universe: await getUniverseInformation(readClient, await getChildUniverse(readClient, forkingMarket.universe.universeAddress, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes), false)
+						universe: BigInt(childUniverse) === 0x0n ? undefined : await getUniverseInformation(readClient, childUniverse, false)
 					}
 				}))
 
@@ -100,8 +101,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
 				}
 				const winningUniverseAddress = await getWinningChildUniverse(readClient, universe.deepValue.universeAddress)
-				if (winningUniverseAddress !== undefined) {
+				if (winningUniverseAddress !== undefined && BigInt(winningUniverseAddress) !== 0x0n) {
 					winningUniverse.deepValue =  await getUniverseInformation(readClient, winningUniverseAddress, false)
+				} else {
+					winningUniverse.deepValue = undefined
 				}
 			}
 			repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress)
@@ -139,7 +142,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	})
 
 	const universeValues = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined || parentUniverse.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined || repSupply.deepValue === undefined) return <CenteredBigSpinner/>
+		if (universeForkingInformation.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined || repSupply.deepValue === undefined) return <CenteredBigSpinner/>
 		return [
 			['Universe Address', <EtherScanAddress address = { new Signal(universe.deepValue?.universeAddress) } />],
 			...parentUniverse.deepValue === undefined ? [] : [['Parent Universe Address', <OptionalUniverseLink universe = { parentUniverse } pathSignal = { pathSignal }/> ]],
@@ -187,7 +190,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 				sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { isMigrateDisabled }
-				text = { useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.reputationTokenAddress) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
+				text = { useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
 				callBackWhenIncluded = { refresh }
 			/>
 		</div>
@@ -208,7 +211,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	}
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
-			<h1>Universe { getUniverseName(universe.deepValue) } ({ universe.deepValue.repTokenName })</h1>
+			<h1>Universe { getUniverseName(universe.deepValue) }</h1>
 			<section class = 'details-grid'>
 				{ universeValues.value }
 			</section>
@@ -231,7 +234,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					<span class = 'border-text'>Forking Market</span>
 					<Market loading = { loading } marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
-							<SelectUniverse pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
+							<SelectUniverse maybeWriteClient = { maybeWriteClient } universe = { universe } refreshStakes = { refresh } pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
 							{ forkValuesComponent }
 						</span>
 					</Market>

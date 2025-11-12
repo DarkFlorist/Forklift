@@ -31,7 +31,7 @@ interface UniverseComponentProps {
 const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 	if (universe.deepValue === undefined) return <p> No universe selected</p>
 	const universeName = getUniverseName(universe.deepValue)
-	return <p class = 'sub-title'>Universe:<b>{ ` ${ universeName }` }</b> ({ universe.deepValue.repTokenName })</p>
+	return <p class = 'sub-title'>Universe: { ` ${ universeName }` }</p>
 }
 
 interface UniverseForkingNoticeProps {

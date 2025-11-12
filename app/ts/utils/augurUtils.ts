@@ -8,8 +8,8 @@ import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from '.
 import { indexOfMax } from './utils.js'
 
 export const getUniverseName = (universe: UniverseInformation) => {
-	if (BigInt(universe.universeAddress) == BigInt(GENESIS_UNIVERSE)) return 'Genesis'
-	return universe.repTokenName.replace('REPv2', 'Universe')
+	if (BigInt(universe.universeAddress) == BigInt(GENESIS_UNIVERSE)) return `Genesis (${ universe.repTokenName })`
+	return `${ universe.repTokenName.replace('REPv2', 'Universe') } (${ universe.repTokenName })`
 }
 
 export const getRepTokenName = (maybeRepTokenName: string | undefined) => maybeRepTokenName || 'REP'
@@ -30,7 +30,7 @@ export const getYesNoCategoricalOutcomeName = (index: number, marketType: 'Yes/N
 	return new TextDecoder().decode(stripTrailingZeros(stringToUint8Array(outcomeName)))
 }
 
-const getScalarOutComeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minValue: bigint, maxValue: bigint) => {
+export const getScalarOutcomeName = (payoutNumerators: readonly [bigint, bigint, bigint], unit: string | undefined, numTicks: bigint, minValue: bigint, maxValue: bigint) => {
 	if (payoutNumerators[0] > 0n) return 'Invalid'
 	const tradeInterval = getTradeInterval(maxValue - minValue, numTicks)
 	return `${ bigintToDecimalString((payoutNumerators[1] + minValue) * tradeInterval, 18n) } ${unit === undefined ? '' : unit }`
@@ -51,7 +51,7 @@ export const getOutcomeName = (payoutNumerators: readonly bigint[], marketData: 
 		case 'Scalar': {
 			if (payoutNumerators.length !== 3 || payoutNumerators[0] === undefined || payoutNumerators[1] === undefined || payoutNumerators[2] === undefined) return malformedOutcomeName
 			if (marketData.displayPrices[0] === undefined || marketData.displayPrices[1] === undefined) return malformedOutcomeName
-			return getScalarOutComeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.numTicks, marketData.displayPrices[0], marketData.displayPrices[1])
+			return getScalarOutcomeName([payoutNumerators[0], payoutNumerators[1], payoutNumerators[2]], marketData.parsedExtraInfo?._scalarDenomination, marketData.numTicks, marketData.displayPrices[0], marketData.displayPrices[1])
 		}
 		default: assertNever(marketData.marketType)
 	}
