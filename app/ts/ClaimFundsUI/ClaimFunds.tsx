@@ -217,7 +217,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 	const pendingDisputesAndReportsTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const pendingForkDisputesTransactionStatus = useSignal<TransactionStatus>(undefined)
 
-	useSignalEffect(() => { queryForData(maybeReadClient.deepValue) })
+	useSignalEffect(() => { queryForData(maybeReadClient.deepValue).catch(showUnexpectedError) })
 
 	const queryForData = async (readClient: ReadClient | undefined) => {
 		if (readClient === undefined) return
@@ -236,8 +236,6 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue === true) {
 				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
 			}
-		} catch(error: unknown) {
-			return showUnexpectedError(error)
 		} finally {
 			loading.value = false
 		}
@@ -258,7 +256,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		updateTokenBalancesSignal.value++
 		selectedDisputes.value = []
 		selectedReports.value = []
-		return await queryForData(writeClient)
+		return await queryForData(writeClient).catch(showUnexpectedError)
 	}
 	const claimWinningShares = async () => {
 		throw new Error('TODO: not implemented claimin of winning shares')
@@ -268,7 +266,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		if (writeClient === undefined) throw new Error('account missing')
 		updateTokenBalancesSignal.value++
 		selectedShares.value = []
-		return await queryForData(writeClient)
+		return await queryForData(writeClient).catch(showUnexpectedError)
 	}
 	const claimForkDisputes = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
@@ -283,7 +281,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		if (writeClient === undefined) throw new Error('account missing')
 		updateTokenBalancesSignal.value++
 		selectedForkedCrowdSourcers.value = []
-		return await queryForData(writeClient)
+		return await queryForData(writeClient).catch(showUnexpectedError)
 	}
 
 	const claimWinningSharesDisabled = useComputed(() => selectedShares.value.length === 0)

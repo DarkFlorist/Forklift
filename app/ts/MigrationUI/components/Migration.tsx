@@ -56,7 +56,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	useSignalEffect(() => {
 		universe.deepValue
 		universeForkingInformation.deepValue
-		update(maybeReadClient.deepValue)
+		update(maybeReadClient.deepValue).catch(showUnexpectedError)
 	})
 
 	const update = async (readClient: ReadClient | undefined ) => {
@@ -106,8 +106,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			}
 			repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress)
 			repSupply.deepValue = await getTotalSupply(readClient, universe.deepValue.reputationTokenAddress)
-		} catch(error: unknown) {
-			return showUnexpectedError(error)
 		} finally {
 			loading.value = false
 		}

@@ -34,19 +34,15 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 	const pendingApproveTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const pendingMigrateTransactionStatus = useSignal<TransactionStatus>(undefined)
 
-	useSignalEffect(() => { update(maybeReadClient.deepValue) })
+	useSignalEffect(() => { update(maybeReadClient.deepValue).catch(showUnexpectedError) })
 
 	const update = async (readClient: ReadClient | undefined ) => {
 		if (readClient === undefined) return
 		if (readClient.account?.address === undefined) return
 		isRepV1ApprovedForMigration.deepValue = undefined
-		try {
-			v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readClient.account.address)
-			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address)
-			isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS) >= v1ReputationBalance.deepValue
-		} catch(error: unknown) {
-			showUnexpectedError(error)
-		}
+		v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readClient.account.address)
+		v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address)
+		isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS) >= v1ReputationBalance.deepValue
 	}
 
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {
