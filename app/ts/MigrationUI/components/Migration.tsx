@@ -54,7 +54,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const loading = useSignal<boolean>(false)
 
 	useSignalEffect(() => {
-		universe.deepValue
 		universeForkingInformation.deepValue
 		update(maybeReadClient.deepValue).catch(showUnexpectedError)
 	})
@@ -63,6 +62,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (readClient === undefined) return
 		if (readClient.account?.address === undefined) return
 		if (universe.deepValue === undefined) return
+		if (universeForkingInformation.deepValue === undefined) return
 		loading.value = true
 		winningUniverse.deepValue = undefined
 		parentUniverse.deepValue = undefined
@@ -128,7 +128,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		updateTokenBalancesSignal.value++
-		await update(writeClient)
+		await update(writeClient).catch(showUnexpectedError)
 	}
 
 	const isMigrateDisabled = useComputed(() => {
@@ -183,6 +183,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 
 	const migrationButton = useComputed(() => {
 		if (!isMigrationPeriodActive.value) return <></>
+		if (universeForkingInformation.deepValue === undefined) return <></>
+		if (forkingMarketData.deepValue === undefined) return <></>
+		if (forkingOutcomeStakes.deepValue === undefined) return <></>
+
 		return <div class = 'button-group'>
 			<SendTransactionButton
 				className = 'button button-primary button-group-button'
@@ -190,14 +194,14 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 				sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { isMigrateDisabled }
-				text = { useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
+				text = { new Signal( `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
 				callBackWhenIncluded = { refresh }
 			/>
 		</div>
 	})
 
 	const forkValuesComponent = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined || universe.deepValue === undefined) return <CenteredBigSpinner/>
+		if (universeForkingInformation.deepValue === undefined || universe.deepValue === undefined || forkValues.deepValue === undefined) return <CenteredBigSpinner/>
 		if (!isMigrationPeriodActive.value) return <></>
 		return <DisplayForkValues universe = { universe } forkValues = { forkValues }/>
 	})
