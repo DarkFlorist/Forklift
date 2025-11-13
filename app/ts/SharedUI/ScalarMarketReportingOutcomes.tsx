@@ -39,17 +39,21 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, selectedPayoutNumerators)
 	}
 
+	const outcomeNameText = useComputed(() => {
+		const selectedPayoutNumerators = getPayoutNumeratorsFromScalarOutcome(invalid.value, value.deepValue, minValue.value, maxValue.value, numTicks.value)
+		const outcomeName = getScalarOutcomeName(selectedPayoutNumerators, unit.value, numTicks.value, minValue.value, maxValue.value)
+		return `Create "${ outcomeName }" Universe`
+	})
+
 	const universeLinkOrButton = useComputed(() => {
 		if (selectedOutcomeUniverse.value === undefined) {
-			const selectedPayoutNumerators = getPayoutNumeratorsFromScalarOutcome(invalid.value, value.deepValue, minValue.value, maxValue.value, numTicks.value)
-			const outcomeName = getScalarOutcomeName(selectedPayoutNumerators, unit.value, numTicks.value, minValue.value, maxValue.value)
 			return <SendTransactionButton
 				className = 'button button-secondary'
 				transactionStatus = { transactionStatus }
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { disabled }
-				text = { new Signal(`Create "${ outcomeName }" Universe`) }
+				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
 		} else {
