@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { createYesNoMarket, estimateGasCreateYesNoMarket, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getValidityBond } from '../../utils/augurContractUtils.js'
+import { createYesNoMarket, estimateGasCreateYesNoMarket, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
@@ -179,6 +179,7 @@ interface CreateYesNoMarketProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<UniverseInformation>
+	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 	daiBalance: OptionalSignal<bigint>
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
@@ -204,7 +205,7 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -223,7 +224,10 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 	const baseFee = useOptionalSignal<bigint>(undefined)
 	const pendingCreateMarketTransactionStatus = useSignal<TransactionStatus>(undefined)
 
+	const isUniverseForking = useComputed(() => universeForkingInformation.deepValue?.isForking)
+
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: UniverseInformation | undefined) => {
+		if (isUniverseForking.value != false) return
 		if (readClient === undefined) return
 		baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
 		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
@@ -262,6 +266,7 @@ export const CreateYesNoMarket = ({ updateTokenBalancesSignal, maybeReadClient, 
 		if (daiBalance.deepValue === undefined) return true
 		if (repBalance.deepValue < marketCreationCostRep.deepValue) return true
 		if (daiBalance.deepValue < marketCreationCostDai.deepValue) return true
+		if (isUniverseForking.value !== true) return true
 		return false
 	})
 
