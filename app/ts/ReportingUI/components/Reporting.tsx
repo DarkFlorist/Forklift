@@ -105,9 +105,10 @@ interface DisplayStakesProps {
 	repBalance: OptionalSignal<bigint>
 	refreshData: () => Promise<void>
 	universe: OptionalSignal<UniverseInformation>
+	pathSignal: Signal<string>
 }
 
-export const DisplayStakes = ({ universe, outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
+export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
 	const selectedOutcome = useSignal<string | null>(null)
 	const selectedScalarOutcome = useOptionalSignal<bigint>(undefined)
 	const selectedScalarOutcomeInvalid = useSignal<boolean>(false)
@@ -231,8 +232,7 @@ export const DisplayStakes = ({ universe, outcomeStakes, maybeWriteClient, marke
 	const numTicks = useComputed(() => marketData.deepValue?.numTicks || 0n)
 	const scalarDenomination = useComputed(() => marketData.deepValue?.parsedExtraInfo?._scalarDenomination || '')
 
-	const selectedOutcomeUniverse = new Signal<UniverseInformation | undefined>(undefined)
-	const pathSignal = new Signal<string>(undefined)
+	const selectedOutcomeUniverse = useSignal<UniverseInformation | undefined>(undefined)
 
 	const ReportingComponent = useComputed(() => {
 		if (marketData.deepValue === undefined) return <></>
@@ -398,9 +398,10 @@ interface ReportingProps {
 	updateTokenBalancesSignal: Signal<number>
 	showUnexpectedError: (error: unknown) => void
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
+	pathSignal: Signal<string>
 }
 
-export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket, showUnexpectedError }: ReportingProps) => {
+export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket, showUnexpectedError }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
@@ -411,7 +412,6 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 	const forkingMarketFinalized = useOptionalSignal<boolean>(undefined)
 	const isMarketDisavowed = useOptionalSignal<boolean>(undefined)
 	const isForkingMarket = useOptionalSignal<boolean>(undefined)
-	const pathSignal = new Signal<string>(undefined)
 	const winningUniverse = new OptionalSignal<UniverseInformation>(undefined)
 	const pendingTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const loading = useSignal<boolean>(false)
@@ -580,7 +580,7 @@ export const Reporting = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 				</> }>
 					{ showReporting.value === true ? <>
 						<ReportingHistory universe = { universe } maybeReadClient = { maybeReadClient } marketData = { marketData } reportingHistory = { reportingHistory } outcomeStakes = { outcomeStakes } forkValues = { forkValues }/>
-						<DisplayStakes universe = { universe } repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
+						<DisplayStakes pathSignal = { pathSignal } universe = { universe } repBalance = { repBalance } outcomeStakes = { outcomeStakes } marketData = { marketData } maybeWriteClient = { maybeWriteClient } preemptiveDisputeCrowdsourcerStake = { preemptiveDisputeCrowdsourcerStake } disputeWindowInfo = { disputeWindowInfo } forkValues = { forkValues } refreshData = { refreshDataButton }/>
 					</> : <></> }
 					{ marketData.deepValue === undefined || finalizeDisabled.value ? <> </> : <>
 						<SendTransactionButton
