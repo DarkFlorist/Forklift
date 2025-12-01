@@ -120,6 +120,8 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 
 	const outcomeNameText = useComputed(() => `Create "${ outcomeStake.outcomeName }" Universe`)
 
+	const universeSignal = useComputed(() => outcomeStake.universe)
+
 	const universeLinkOrButton = useComputed(() => {
 		if (outcomeStake.universe === undefined) {
 			return <SendTransactionButton
@@ -132,7 +134,7 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 				callBackWhenIncluded = { refreshStakes }
 			/>
 		} else {
-			return <UniverseLink universe = { useComputed(() => outcomeStake.universe) } pathSignal = { pathSignal }/>
+			return <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>
 		}
 	})
 

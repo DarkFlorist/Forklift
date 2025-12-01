@@ -330,6 +330,11 @@ export function App() {
 		}
 	}
 
+	useSignalEffect(() => {
+		selectedUniverse.deepValue
+		setUniverseIfValid()
+	})
+
 	useEffect(() => {
 		if (window.ethereum === undefined) {
 			isWindowEthereum.value = false

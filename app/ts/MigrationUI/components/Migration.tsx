@@ -219,9 +219,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			</section>
 		</div>
 	}
+	const universeName = useComputed(() => universe.deepValue === undefined ? '' : getUniverseName(universe.deepValue))
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
-			<h1>Universe { getUniverseName(universe.deepValue) }</h1>
+			<h1>Universe { universeName.value }</h1>
 			<section class = 'details-grid'>
 				{ universeValues.value }
 			</section>
