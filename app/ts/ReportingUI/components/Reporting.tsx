@@ -1,5 +1,5 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getForkingMarket, getWinningChildUniverse, isMarketFinalized, getUniverseInformation } from '../../utils/augurContractUtils.js'
+import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getForkingMarket, getWinningChildUniverse, isMarketFinalized, getUniverseInformation, isValidAugurMarket } from '../../utils/augurContractUtils.js'
 import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
@@ -403,6 +403,7 @@ interface ReportingProps {
 
 export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket, showUnexpectedError }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
+	const validAugurMarket = useOptionalSignal<boolean>(undefined)
 	const outcomeStakes = useOptionalSignal<readonly OutcomeStake[]>(undefined)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const preemptiveDisputeCrowdsourcerAddress = useOptionalSignal<AccountAddress>(undefined)
@@ -438,6 +439,7 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 		isMarketDisavowed.deepValue = undefined
 		isForkingMarket.deepValue = undefined
 		winningUniverse.deepValue = undefined
+		validAugurMarket.deepValue = undefined
 	}
 
 	useSignalEffect(() => {
@@ -458,6 +460,8 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 		loading.value = true
 		reportingHistory.value = []
 		try {
+			validAugurMarket.deepValue = await isValidAugurMarket(maybeReadClient, selectedMarket)
+			if (validAugurMarket.deepValue === false) return
 			marketData.deepValue = await fetchMarketData(maybeReadClient, selectedMarket)
 			const disputeWindowAddressPromise = getDisputeWindow(maybeReadClient, selectedMarket)
 			const preemptiveDisputeCrowdsourcerAddressPromise = getPreemptiveDisputeCrowdsourcer(maybeReadClient, selectedMarket)
@@ -594,6 +598,9 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 					</> }
 					<ForkMigration universe = { universe } pathSignal = { pathSignal } forkingMarketFinalized = { forkingMarketFinalized } marketData = { marketData } maybeWriteClient = { maybeWriteClient } outcomeStakes = { outcomeStakes } disabled = { migrationDisabled } refreshData = { refreshDataButton }/>
 				</Market>
+				{ validAugurMarket.deepValue === false ? <>
+					<p> Not a valid Augur V2 market </p>
+				</> : <></> }
 			</div>
 		</section>
 	</div>

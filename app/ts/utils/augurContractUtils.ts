@@ -57,6 +57,16 @@ const parseMarketExtraInfo = (extraInfo: string) => {
 	}
 }
 
+export const isValidAugurMarket = async (readClient: ReadClient, marketAddress: AccountAddress) => {
+	const marketCreationData = await readClient.readContract({
+		abi: AUGUR_ABI,
+		functionName: 'getMarketCreationData',
+		address: AUGUR_CONTRACT,
+		args: [marketAddress]
+	})
+	return BigInt(marketCreationData.marketCreator) > 0n
+}
+
 export const fetchMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
 	const repBondPromise = getRepBond(readClient, marketAddress)
 	const hotLoadingMarketData = await readClient.readContract({
