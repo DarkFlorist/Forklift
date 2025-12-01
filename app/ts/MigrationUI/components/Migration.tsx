@@ -54,7 +54,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const loading = useSignal<boolean>(false)
 
 	useSignalEffect(() => {
-		universe.deepValue
 		universeForkingInformation.deepValue
 		update(maybeReadClient.deepValue).catch(showUnexpectedError)
 	})
@@ -63,6 +62,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (readClient === undefined) return
 		if (readClient.account?.address === undefined) return
 		if (universe.deepValue === undefined) return
+		if (universeForkingInformation.deepValue === undefined) return
 		loading.value = true
 		winningUniverse.deepValue = undefined
 		parentUniverse.deepValue = undefined
@@ -128,7 +128,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		updateTokenBalancesSignal.value++
-		await update(writeClient)
+		await update(writeClient).catch(showUnexpectedError)
 	}
 
 	const isMigrateDisabled = useComputed(() => {
@@ -141,15 +141,19 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		return false
 	})
 
+	const universeAddress = useComputed(() => universe.deepValue?.universeAddress)
+	const reputationTokenAddress = useComputed(() => universe.deepValue?.reputationTokenAddress)
+	const forkingMarketAddress = useComputed(() => universeForkingInformation.deepValue?.forkingMarket)
+
 	const universeValues = useComputed(() => {
 		if (universeForkingInformation.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined || repSupply.deepValue === undefined) return <CenteredBigSpinner/>
 		return [
-			['Universe Address', <EtherScanAddress address = { new Signal(universe.deepValue?.universeAddress) } />],
+			['Universe Address', <EtherScanAddress address = { universeAddress } />],
 			...parentUniverse.deepValue === undefined ? [] : [['Parent Universe Address', <OptionalUniverseLink universe = { parentUniverse } pathSignal = { pathSignal }/> ]],
-			['Reputation Address For The Universe', <EtherScanAddress address = { new Signal(universe.deepValue?.reputationTokenAddress) } />],
+			['Reputation Address For The Universe', <EtherScanAddress address = { reputationTokenAddress } />],
 			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } / ${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
-			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { new Signal(universeForkingInformation.deepValue.forkingMarket) } pathSignal = { pathSignal }/>]],
+			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { forkingMarketAddress } pathSignal = { pathSignal }/>]],
 			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', <OptionalUniverseLink universe = { winningUniverse } pathSignal = { pathSignal }/>]],
 		].map(([label, val]) => (
 			<div className = 'detail' key = { label }>
@@ -181,8 +185,14 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		</span>
 	})
 
+	const migrateButtonText = useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`)
+
 	const migrationButton = useComputed(() => {
 		if (!isMigrationPeriodActive.value) return <></>
+		if (universeForkingInformation.deepValue === undefined) return <></>
+		if (forkingMarketData.deepValue === undefined) return <></>
+		if (forkingOutcomeStakes.deepValue === undefined) return <></>
+
 		return <div class = 'button-group'>
 			<SendTransactionButton
 				className = 'button button-primary button-group-button'
@@ -190,14 +200,14 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 				sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { isMigrateDisabled }
-				text = { useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`) }
+				text = { migrateButtonText }
 				callBackWhenIncluded = { refresh }
 			/>
 		</div>
 	})
 
 	const forkValuesComponent = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined || universe.deepValue === undefined) return <CenteredBigSpinner/>
+		if (universeForkingInformation.deepValue === undefined || universe.deepValue === undefined || forkValues.deepValue === undefined) return <CenteredBigSpinner/>
 		if (!isMigrationPeriodActive.value) return <></>
 		return <DisplayForkValues universe = { universe } forkValues = { forkValues }/>
 	})
@@ -209,9 +219,10 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			</section>
 		</div>
 	}
+	const universeName = useComputed(() => universe.deepValue === undefined ? '' : getUniverseName(universe.deepValue))
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
-			<h1>Universe { getUniverseName(universe.deepValue) }</h1>
+			<h1>Universe { universeName.value }</h1>
 			<section class = 'details-grid'>
 				{ universeValues.value }
 			</section>

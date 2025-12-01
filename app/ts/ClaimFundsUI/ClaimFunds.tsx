@@ -38,14 +38,13 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 	const results = useComputed(() => {
 		if (availableShareData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
-		return availableShareData.deepValue.map((shareEntry) => <>
-			<span class = 'claim-option' key = { shareEntry.market }>
+		return availableShareData.deepValue.map((shareEntry) => {
+			return <span class = 'claim-option' key = { shareEntry.market }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
 					name = 'selectedOutcome'
 					checked = { selectedShares.value.includes(shareEntry.market) }
-					disabled = { shareEntry.payout === 0n }
 					onChange = { () => {
 						selectedShares.value = filterIfExistsAddOtherwise(selectedShares.value, shareEntry.market)
 					} }
@@ -54,14 +53,14 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning shares</h1></span>
 			<div class = 'claim-options'>
-				{ results }
+				{ results.value }
 			</div>
 		</div>
 	</div>
@@ -78,14 +77,13 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 	const results = useComputed(() => {
 		if (availableDisputes.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
-		return availableDisputes.deepValue.map((disputeEntry) => <>
-			<span class = 'claim-option' key = { disputeEntry.bond }>
+		return availableDisputes.deepValue.map((disputeEntry) => {
+			return <span class = 'claim-option' key = { disputeEntry.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
 					name = 'selectedOutcome'
-					checked = { selectedDisputes.value.includes(disputeEntry.market) }
-					disabled = { disputeEntry.amount === 0n }
+					checked = { selectedDisputes.value.includes(disputeEntry.bond) }
 					onChange = { () => {
 						selectedDisputes.value = filterIfExistsAddOtherwise(selectedDisputes.value, disputeEntry.bond)
 					} }
@@ -95,14 +93,14 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem Participation Token rewards</h1></span>
 			<div class = 'claim-options'>
-				{ results }
+				{ results.value }
 			</div>
 		</div>
 	</div>
@@ -119,14 +117,13 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 	const results = useComputed(() => {
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
-		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
-			<span class = 'claim-option' key = { disputeEntry.bond }>
+		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => {
+			return <span class = 'claim-option' key = { disputeEntry.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
 					name = 'selectedOutcome'
-					checked = { selectedForkedCrowdSourcers.value.includes(disputeEntry.market) }
-					disabled = { disputeEntry.amount === 0n }
+					checked = { selectedForkedCrowdSourcers.value.includes(disputeEntry.bond) }
 					onChange = { () => {
 						selectedForkedCrowdSourcers.value = filterIfExistsAddOtherwise(selectedForkedCrowdSourcers.value, disputeEntry.bond)
 					} }
@@ -136,14 +133,14 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem forked dispute crowdsourcers</h1></span>
 			<div class = 'claim-options'>
-				{ results }
+				{ results.value }
 			</div>
 		</div>
 	</div>
@@ -160,14 +157,13 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 	const results = useComputed(() => {
 		if (availableReports.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
-		return availableReports.deepValue.map((initialReport) => <>
-			<span class = 'claim-option' key = { initialReport.bond }>
+		return availableReports.deepValue.map((initialReport) => {
+			return <span class = 'claim-option' key = { initialReport.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
 					name = 'selectedOutcome'
-					checked = { selectedReports.value.includes(initialReport.market) }
-					disabled = { initialReport.amount === 0n }
+					checked = { selectedReports.value.includes(initialReport.bond) }
 					onChange = { () => {
 						selectedReports.value = filterIfExistsAddOtherwise(selectedReports.value, initialReport.bond)
 					} }
@@ -177,14 +173,14 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
 		<div style = 'display: grid'>
 			<span><h1>Redeem winning initial reporter or dispute crowdsourcer bonds</h1></span>
 			<div class = 'claim-options'>
-				{ results }
+				{ results.value }
 			</div>
 		</div>
 	</div>
@@ -286,7 +282,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 
 	const claimWinningSharesDisabled = useComputed(() => selectedShares.value.length === 0)
 	const participationTokensDisabled = useComputed(() => selectedDisputes.value.length + selectedReports.value.length === 0)
-	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 && isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
+	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 || isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
@@ -318,7 +314,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 						/>
 					</> }
 					<ForkAndRedeemDisputeCrowdSourcers loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length == 0 ? <></> : <>
+					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0 ? <></> : <>
 						<SendTransactionButton
 							className = 'button button-primary'
 							transactionStatus = { pendingForkDisputesTransactionStatus }

@@ -118,6 +118,10 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, outcomeStake.payoutNumerators)
 	}
 
+	const outcomeNameText = useComputed(() => `Create "${ outcomeStake.outcomeName }" Universe`)
+
+	const universeSignal = useComputed(() => outcomeStake.universe)
+
 	const universeLinkOrButton = useComputed(() => {
 		if (outcomeStake.universe === undefined) {
 			return <SendTransactionButton
@@ -126,11 +130,11 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { disabled }
-				text = { new Signal(`Create "${ outcomeStake.outcomeName }" Universe`) }
+				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
 		} else {
-			return <UniverseLink universe = { useComputed(() => outcomeStake.universe) } pathSignal = { pathSignal }/>
+			return <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>
 		}
 	})
 
