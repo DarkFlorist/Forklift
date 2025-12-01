@@ -3,7 +3,7 @@ import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
-import { forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
+import { claimMarketWinnings, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
@@ -267,7 +267,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 			return await queryForData(writeClient).catch(showUnexpectedError)
 		}
 		const claimWinningShares = async () => {
-			throw new Error('TODO: not implemented claimin of winning shares')
+			return await claimMarketWinnings(writeClient, selectedShares.value)
 		}
 		const refreshShares = async () => {
 			updateTokenBalancesSignal.value++

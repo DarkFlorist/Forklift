@@ -93,3 +93,12 @@ export const aggregateByPayoutDistribution = ( pages: { size: bigint; stake: big
 }
 
 export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient) => (await readClient.getBlock()).timestamp
+
+export const claimMarketWinnings = async (writeClient: WriteClient, markets: readonly AccountAddress[]) => {
+	return await writeClient.writeContract({
+		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
+		functionName: 'claimTradingProceedsForMarkets',
+		address: getAugurExtraUtilitiesAddress(),
+		args: [markets]
+	})
+}

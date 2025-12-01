@@ -685,3 +685,12 @@ export const createChildUniverse = async (writeClient: WriteClient, universe: Ac
 		args: [payoutNumerators]
 	})
 }
+
+export const claimTradingProceeds = async (writeClient: WriteClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[]) => {
+	return await writeClient.writeContract({
+		address: universe,
+		abi: UNIVERSE_ABI,
+		functionName: 'createChildUniverse',
+		args: [payoutNumerators]
+	})
+}
