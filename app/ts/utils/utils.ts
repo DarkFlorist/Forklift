@@ -41,3 +41,14 @@ export function areEqualArrays<T>(first: T[], second: T[]) {
 	if (first.length !== second.length) return false
 	return first.every((value, index) => value === second[index])
 }
+
+export const isValidUrl = (possibleUrl: string) => {
+	const urlPattern = /^(https?:\/\/)[\w\-]+(\.[\w\-]+)+([\/\w\-.?=&%]*)?$/
+	return urlPattern.test(possibleUrl)
+}
+
+export const getUsedRpc = () => {
+	const rpc = localStorage.getItem('rpc')
+	if (rpc === null) return 'https://ethereum.dark.florist'
+	return rpc
+}

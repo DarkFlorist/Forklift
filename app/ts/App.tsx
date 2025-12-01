@@ -15,7 +15,7 @@ import { getForkValues, getUniverseForkingInformation, getUniverseInformation } 
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
 import { Migration } from './MigrationUI/components/Migration.js'
 import { getErc20TokenBalance } from './utils/erc20.js'
-import { bigintSecondsToDate, humanReadableDateDelta } from './utils/utils.js'
+import { bigintSecondsToDate, getUsedRpc, humanReadableDateDelta } from './utils/utils.js'
 import { deployAugurExtraUtilities, getCurrentBlockTimeInBigIntSeconds, isAugurExtraUtilitiesDeployed } from './utils/augurExtraUtilities.js'
 import { PageNotFound } from './PageNotFoundUI/PageNotFoundUI.js'
 import { paramsToHashPath, parseHashPath } from './utils/hashRouter.js'
@@ -24,6 +24,7 @@ import { MarketLink, UniverseLink } from './SharedUI/links.js'
 import { CenteredBigSpinner, Spinner } from './SharedUI/Spinner.js'
 import { UnexpectedError } from './SharedUI/UnexpectedError.js'
 import { SendTransactionButton, TransactionStatus } from './SharedUI/SendTransactionButton.js'
+import { Settings } from './Settings/Settings.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -181,7 +182,7 @@ const Tabs = ({ tabs, activeTab }: TabsProps) => {
 }
 
 const updateWalletSignals = (maybeReadClient: OptionalSignal<ReadClient>, maybeWriteClient: OptionalSignal<WriteClient>, account: AccountAddress | undefined) => {
-	maybeReadClient.deepValue = account === undefined ? createReadClient(undefined) : createWriteClient(account)
+	maybeReadClient.deepValue = account === undefined ? createReadClient(undefined, getUsedRpc()) : createWriteClient(account)
 	maybeWriteClient.deepValue = account === undefined ? undefined : createWriteClient(account)
 }
 
@@ -232,7 +233,8 @@ export function App() {
 		{ title: 'Reporting', path: 'reporting', component: <Reporting pathSignal = { pathSignal } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
-		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false }
+		{ title: 'Rep V1 Migration', path: 'rep-v1-migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Settings', path: 'settings', component: <Settings/>, hide: false }
 	] as const
 
 	useEffect(() => {
