@@ -64,7 +64,7 @@ export const isValidAugurMarket = async (readClient: ReadClient, marketAddress: 
 		address: AUGUR_CONTRACT,
 		args: [marketAddress]
 	})
-	return marketCreationData.outcomes.length > 0 || marketCreationData.marketType > 0
+	return BigInt(marketCreationData.marketCreator) > 0n
 }
 
 export const fetchMarketData = async (readClient: ReadClient, marketAddress: AccountAddress) => {
