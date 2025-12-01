@@ -417,11 +417,11 @@ export function App() {
 		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
 	}
 
-	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: auto;'><div class = 'app'><CenteredBigSpinner/> </div></main>
+	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: hidden;'><div class = 'app'><CenteredBigSpinner/> </div></main>
 
 	const isDeployExtraUtilsDisabled = useComputed(() => maybeWriteClient.deepValue === undefined)
 
-	return <main style = 'overflow: auto;'>
+	return <main style = 'overflow: hidden;'>
 		<div class = 'app'>
 			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: auto auto auto;'>
 				<div class = 'forklift'>
