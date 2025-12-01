@@ -23,6 +23,7 @@ import { RepV1Migration } from './RepV1Migration/RepV1Migration.js'
 import { MarketLink, UniverseLink } from './SharedUI/links.js'
 import { CenteredBigSpinner, Spinner } from './SharedUI/Spinner.js'
 import { UnexpectedError } from './SharedUI/UnexpectedError.js'
+import { SendTransactionButton, TransactionStatus } from './SharedUI/SendTransactionButton.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -73,13 +74,18 @@ interface WalletComponentProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
 	loadingAccount: Signal<boolean>
 	children?: preact.ComponentChildren
+	showUnexpectedError: (error: unknown) => void
 }
 
-const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount, children }: WalletComponentProps) => {
+const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
 	if (loadingAccount.value) return <></>
 	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
 	const connect = async () => {
-		updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
+		try {
+			updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
+		} catch(e: unknown) {
+			showUnexpectedError(e)
+		}
 	}
 	return <div class = 'wallet-container'>
 		{ accountAddress.value !== undefined ? <>
@@ -205,6 +211,8 @@ export function App() {
 	const ethBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const repBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const daiBalance = useOptionalSignal<EthereumQuantity>(undefined)
+
+	const pendingExtraUtilsStatus = useSignal<TransactionStatus>(undefined)
 
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
 
@@ -374,10 +382,7 @@ export function App() {
 	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('writeClient missing')
-		await deployAugurExtraUtilities(writeClient).catch(showUnexpectedError)
-		isAugurExtraUtilitiesDeployedSignal.deepValue = true
-		await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
-		await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
+		return await deployAugurExtraUtilities(writeClient)
 	}
 
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
@@ -412,6 +417,8 @@ export function App() {
 
 	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: auto;'><div class = 'app'><CenteredBigSpinner/> </div></main>
 
+	const isDeployExtraUtilsDisabled = useComputed(() => maybeWriteClient.deepValue === undefined)
+
 	return <main style = 'overflow: auto;'>
 		<div class = 'app'>
 			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: auto auto auto;'>
@@ -422,9 +429,22 @@ export function App() {
 						<UniverseComponent universe = { currentUniverse }/>
 					</div>
 				</div>
-				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ? <button class = 'button button-primary' onClick = { deployAugurExtraUtilitiesButton }>Deploy Augur Extra Utilities</button> : <div></div> }
+				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ?
+					<SendTransactionButton
+						transactionStatus = { pendingExtraUtilsStatus }
+						sendTransaction = { deployAugurExtraUtilitiesButton }
+						maybeWriteClient = { maybeWriteClient }
+						disabled = { isDeployExtraUtilsDisabled }
+						text = { useComputed(() => 'Deploy Augur Extra Utilities') }
+						callBackWhenIncluded = { async () => {
+							isAugurExtraUtilitiesDeployedSignal.deepValue = true
+							await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
+							await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
+						} }
+					/>
+ 				: <div></div> }
 				<div style = 'display: flex; align-items: center;'>
-					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient }>
+					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
