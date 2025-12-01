@@ -13,7 +13,7 @@ import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
-import { ContractFunctionExecutionError, encodePacked, keccak256 } from 'viem'
+import { Address, ContractFunctionExecutionError, encodePacked, keccak256 } from 'viem'
 import * as funtypes from 'funtypes'
 import { LiteralConverterParserFactory } from '../types/types.js'
 import { getErc20TokenSymbol } from './erc20.js'
@@ -413,7 +413,33 @@ export const getAvailableReports = async (readClient: ReadClient, account: Accou
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
+	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
+}
+
+export const addUniversesToClaims = async (readClient: ReadClient, disputes: { market: Address, bond: Address, amount: bigint }[]) => {
+	const uniqueMarkets = Array.from(new Set(disputes.map(disputeItem => disputeItem.market)))
+	const universes = await Promise.all(uniqueMarkets.map( async (marketAddress) => {
+		const hotLoadingMarketData = await readClient.readContract({
+			abi: HOT_LOADING_ABI,
+			functionName: 'getMarketData',
+			address: HOT_LOADING_ADDRESS,
+			args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
+		})
+		return {
+			marketAddress,
+			universeinformation: await getUniverseInformation(readClient, hotLoadingMarketData.universe, false)
+		}
+	}))
+
+	const universeByMarketAddress = universes.reduce((accumulatedMap, universeItem) => {
+		accumulatedMap.set(universeItem.marketAddress, universeItem.universeinformation)
+		return accumulatedMap
+	}, new Map<Address, { readonly universeAddress: Address, readonly reputationTokenAddress: Address, readonly repTokenName: string }>())
+	return Promise.all(disputes.map((disputeItem) => {
+		const universeInformation = universeByMarketAddress.get(disputeItem.market)
+		if (!universeInformation) throw new Error(`Missing universeinformation for market ${ disputeItem.market }`)
+		return { ...disputeItem, universeInformation }
+	}))
 }
 
 export const getAvailableDisputes = async (readClient: ReadClient, account: AccountAddress) => {
@@ -431,7 +457,8 @@ export const getAvailableDisputes = async (readClient: ReadClient, account: Acco
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
+
+	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
 }
 
 export const migrateThroughOneFork = async (writeClient: WriteClient, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {
