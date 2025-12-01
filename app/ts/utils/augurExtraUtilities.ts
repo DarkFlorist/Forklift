@@ -9,8 +9,7 @@ import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContract
 export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
 export const deployAugurExtraUtilities = async (writeClient: WriteClient) => {
-	const hash = await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }` })
-	await writeClient.waitForTransactionReceipt({ hash })
+	return await writeClient.sendTransaction({ to: PROXY_DEPLOYER_ADDRESS, data: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }` })
 }
 
 export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
