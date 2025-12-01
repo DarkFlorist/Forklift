@@ -60,7 +60,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 
 	const update = async (readClient: ReadClient | undefined ) => {
 		if (readClient === undefined) return
-		if (readClient.account?.address === undefined) return
 		if (universe.deepValue === undefined) return
 		if (universeForkingInformation.deepValue === undefined) return
 		loading.value = true
@@ -76,7 +75,12 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		repSupply.deepValue = undefined
 		reputationBalance.deepValue = undefined
 		try {
-			reputationBalance.deepValue = await getErc20TokenBalance(readClient, universe.deepValue.reputationTokenAddress, readClient.account.address)
+
+			if (readClient.account?.address !== undefined) {
+				reputationBalance.deepValue = await getErc20TokenBalance(readClient, universe.deepValue.reputationTokenAddress, readClient.account.address)
+			} else {
+				reputationBalance.deepValue = 0n
+			}
 			if (isGenesisUniverse(universe.deepValue.universeAddress)) {
 				// retrieve v1 balance only for genesis universe as its only relevant there
 				parentUniverse.deepValue = undefined
