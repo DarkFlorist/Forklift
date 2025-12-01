@@ -5,7 +5,7 @@ import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
+import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -14,6 +14,8 @@ import { humanReadableDateDelta } from '../../utils/utils.js'
 import { EtherScanAddress, MarketLink, OptionalUniverseLink } from '../../SharedUI/links.js'
 import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
+import { Input } from '../../SharedUI/Input.js'
+import { useState } from 'preact/hooks'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -52,6 +54,8 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const winningUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const pendingTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const loading = useSignal<boolean>(false)
+
+	const reputationToMigrate = useOptionalSignal<EthereumQuantity>(undefined)
 
 	useSignalEffect(() => {
 		universeForkingInformation.deepValue
@@ -124,8 +128,8 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (universe.deepValue?.reputationTokenAddress === undefined) throw new Error('missing reputationTokenAddress')
 		if (forkingOutcomeStakes.deepValue === undefined) throw new Error('missing forkingOutcomeStakes')
 		if (selectedPayoutNumerators.deepValue === undefined) throw new Error('selectedPayoutNumerators not selected')
-		if (reputationBalance.deepValue === undefined) throw new Error('reputationBalance not selected')
-		return await migrateReputationToChildUniverseByPayout(writeClient, universe.deepValue.reputationTokenAddress, selectedPayoutNumerators.deepValue, reputationBalance.deepValue)
+		if (reputationToMigrate.deepValue === undefined) throw new Error('reputationBalance not selected')
+		return await migrateReputationToChildUniverseByPayout(writeClient, universe.deepValue.reputationTokenAddress, selectedPayoutNumerators.deepValue, reputationToMigrate.deepValue)
 	}
 
 	const refresh = async () => {
@@ -142,6 +146,8 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (universe.deepValue === undefined) return true
 		if (reputationBalance.deepValue === undefined) return true
 		if (reputationBalance.deepValue === 0n) return true
+		if (reputationToMigrate.deepValue === undefined || reputationToMigrate.deepValue === 0n) return true
+		if (reputationToMigrate.deepValue > reputationBalance.deepValue) return true
 		return false
 	})
 
@@ -189,24 +195,56 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		</span>
 	})
 
-	const migrateButtonText = useComputed(() => `Migrate ${ reputationBalance.deepValue === undefined ? '?' : bigintToDecimalString(reputationBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`)
+	const migrateButtonText = useComputed(() => `Migrate ${ reputationToMigrate.deepValue === undefined ? '?' : bigintToDecimalString(reputationToMigrate.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`)
 
-	const migrationButton = useComputed(() => {
+	const repName = useComputed(() => getRepTokenName(universeForkingInformation.deepValue?.universe.repTokenName))
+
+	const [MigrationButton] = useState(() => () => {
 		if (!isMigrationPeriodActive.value) return <></>
 		if (universeForkingInformation.deepValue === undefined) return <></>
 		if (forkingMarketData.deepValue === undefined) return <></>
 		if (forkingOutcomeStakes.deepValue === undefined) return <></>
 
-		return <div class = 'button-group'>
-			<SendTransactionButton
-				className = 'button button-primary button-group-button'
-				transactionStatus = { pendingTransactionStatus }
-				sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
-				maybeWriteClient = { maybeWriteClient }
-				disabled = { isMigrateDisabled }
-				text = { migrateButtonText }
-				callBackWhenIncluded = { refresh }
-			/>
+		const setMaxReputationToMigrate = async () => {
+			reputationToMigrate.deepValue = reputationBalance.deepValue
+		}
+
+		return <div>
+			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em', paddingBottom: '10px' } }>
+				<Input
+					class = 'input reporting-panel-input'
+					type = 'text'
+					placeholder = { useComputed(() => `REP`) }
+					disabled = { useComputed(() => false) }
+					style = { { maxWidth: '300px' } }
+					value = { reputationToMigrate }
+					sanitize = { (amount: string) => amount.trim() }
+					tryParse = { (amount: string | undefined) => {
+						if (amount === undefined) return { ok: false } as const
+						if (!isDecimalString(amount.trim())) return { ok: false } as const
+						const parsed = decimalStringToBigint(amount.trim(), 18n)
+						return { ok: true, value: parsed } as const
+					}}
+					serialize = { (amount: EthereumQuantity | undefined) => {
+						if (amount === undefined) return ''
+						return bigintToDecimalString(amount, 18n, 18)
+					}}
+				/>
+				<span class = 'unit'>{ repName.value }</span>
+				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxReputationToMigrate }>Max</button>
+			</div>
+
+			<div class = 'button-group'>
+				<SendTransactionButton
+					className = 'button button-primary button-group-button'
+					transactionStatus = { pendingTransactionStatus }
+					sendTransaction = { migrateReputationToChildUniverseByPayoutButton }
+					maybeWriteClient = { maybeWriteClient }
+					disabled = { isMigrateDisabled }
+					text = { migrateButtonText }
+					callBackWhenIncluded = { refresh }
+				/>
+			</div>
 		</div>
 	})
 
@@ -253,7 +291,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 							{ forkValuesComponent }
 						</span>
 					</Market>
-					{ migrationButton }
+					<MigrationButton/>
 				</div>
 			</> : <></> }
 		</section>
