@@ -284,6 +284,14 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 	const participationTokensDisabled = useComputed(() => selectedDisputes.value.length + selectedReports.value.length === 0)
 	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 || isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
+	if (maybeWriteClient.deepValue === undefined) {
+		return <div class = 'subApplication'>
+			<section class = 'subApplication-card'>
+				<p> Connect your wallet to see possible claims</p>
+			</section>
+		</div>
+	}
+
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<div style = 'display: grid; width: 100%; gap: 10px;'>

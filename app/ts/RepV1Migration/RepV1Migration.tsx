@@ -85,6 +85,14 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 		return <Info text = { `You have ${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` } />
 	})
 
+	if (maybeWriteClient.deepValue === undefined) {
+		return <div class = 'subApplication'>
+			<section class = 'subApplication-card'>
+				<p> Connect your wallet to migrate your possible Rep V1 tokens</p>
+			</section>
+		</div>
+	}
+
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<h1>Reputation V1 to V2 Migration</h1>
