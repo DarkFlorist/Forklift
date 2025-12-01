@@ -25,7 +25,7 @@ type TransactionHashProps = {
 export const TransactionHash = ({ transactionStatus }: TransactionHashProps) => {
 	if (transactionStatus.value?.hash === undefined) return <></>
 	const spinner = transactionStatus.value.status === 'waitingToBeIncluded' ? <Spinner/>: <></>
-	return <p>Transaction Hash: <EtherScanTransactionHash hash = { transactionStatus.value.hash } /> { spinner }</p>
+	return <p style = 'white-space: normal; word-break: break-word;'>Transaction Hash: <EtherScanTransactionHash hash = { transactionStatus.value.hash } /> { spinner }</p>
 }
 
 type SendTransactionButtonProps = {

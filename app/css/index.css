@@ -771,6 +771,7 @@ h3 {
 	display: flex;
 	gap: 1rem;
 	justify-content: space-around;
+	overflow: hidden;
 }
 
 .button-group-button {
