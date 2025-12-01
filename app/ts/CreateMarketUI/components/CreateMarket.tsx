@@ -368,6 +368,16 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		updateTokenBalancesSignal.value++
 	}
 
+	if (isUniverseForking.value === undefined) return <></>
+
+	if (isUniverseForking.value === true) {
+		return  <div class = 'subApplication'>
+			<section class = 'subApplication-card'>
+				<p> Market creation disabled due to an universe fork.</p>
+			</section>
+		</div>
+	}
+
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<div class = 'form-grid'>
