@@ -208,7 +208,6 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 	const selectedReports = useSignal<readonly AccountAddress[]>([])
 	const selectedForkedCrowdSourcers = useSignal<readonly AccountAddress[]>([])
 
-
 	const pendingClaimSharesTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const pendingDisputesAndReportsTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const pendingForkDisputesTransactionStatus = useSignal<TransactionStatus>(undefined)
