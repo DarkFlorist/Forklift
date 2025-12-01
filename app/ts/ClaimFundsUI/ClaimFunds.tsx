@@ -38,8 +38,9 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 	const results = useComputed(() => {
 		if (availableShareData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
-		return availableShareData.deepValue.map((shareEntry) => <>
-			<span class = 'claim-option' key = { shareEntry.market }>
+		return availableShareData.deepValue.map((shareEntry) => {
+			const marketSignal = useComputed(() => shareEntry.market)
+			return <span class = 'claim-option' key = { shareEntry.market }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
@@ -51,10 +52,10 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
+					<span><b>Market <MarketLink address = { marketSignal } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
@@ -78,8 +79,9 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 	const results = useComputed(() => {
 		if (availableDisputes.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
-		return availableDisputes.deepValue.map((disputeEntry) => <>
-			<span class = 'claim-option' key = { disputeEntry.bond }>
+		return availableDisputes.deepValue.map((disputeEntry) => {
+			const marketSignal = useComputed(() => disputeEntry.market)
+			return <span class = 'claim-option' key = { disputeEntry.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
@@ -91,11 +93,11 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
+					<span><b>Market <MarketLink address = { marketSignal } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
@@ -119,8 +121,9 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 	const results = useComputed(() => {
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
-		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => <>
-			<span class = 'claim-option' key = { disputeEntry.bond }>
+		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => {
+			const marketSignal = useComputed(() => disputeEntry.market)
+			return <span class = 'claim-option' key = { disputeEntry.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
@@ -132,11 +135,11 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ availableClaimsFromForkingDisputeCr
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
+					<span><b>Market <MarketLink address = { marketSignal } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>
@@ -160,8 +163,9 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 	const results = useComputed(() => {
 		if (availableReports.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
-		return availableReports.deepValue.map((initialReport) => <>
-			<span class = 'claim-option' key = { initialReport.bond }>
+		return availableReports.deepValue.map((initialReport) => {
+			const marketSignal = useComputed(() => initialReport.market)
+			return <span class = 'claim-option' key = { initialReport.bond }>
 				<input
 					type = 'checkbox'
 					class = 'custom-input'
@@ -173,11 +177,11 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/> { ': ' }</b>
+					<span><b>Market <MarketLink address = { marketSignal } pathSignal = { pathSignal }/> { ': ' }</b>
 					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } REP` }</span>
 				</div>
 			</span>
-		</>)
+		})
 	})
 
 	return <div class = 'claim'>

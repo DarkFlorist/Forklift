@@ -41,33 +41,31 @@ interface UniverseForkingNoticeProps {
 }
 
 const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigIntSeconds, pathSignal }: UniverseForkingNoticeProps) => {
-	if (universeForkingInformation.deepValue !== undefined && universeForkingInformation.deepValue.isForking) {
-		const forkingEndTime = bigintSecondsToDate(universeForkingInformation.deepValue.forkEndTime)
-		return <div class = 'universe-forking-notice'>
-			<p>
-				<SomeTimeAgo currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
-					(time: number) => {
-						if (universeForkingInformation.deepValue === undefined) return <></>
-						if (universeForkingInformation.deepValue.isForking === false) return <></>
-						const forkingMarketSignal = new Signal(universeForkingInformation.deepValue.forkingMarket)
-						const universeSignal = new Signal(universeForkingInformation.deepValue.universe)
-						if (time <= 0) return <>
-							The universe <b>{ getUniverseName(universeSignal.value) } </b> has forked off.
-							A disagreement on the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/> has caused the fork.
-							Please use some other universe.
-						</>
-						return <>
-							The universe <b> <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
-							The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
-							This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
-							Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>.
-						</>
-					}
-				}/>
-			</p>
-		</div>
-	}
-	return <></>
+	const forkingMarketSignal = useComputed(() => universeForkingInformation.deepValue?.forkingMarket)
+	const universeSignal = useComputed(() => universeForkingInformation.deepValue?.universe)
+	if (universeForkingInformation.deepValue === undefined || universeForkingInformation.deepValue.isForking === false) return <></>
+	const forkingEndTime = bigintSecondsToDate(universeForkingInformation.deepValue.forkEndTime)
+	return <div class = 'universe-forking-notice'>
+		<p>
+			<SomeTimeAgo currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } priorTimestamp = { forkingEndTime } countBackwards = { true } diffToText = {
+				(time: number) => {
+					if (universeForkingInformation.deepValue === undefined) return <></>
+					if (universeForkingInformation.deepValue.isForking === false) return <></>
+					if (time <= 0) return <>
+						The universe <b>{ getUniverseName(universeForkingInformation.deepValue.universe) } </b> has forked off.
+						A disagreement on the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/> has caused the fork.
+						Please use some other universe.
+					</>
+					return <>
+						The universe <b> <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
+						The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
+						This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
+						Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>.
+					</>
+				}
+			}/>
+		</p>
+	</div>
 }
 
 interface WalletComponentProps {
@@ -222,8 +220,8 @@ export function App() {
 
 	const tabs = [
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
-		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } repBalance = { repBalance } daiBalance = { daiBalance } showUnexpectedError = { showUnexpectedError }/>, hide: false },
-		{ title: 'Reporting', path: 'reporting', component: <Reporting isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket universeForkingInformation = { universeForkingInformation } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } repBalance = { repBalance } daiBalance = { daiBalance } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Reporting', path: 'reporting', component: <Reporting pathSignal = { pathSignal } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Rep V1 Migration', path: 'RepV1Migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false }
