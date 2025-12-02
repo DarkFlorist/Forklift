@@ -1,9 +1,11 @@
 import { useComputed, useSignal } from '@preact/signals'
 import { useEffect } from 'preact/hooks'
 import { isValidUrl } from '../utils/utils.js'
+import { createReadClient } from '../utils/ethereumWallet.js'
 
 export const Settings = () => {
 	const rpcCandidate = useSignal<string | undefined>()
+	const rpcFailedTest = useSignal<boolean>(false)
 	const refresh = () => {
 		rpcCandidate.value = localStorage.getItem('rpc') || undefined
 	}
@@ -12,13 +14,31 @@ export const Settings = () => {
 
 	const handleRpc = (value: string) => {
 		rpcCandidate.value = value
+		rpcFailedTest.value = false
 	}
 
-	const setRpc = () => {
+	const setRpc = async () => {
 		if (rpcCandidate.value === undefined) return
-		if (!isValidUrl(rpcCandidate.value)) return
+		if (!(await testRpc())) {
+			rpcFailedTest.value = true
+			return
+		}
 		localStorage.setItem('rpc', rpcCandidate.value)
 		location.reload()
+	}
+
+	const testRpc = async () => {
+		if (rpcCandidate.value === undefined) return false
+		if (!isValidUrl(rpcCandidate.value)) return false
+		const readClient = createReadClient(undefined, rpcCandidate.value)
+		try {
+			const chainId = await readClient.getChainId()
+			if (chainId !== 1) return false
+		} catch(e) {
+			console.error(e)
+			return false
+		}
+		return true
 	}
 
 	const invalidUrl = useComputed(() => !(rpcCandidate.value != undefined && isValidUrl(rpcCandidate.value)))
@@ -39,6 +59,7 @@ export const Settings = () => {
 						<button class = 'button button-secondary button-small' disabled = { invalidUrl.value } onClick = { setRpc }> Set</button>
 					</div>
 					{ invalidUrl.value && rpcCandidate.value !== undefined ? <p class = 'error-component'>Invalid RPC URL</p> : <></> }
+					{ rpcFailedTest.value === true ? <p class = 'error-component'>The given URL is not a valid Mainnet RPC URL</p> : <></> }
 				</div>
 			</div>
 		</section>
