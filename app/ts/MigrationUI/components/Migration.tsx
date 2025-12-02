@@ -28,16 +28,6 @@ interface MigrationProps {
 	showUnexpectedError: (error: unknown) => void
 }
 
-interface GetForkValuesProps {
-	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	universe: OptionalSignal<UniverseInformation>
-}
-// todo modify this to show this with the current rep in different universes and not just the goal
-const DisplayForkValues = ({ forkValues, universe }: GetForkValuesProps) => {
-	if (forkValues.deepValue === undefined || universe.deepValue === undefined) return <></>
-	return <div style = 'padding-top: 10px; padding-bottom: 10px'>Fork Reputation Goal ({ universe.deepValue.repTokenName } required for universe to win): { bigintToDecimalString(forkValues.deepValue.forkReputationGoal, 18n, 2) } { universe.deepValue.repTokenName }</div>
-}
-
 export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds, showUnexpectedError }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeWithUniverse[]>(undefined)
@@ -248,12 +238,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		</div>
 	})
 
-	const forkValuesComponent = useComputed(() => {
-		if (universeForkingInformation.deepValue === undefined || universe.deepValue === undefined || forkValues.deepValue === undefined) return <CenteredBigSpinner/>
-		if (!isMigrationPeriodActive.value) return <></>
-		return <DisplayForkValues universe = { universe } forkValues = { forkValues }/>
-	})
-
 	if (universe.deepValue === undefined || universeForkingInformation.deepValue === undefined) {
 		return <div class = 'subApplication'>
 			<section class = 'subApplication-card'>
@@ -288,7 +272,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					<Market loading = { loading } marketData = { forkingMarketData } universe = { universe } forkValues = { forkValues } disputeWindowInfo = { disputeWindowInfo } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }>
 						<span>
 							<SelectUniverse maybeWriteClient = { maybeWriteClient } universe = { universe } refreshStakes = { refresh } pathSignal = { pathSignal } marketData = { forkingMarketData } disabled = { migrationDisabled } outcomeStakes = { forkingOutcomeStakes } selectedPayoutNumerators = { selectedPayoutNumerators }/>
-							{ forkValuesComponent }
 						</span>
 					</Market>
 					<MigrationButton/>
