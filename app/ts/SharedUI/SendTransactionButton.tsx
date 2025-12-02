@@ -31,7 +31,7 @@ export const TransactionHash = ({ transactionStatus }: TransactionHashProps) => 
 type SendTransactionButtonProps = {
 	transactionStatus: Signal<TransactionStatus>
 	sendTransaction: () => Promise<`0x${ string }`>
-	callBackWhenIncluded: () => Promise<void>
+	callBackWhenIncluded: (transactionHash: `0x${ string }`) => Promise<void>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	disabled: Signal<boolean>
 	text: Signal<string>
@@ -58,7 +58,7 @@ export const SendTransactionButton = ({ style, className, transactionStatus, sen
 				const transactionReceipt = await maybeWriteClient.deepValue.waitForTransactionReceipt({ hash: transactionStatus.value.hash })
 				if (transactionStatus.value.status === 'waitingToBeIncluded') {
 					transactionStatus.value = { status: 'includedAndCallingBack', hash: transactionStatus.value.hash }
-					await callBackWhenIncluded()
+					await callBackWhenIncluded(transactionStatus.value.hash)
 					transactionStatus.value = { status: 'included', hash: transactionStatus.value.hash }
 				}
 				if (transactionReceipt.status === 'reverted') {
