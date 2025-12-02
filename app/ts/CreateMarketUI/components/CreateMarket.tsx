@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { createYesNoMarket, estimateGasCreateYesNoMarket, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
+import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategoricalMarket, estimateGasCreateYesNoMarket, getCreatedMarketAddressFromTransactionhash, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
@@ -7,12 +7,14 @@ import { bigintToDecimalString, bigintToDecimalStringWithUnknown, bigintToDecima
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
-import { useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { Input } from '../../SharedUI/Input.js'
 import { useThrottledSignalEffect } from '../../SharedUI/useThrottledSignalEffect.js'
 import { ContractFunctionExecutionError } from 'viem'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 import { getRepTokenName } from '../../utils/augurUtils.js'
+import { assertNever } from '../../utils/errorHandling.js'
+import { MarketLink } from '../../SharedUI/links.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -77,20 +79,20 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 		daiAllowanceToBeSet.deepValue = 2n ** 256n - 1n
 	}
 
-	const daiAllowanceText = useComputed(() => `Allowed DAI: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
-	const repAllowanceText = useComputed(() => `Allowed ${ getRepTokenName(universe.deepValue?.repTokenName) }: ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) })`)
+	const daiAllowanceText = useComputed(() => `Allowed ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
+	const repAllowanceText = useComputed(() => `Allowed ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) })`)
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <div class = 'form-grid'>
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
-			<div style = { { alignContent: 'center' } }>
+			<div>
 				{ daiAllowanceText }
 			</div>
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
 					class = 'input reporting-panel-input'
 					type = 'text'
-					placeholder = { useComputed(() => `${ getRepTokenName(universe.deepValue?.repTokenName) } to allow`) }
+					placeholder = { '' }
 					disabled = { useComputed(() => false) }
 					style = { { maxWidth: '300px' } }
 					value = { daiAllowanceToBeSet }
@@ -119,14 +121,14 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 				text = { useComputed(() => 'Set DAI allowance') }
 				callBackWhenIncluded = { refreshBalances }
 			/>
-			<div style = { { alignContent: 'center' } }>
+			<div>
 				{ repAllowanceText }
 			</div>
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
 					class = 'input reporting-panel-input'
 					type = 'text'
-					placeholder = 'DAI to allow'
+					placeholder = ''
 					disabled = { useComputed(() => false) }
 					style = { { maxWidth: '300px' } }
 					value = { repAllowanceToBeSet }
@@ -184,6 +186,7 @@ interface CreateYesNoMarketProps {
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
 	showUnexpectedError: (error: unknown) => void
+	pathSignal: Signal<string>
 }
 
 const isValidDate = (dateStr: string): boolean => {
@@ -205,7 +208,30 @@ const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
 }))
 
-export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError }: CreateYesNoMarketProps) => {
+const outcomeOptions = [
+	'yes-no',
+	'categorical with 2 outcomes',
+	'categorical with 3 outcomes',
+	'categorical with 4 outcomes',
+	'categorical with 5 outcomes',
+	'categorical with 6 outcomes',
+	'categorical with 7 outcomes'
+] as const
+
+const getNumberOfOutcomesToName = (outcomeOption: typeof outcomeOptions[number]) => {
+	switch(outcomeOption) {
+		case 'yes-no': return 0
+		case 'categorical with 2 outcomes': return 2
+		case 'categorical with 3 outcomes': return 3
+		case 'categorical with 4 outcomes': return 4
+		case 'categorical with 5 outcomes': return 5
+		case 'categorical with 6 outcomes': return 6
+		case 'categorical with 7 outcomes': return 7
+		default: assertNever(outcomeOption)
+	}
+}
+
+export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError, pathSignal }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<string>('')
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -223,6 +249,11 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	const marketCreationGasCost = useOptionalSignal<bigint>(undefined)
 	const baseFee = useOptionalSignal<bigint>(undefined)
 	const pendingCreateMarketTransactionStatus = useSignal<TransactionStatus>(undefined)
+	const marketCreatedAddress = useSignal<AccountAddress | undefined>(undefined)
+
+	const marketTypeWithNumberOfOutcomes = useSignal<typeof outcomeOptions[number]>('yes-no')
+
+	const outcomeName = [1, 2, 3, 4, 5, 6, 7].map(() => useOptionalSignal<string>(undefined))
 
 	const isUniverseForking = useComputed(() => universeForkingInformation.deepValue?.isForking)
 
@@ -245,32 +276,50 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 
 	useSignalEffect(() => { refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError) })
 
-	const createMarketDisabled = useComputed(() => {
-		if (universe.deepValue === undefined) return true
-		if (!isValidDate(endTime.value)) return true
+	const createMarketIssue = useComputed(() => {
+		if (!isValidDate(endTime.value)) return 'Date is not valid'
 		const seconds = dateToBigintSeconds(new Date(endTime.value))
-		if (maximumMarketEndData.deepValue === undefined) return true
-		if (seconds > maximumMarketEndData.deepValue) return true
-		if (affiliateValidator.deepValue === undefined) return true
-		if (affiliateFeeDivisor.deepValue === undefined) return true
-		if (designatedReporterAddress.deepValue === undefined) return true
-		if (description.value.length === 0) return true
-		if (longDescription.value.length === 0) return true
-		if (marketCreationCostRep.deepValue === undefined) return true
-		if (marketCreationCostDai.deepValue === undefined) return true
-		if (allowedRep.deepValue === undefined) return true
-		if (allowedDai.deepValue === undefined) return true
-		if (allowedRep.deepValue < marketCreationCostRep.deepValue) return true
-		if (allowedDai.deepValue < marketCreationCostDai.deepValue) return true
-		if (repBalance.deepValue === undefined) return true
-		if (daiBalance.deepValue === undefined) return true
-		if (repBalance.deepValue < marketCreationCostRep.deepValue) return true
-		if (daiBalance.deepValue < marketCreationCostDai.deepValue) return true
-		if (isUniverseForking.value !== true) return true
-		return false
+		if (maximumMarketEndData.deepValue === undefined) return 'End Date has not been fetch'
+		if (seconds > maximumMarketEndData.deepValue) return 'Market End data is too far in future'
+		if (affiliateValidator.deepValue === undefined) return 'Affiliate validator is missing'
+		if (affiliateFeeDivisor.deepValue === undefined) return 'Affiliate fee divisor is missing'
+		if (designatedReporterAddress.deepValue === undefined) return 'Designated reporter is missing'
+		if (description.value.length === 0) return 'Description is empty'
+		if (longDescription.value.length === 0) return 'Long Description is empty'
+		if (marketCreationCostRep.deepValue === undefined) return 'Market Creation Cost Rep is missing'
+		if (marketCreationCostDai.deepValue === undefined) return 'Market Creation Cost Dai is missing'
+		if (allowedRep.deepValue === undefined) return 'Could not fetch allowed REP'
+		if (allowedDai.deepValue === undefined) return 'Could not fetch allowed Dai'
+		if (allowedRep.deepValue < marketCreationCostRep.deepValue) return 'REP Allowance is not high enough'
+		if (allowedDai.deepValue < marketCreationCostDai.deepValue) return 'DAI Allowance is not high enough'
+		if (repBalance.deepValue === undefined) return 'Could not fetch REP Balance'
+		if (daiBalance.deepValue === undefined) return 'Could not fetch DAI Balance'
+		if (repBalance.deepValue < marketCreationCostRep.deepValue) return 'REP Balance is not high enough'
+		if (daiBalance.deepValue < marketCreationCostDai.deepValue) return 'DAI Balance is not high enough'
+		if (isUniverseForking.value !== false) return 'Universe is forking'
+		if (marketTypeWithNumberOfOutcomes.value !== 'yes-no') {
+			const outcomesToName = getNumberOfOutcomesToName(marketTypeWithNumberOfOutcomes.value)
+			for (let i = 0; i < outcomesToName; i++) {
+				if (outcomeName[i]?.deepValue === undefined || outcomeName[i]?.deepValue?.length === 0) return `Outcome Name ${ i + 1 } is missing`
+			}
+		}
+		return undefined
 	})
 
+	const createMarketDisabled = useComputed(() => {
+		if (universe.deepValue === undefined) return true
+		return createMarketIssue.value !== undefined
+	})
+
+	const getOutComeNamesArray = () => {
+		const nOutcomes = getNumberOfOutcomesToName(marketTypeWithNumberOfOutcomes.value)
+		const outcomes = Array.from({ length: nOutcomes }, (_, index) => index).map((index) => outcomeName[index]?.deepValue).filter((deepValue): deepValue is string => deepValue !== undefined)
+		if (outcomes.length !== nOutcomes) throw new Error('length mismath')
+		return outcomes
+	}
+
 	const createMarket = async () => {
+		marketCreatedAddress.value = undefined
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
@@ -287,7 +336,10 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 			categories: categories.deepValue?.filter((element) => element.length > 0) || [],
 			tags: tags.deepValue?.filter((element) => element.length > 0) || []
 		})
-		return await createYesNoMarket(universe.deepValue.universeAddress, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
+		if (marketTypeWithNumberOfOutcomes.value === 'yes-no') {
+			return await createYesNoMarket(universe.deepValue.universeAddress, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, extraInfoString)
+		}
+		return await createCategoricalMarket(universe.deepValue.universeAddress, writeClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCash.deepValue, affiliateValidator.deepValue, BigInt(affiliateFeeDivisor.deepValue), designatedReporterAddress.deepValue, getOutComeNamesArray(), extraInfoString)
 	}
 
 	useThrottledSignalEffect(() => {
@@ -338,7 +390,15 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 				if (readClient === undefined) return
 				if (marketEndTimeUnixTimeStamp === undefined) return
 				try {
-				    marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+					if (marketTypeWithNumberOfOutcomes.value === 'yes-no') {
+				    	marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+					} else {
+						const outcomesToName = getNumberOfOutcomesToName(marketTypeWithNumberOfOutcomes.value)
+						for (let i = 0; i < outcomesToName; i++) {
+							if (outcomeName[i]?.deepValue === undefined || outcomeName[i]?.deepValue?.length === 0) return
+						}
+						marketCreationGasCost.deepValue = await estimateGasCreateCategoricalMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, getOutComeNamesArray(), extraInfoString)
+					}
 				} catch(error: unknown) {
 					marketCreationGasCost.deepValue = undefined
 					if (error instanceof ContractFunctionExecutionError) return
@@ -356,6 +416,10 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		if (!isNumeric(value)) throw new Error('Affiliate fee is not numeric')
 		affiliateFeeDivisor.deepValue = Number(value)
 	}
+	function handlemarketTypeWithNumberOfOutcomes(value: typeof outcomeOptions[number]) {
+		marketTypeWithNumberOfOutcomes.value = value
+	}
+
 	function handleDescription(value: string) {
 		description.value = value
 	}
@@ -363,9 +427,12 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		longDescription.value = value
 	}
 
-	const marketCreated = async () => {
-		// TODO!, link to new market!
+	const marketCreated = async (transactionHash: `0x${ string }`) => {
 		updateTokenBalancesSignal.value++
+		const readClient = maybeReadClient.deepPeek()
+		if (readClient === undefined) throw new Error('missing readClient')
+		if (universe.deepValue === undefined) throw new Error('universe address')
+		marketCreatedAddress.value = await getCreatedMarketAddressFromTransactionhash(readClient, transactionHash)
 	}
 
 	if (isUniverseForking.value === undefined) return <></>
@@ -377,6 +444,28 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 			</section>
 		</div>
 	}
+
+	const numberOfOutcomesToName = useComputed(() => {
+		return getNumberOfOutcomesToName(marketTypeWithNumberOfOutcomes.value)
+	})
+
+	const [OutcomeNamesChooser] = useState(() => () => {
+		return Array.from({ length: numberOfOutcomesToName.value }, (_, index) => index).map((index) => {
+			if (outcomeName[index] === undefined) throw new Error('index overflow')
+			return <input
+				class = 'input'
+				type = 'text'
+				key = { index }
+				placeholder = { `Outcome ${ index + 1 }` }
+				value = { outcomeName[index].value }
+				onInput = { (e) => {
+					const nameSignal = outcomeName[index]
+					if (nameSignal === undefined) throw new Error('index overflow')
+					nameSignal.deepValue = e.currentTarget.value
+				} }
+			/>
+		})
+	})
 
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
@@ -553,21 +642,37 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						invalidSignal = { useSignal<boolean>(false) }
 					/>
 				</div>
+
+				<div class = 'form-group' style = 'gap: 0.5em;'>
+					<label>Outcomes</label>
+					<select class = 'styled-select' onInput = { e => handlemarketTypeWithNumberOfOutcomes(e.currentTarget.value as typeof outcomeOptions[number]) } value = { outcomeOptions.find(f => f === marketTypeWithNumberOfOutcomes.value) }>
+						{ outcomeOptions.map(outcomes => (
+							<option key = { outcomes } value = { outcomes }>
+								{ outcomes }
+							</option>
+						)) }
+					</select>
+					<OutcomeNamesChooser/>
+				</div>
 			</div>
 
 			<Allowances maybeWriteClient = { maybeWriteClient } universe = { universe } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } allowedRep = { allowedRep } allowedDai = { allowedDai } showUnexpectedError = { showUnexpectedError }/>
 
 			<Costs universe = { universe } marketCreationCostRep = { marketCreationCostRep } marketCreationCostDai = { marketCreationCostDai } baseFee = { baseFee } marketCreationGasCost = { marketCreationGasCost }/>
-			<div class = 'button-group'>
-				<SendTransactionButton
-					className = 'button button-primary button-group-button'
-					transactionStatus = { pendingCreateMarketTransactionStatus }
-					sendTransaction = { createMarket }
-					maybeWriteClient = { maybeWriteClient }
-					disabled = { createMarketDisabled }
-					text = { useComputed(() => 'Create Market') }
-					callBackWhenIncluded = { marketCreated }
-				/>
+			<div>
+				<div class = 'button-group'>
+					<SendTransactionButton
+						className = 'button button-primary button-group-button'
+						transactionStatus = { pendingCreateMarketTransactionStatus }
+						sendTransaction = { createMarket }
+						maybeWriteClient = { maybeWriteClient }
+						disabled = { createMarketDisabled }
+						text = { useComputed(() => 'Create Market') }
+						callBackWhenIncluded = { marketCreated }
+					/>
+				</div>
+				{ createMarketIssue.value === undefined ? <></> : <p class = 'error-component'> { createMarketIssue.value } </p> }
+				{ marketCreatedAddress.value !== undefined ? <p> Market Created!: <MarketLink address = { marketCreatedAddress } pathSignal = { pathSignal }/> </p> : <></> }
 			</div>
 		</section>
 	</div>

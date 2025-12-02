@@ -1,3 +1,5 @@
+import { hexToBytes, padHex, stringToHex } from 'viem'
+
 export const bigintSecondsToDate = (seconds: bigint) => {
 	if (seconds > 8640000000000n) throw new Error(`Too big seconds value: ${ seconds }`)
 	if (seconds < 0) throw new Error(`Got negative seconds: ${ seconds }`)
@@ -51,4 +53,11 @@ export const getUsedRpc = () => {
 	const rpc = localStorage.getItem('rpc')
 	if (rpc === null) return 'https://ethereum.dark.florist'
 	return rpc
+}
+
+export const convertStringToBytes32 = (inputText: string) => {
+	const utf8Hex = stringToHex(inputText)
+	const utf8Bytes = hexToBytes(utf8Hex)
+	if (utf8Bytes.length > 32) throw new Error('Input text exceeds 32 byte limit for bytes32')
+	return padHex(utf8Hex, { size: 32, dir: 'right' })
 }

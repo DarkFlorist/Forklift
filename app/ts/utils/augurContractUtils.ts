@@ -13,10 +13,11 @@ import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
 import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
-import { Address, ContractFunctionExecutionError, encodePacked, keccak256 } from 'viem'
+import { Address, ContractFunctionExecutionError, decodeEventLog, encodePacked, keccak256 } from 'viem'
 import * as funtypes from 'funtypes'
 import { LiteralConverterParserFactory } from '../types/types.js'
 import { getErc20TokenSymbol } from './erc20.js'
+import { convertStringToBytes32 } from './utils.js'
 
 export type ExtraInfo = funtypes.Static<typeof ExtraInfo>
 export const ExtraInfo = funtypes.Intersect(
@@ -41,6 +42,15 @@ export const createYesNoMarket = async (universe: AccountAddress, writeClient: W
 	})
 }
 
+export const createCategoricalMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, outcomes: string[], extraInfo: string) => {
+	return await writeClient.writeContract({
+		address: universe,
+		abi: UNIVERSE_ABI,
+		functionName: 'createCategoricalMarket',
+		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, outcomes.map((outcome) => convertStringToBytes32(outcome)), extraInfo]
+	})
+}
+
 export const estimateGasCreateYesNoMarket = async (universe: AccountAddress, readClient: ReadClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
 	return await readClient.estimateContractGas({
 		address: universe,
@@ -49,6 +59,16 @@ export const estimateGasCreateYesNoMarket = async (universe: AccountAddress, rea
 		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, extraInfo]
 	})
 }
+
+export const estimateGasCreateCategoricalMarket = async (universe: AccountAddress, readClient: ReadClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, outcomes: string[], extraInfo: string) => {
+	return await readClient.estimateContractGas({
+		address: universe,
+		abi: UNIVERSE_ABI,
+		functionName: 'createCategoricalMarket',
+		args: [endTime, feePerCashInAttoCash, affiliateValidator, affiliateFeeDivisor, designatedReporterAddress, outcomes.map((outcome) => convertStringToBytes32(outcome)), extraInfo]
+	})
+}
+
 const parseMarketExtraInfo = (extraInfo: string) => {
 	try {
 		return ExtraInfo.parse(JSON.parse(extraInfo))
@@ -686,11 +706,12 @@ export const createChildUniverse = async (writeClient: WriteClient, universe: Ac
 	})
 }
 
-export const claimTradingProceeds = async (writeClient: WriteClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[]) => {
-	return await writeClient.writeContract({
-		address: universe,
-		abi: UNIVERSE_ABI,
-		functionName: 'createChildUniverse',
-		args: [payoutNumerators]
-	})
+export const getCreatedMarketAddressFromTransactionhash = async (readClient: ReadClient, transactionHash: `0x${ string }`) => {
+	const receipt = await readClient.getTransactionReceipt({ hash: transactionHash })
+	for (const logItem of receipt.logs) {
+		if (BigInt(logItem.address) !== BigInt(AUGUR_CONTRACT)) continue
+		const decoded = decodeEventLog({ abi: AUGUR_ABI, data: logItem.data, topics: logItem.topics })
+		if (decoded.eventName === 'MarketCreated') return decoded.args.market
+	}
+	return undefined
 }
