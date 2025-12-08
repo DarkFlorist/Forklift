@@ -72,18 +72,18 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 
 interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
-	maybeWriteClient: OptionalSignal<WriteClient>
 	loadingAccount: Signal<boolean>
 	children?: preact.ComponentChildren
 	showUnexpectedError: (error: unknown) => void
+	initializeAccount: (account: AccountAddress | undefined) => Promise<void>
 }
 
-const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
+const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
 	if (loadingAccount.value) return <></>
 	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
 	const connect = async () => {
 		try {
-			updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
+			await initializeAccount(await requestAccounts())
 		} catch(e: unknown) {
 			showUnexpectedError(e)
 		}
@@ -451,7 +451,7 @@ export function App() {
 					/>
  				: <div></div> }
 				<div style = 'display: flex; align-items: center;'>
-					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }>
+					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount } showUnexpectedError = { showUnexpectedError }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
