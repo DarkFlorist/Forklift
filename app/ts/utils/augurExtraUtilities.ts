@@ -21,7 +21,7 @@ export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
 export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
 	const pageSize = 10n
-	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
+	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
 	do {
 		const page = await readClient.readContract({
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,

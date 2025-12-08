@@ -17,6 +17,7 @@ interface IReportingParticipant {
 interface IDisputeCrowdsourcer {
 	function getMarket() external view returns (IMarket);
 	function balanceOf(address owner) external view returns (uint256);
+	function getPayoutNumerators() external view returns (uint256[] memory);
 }
 
 interface IShareToken {
@@ -32,6 +33,7 @@ contract AugurExtraUtilities {
 	struct StakeData {
 		IMarket market;
 		IDisputeCrowdsourcer bond;
+		uint256[] payoutNumerators;
 		uint256 amount;
 	}
 
@@ -58,6 +60,7 @@ contract AugurExtraUtilities {
 			_data[_i].bond = _bond;
 			_data[_i].market = _market;
 			_data[_i].amount = _bond.balanceOf(_account);
+			_data[_i].payoutNumerators = _bond.getPayoutNumerators();
 		}
 	}
 

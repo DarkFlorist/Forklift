@@ -9,7 +9,7 @@ import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 import { useState } from 'preact/hooks'
-import { getRepTokenName } from '../utils/augurUtils.js'
+import { getOutcomeName, getRepTokenName } from '../utils/augurUtils.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -92,7 +92,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 				/>
 				<div class = 'claim-info'>
 					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeInformation.repTokenName) }` }</span>
+					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) }` }</span>
 				</div>
 			</span>
 		})
@@ -133,8 +133,8 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ isAugurExtraUtilitiesDeployedSignal
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeInformation.repTokenName) }` }</span>
+					<div><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/></b></div>
+					<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, disputeEntry.marketData) }` }</div>
 				</div>
 			</span>
 		})
@@ -174,7 +174,7 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 				/>
 				<div class = 'claim-info'>
 					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } ${ getRepTokenName(initialReport.universeInformation.repTokenName)} ` }</span>
+					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } ${ getRepTokenName(initialReport.marketData.universe.repTokenName)} ` }</span>
 				</div>
 			</span>
 		})

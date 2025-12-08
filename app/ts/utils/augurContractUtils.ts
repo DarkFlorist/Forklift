@@ -437,28 +437,14 @@ export const getAvailableReports = async (readClient: ReadClient, account: Accou
 }
 
 export const addUniversesToClaims = async (readClient: ReadClient, disputes: { market: Address, bond: Address, amount: bigint }[]) => {
+export const addUniversesToClaims = async<DisputeItemType extends { market: Address }> (readClient: ReadClient, disputes: DisputeItemType[]) => {
 	const uniqueMarkets = Array.from(new Set(disputes.map(disputeItem => disputeItem.market)))
-	const universes = await Promise.all(uniqueMarkets.map( async (marketAddress) => {
-		const hotLoadingMarketData = await readClient.readContract({
-			abi: HOT_LOADING_ABI,
-			functionName: 'getMarketData',
-			address: HOT_LOADING_ADDRESS,
-			args: [AUGUR_CONTRACT, marketAddress, FILL_ORDER_CONTRACT, ORDERS_CONTRACT]
-		})
-		return {
-			marketAddress,
-			universeinformation: await getUniverseInformation(readClient, hotLoadingMarketData.universe, false)
-		}
-	}))
+	const markets = await Promise.all(uniqueMarkets.map(async(marketAddress) => await fetchMarketData(readClient, marketAddress)))
 
-	const universeByMarketAddress = universes.reduce((accumulatedMap, universeItem) => {
-		accumulatedMap.set(universeItem.marketAddress, universeItem.universeinformation)
-		return accumulatedMap
-	}, new Map<Address, { readonly universeAddress: Address, readonly reputationTokenAddress: Address, readonly repTokenName: string }>())
 	return Promise.all(disputes.map((disputeItem) => {
-		const universeInformation = universeByMarketAddress.get(disputeItem.market)
-		if (!universeInformation) throw new Error(`Missing universeinformation for market ${ disputeItem.market }`)
-		return { ...disputeItem, universeInformation }
+		const marketData = markets.find((x) => x.marketAddress === disputeItem.market)
+		if (marketData === undefined) throw new Error(`Missing market information for market ${ disputeItem.market }`)
+		return { ...disputeItem, marketData }
 	}))
 }
 
