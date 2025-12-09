@@ -189,20 +189,6 @@ interface CreateYesNoMarketProps {
 	pathSignal: Signal<string>
 }
 
-const isValidDate = (dateStr: string): boolean => {
-	const regex = /^\d{4}-\d{2}-\d{2}$/
-	if (!regex.test(dateStr)) return false
-
-	const date = new Date(dateStr)
-	const [year, month, day] = dateStr.split('-').map(Number)
-
-	return (
-		date.getFullYear() === year &&
-		date.getMonth() + 1 === month &&
-		date.getDate() === day
-	)
-}
-
 const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((divisor) => ({
 	id: divisor,
 	name: divisor === 0 ? "0.00%" : `${ (100 / divisor).toFixed(2) }%`
@@ -232,7 +218,7 @@ const getNumberOfOutcomesToName = (outcomeOption: typeof outcomeOptions[number])
 }
 
 export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError, pathSignal }: CreateYesNoMarketProps) => {
-	const endTime = useSignal<string>('')
+	const endTime = useSignal<Date | undefined>(undefined)
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
 	const affiliateFeeDivisor = useOptionalSignal<number>(0)
@@ -277,7 +263,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	useSignalEffect(() => { refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError) })
 
 	const createMarketIssue = useComputed(() => {
-		if (!isValidDate(endTime.value)) return 'Date is not valid'
+		if (endTime.value === undefined) return 'Market end date has not been set'
 		const seconds = dateToBigintSeconds(new Date(endTime.value))
 		if (maximumMarketEndData.deepValue === undefined) return 'End Date has not been fetch'
 		if (seconds > maximumMarketEndData.deepValue) return 'Market End data is too far in future'
@@ -323,7 +309,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
-		if (!isValidDate(endTime.value)) throw new Error('missing endTime')
+		if (endTime.value === undefined) throw new Error('missing endTime')
 		const marketEndTimeUnixTimeStamp = dateToBigintSeconds(new Date(endTime.value))
 		if (affiliateValidator.deepValue === undefined) throw new Error('missing affiliateValidator')
 		if (affiliateFeeDivisor.deepValue === undefined) throw new Error('missing affiliateFeeDivisor')
@@ -352,7 +338,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		categories.value
 		tags.value
 		return () => {
-			const marketEndTimeUnixTimeStamp = isValidDate(endTime.value) ? dateToBigintSeconds(new Date(endTime.value)) : maximumMarketEndData.deepValue
+			const marketEndTimeUnixTimeStamp = endTime.value !== undefined ? dateToBigintSeconds(endTime.value) : maximumMarketEndData.deepValue
 			const extraInfoString = JSON.stringify({
 				description: description.value,
 				longDescription: longDescription.value,
@@ -410,7 +396,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	}, 5000)
 
 	function handleEndTimeInput(value: string) {
-		endTime.value = value
+		endTime.value = new Date(value)
 	}
 	function handleAffiliateFee(value: string) {
 		if (!isNumeric(value)) throw new Error('Affiliate fee is not numeric')
@@ -493,7 +479,6 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 					<input
 						class = 'input'
 						type = 'date'
-						value = { endTime.value }
 						onInput = { e => handleEndTimeInput(e.currentTarget.value) }
 					/>
 				</div>
