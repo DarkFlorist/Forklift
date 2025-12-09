@@ -6,11 +6,11 @@ import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { ensureError, isUserRejectedRequest } from '../utils/errorHandling.js'
 
 export type TransactionStatus = {
+	status: 'waitingUserToApprove'
+	hash: undefined
+} | {
 	status: 'waitingToBeIncluded' | 'included' | 'includedAndCallingBack',
 	hash: `0x${ string }`
-} | {
-	status: 'waitingUserToApprove',
-	hash: undefined
 } | {
 	status: 'error',
 	message: string,
@@ -43,6 +43,7 @@ export const SendTransactionButton = ({ style, className, transactionStatus, sen
 	const onClick = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		try {
+			transactionStatus.value = { status: 'waitingUserToApprove', hash: undefined }
 			transactionStatus.value = { status: 'waitingToBeIncluded', hash: await sendTransaction() }
 		} catch(error: unknown) {
 			if (isUserRejectedRequest(error)) {
@@ -74,9 +75,9 @@ export const SendTransactionButton = ({ style, className, transactionStatus, sen
 	}
 
 	const disableButton = useComputed(() => {
+		if (transactionStatus.value?.status === 'waitingUserToApprove') return true
 		if (transactionStatus.value?.status === 'waitingToBeIncluded') return true
 		if (transactionStatus.value?.status === 'includedAndCallingBack') return true
-		if (transactionStatus.value?.status === 'waitingUserToApprove') return true
 		return disabled.value
 	})
 
