@@ -436,7 +436,6 @@ export const getAvailableReports = async (readClient: ReadClient, account: Accou
 	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
 }
 
-export const addUniversesToClaims = async (readClient: ReadClient, disputes: { market: Address, bond: Address, amount: bigint }[]) => {
 export const addUniversesToClaims = async<DisputeItemType extends { market: Address }> (readClient: ReadClient, disputes: DisputeItemType[]) => {
 	const uniqueMarkets = Array.from(new Set(disputes.map(disputeItem => disputeItem.market)))
 	const markets = await Promise.all(uniqueMarkets.map(async(marketAddress) => await fetchMarketData(readClient, marketAddress)))

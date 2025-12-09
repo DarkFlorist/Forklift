@@ -72,18 +72,18 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 
 interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
-	maybeWriteClient: OptionalSignal<WriteClient>
 	loadingAccount: Signal<boolean>
 	children?: preact.ComponentChildren
 	showUnexpectedError: (error: unknown) => void
+	initializeAccount: (account: AccountAddress | undefined) => Promise<void>
 }
 
-const WalletComponent = ({ maybeReadClient, maybeWriteClient, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
+const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
 	if (loadingAccount.value) return <></>
 	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
 	const connect = async () => {
 		try {
-			updateWalletSignals(maybeReadClient, maybeWriteClient, await requestAccounts())
+			await initializeAccount(await requestAccounts())
 		} catch(e: unknown) {
 			showUnexpectedError(e)
 		}
@@ -195,7 +195,6 @@ const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Sig
 
 export function App() {
 	const loadingAccount = useSignal<boolean>(false)
-	const isWindowEthereum = useSignal<boolean>(true)
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
 	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
 	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
@@ -342,38 +341,45 @@ export function App() {
 
 	useSignalEffect(() => {
 		selectedUniverse.deepValue
+		maybeReadClient.deepValue
 		setUniverseIfValid()
 	})
 
+	const initializeAccount = async (fetchedAccount: AccountAddress | undefined) => {
+		updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
+		account.deepValue = fetchedAccount
+		try {
+			await updateChainId()
+			await setUniverseIfValid()
+			if (maybeReadClient.deepValue === undefined) return
+			isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
+		} catch(e) {
+			showUnexpectedError(e)
+		}
+	}
+
 	useEffect(() => {
 		if (window.ethereum === undefined) {
-			isWindowEthereum.value = false
-			return
-		}
-		isWindowEthereum.value = true
-		window.ethereum.on('accountsChanged', (accounts) => {
-			updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
-			account.deepValue = accounts[0]
-		})
-		window.ethereum.on('chainChanged', async () => { updateChainId() })
-		const fetchAccount = async () => {
-			try {
-				loadingAccount.value = true
-				const fetchedAccount = await getAccounts()
-				updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
-				account.deepValue = fetchedAccount
-				updateChainId()
-				if (maybeReadClient.deepValue != undefined) {
-					isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
+			initializeAccount(undefined)
+		} else {
+			window.ethereum.on('accountsChanged', (accounts) => {
+				updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
+				account.deepValue = accounts[0]
+			})
+			window.ethereum.on('chainChanged', async () => { updateChainId() })
+			const fetchAccount = async () => {
+				try {
+					loadingAccount.value = true
+					await initializeAccount(await getAccounts())
+				} catch(e) {
+					showUnexpectedError(e)
+					await initializeAccount(undefined)
+				} finally {
+					loadingAccount.value = false
 				}
-			} catch(e) {
-				showUnexpectedError(e)
-			} finally {
-				loadingAccount.value = false
 			}
-			setUniverseIfValid()
+			fetchAccount()
 		}
-		fetchAccount()
 		return () => {
 			if (inputTimeoutRef.current !== null) {
 				clearTimeout(inputTimeoutRef.current)
@@ -398,7 +404,6 @@ export function App() {
 		ethBalance.deepValue = await ethPromise
 		await updateForkValues(writeClient, reputationTokenAddress)
 	}
-
 
 	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universeInformation: UniverseInformation | undefined) => {
 		universeForkingInformation.deepValue = undefined
@@ -446,7 +451,7 @@ export function App() {
 					/>
  				: <div></div> }
 				<div style = 'display: flex; align-items: center;'>
-					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }>
+					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount } showUnexpectedError = { showUnexpectedError }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
