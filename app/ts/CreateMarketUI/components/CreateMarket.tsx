@@ -264,7 +264,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 
 	const createMarketIssue = useComputed(() => {
 		if (endTime.value === undefined) return 'Market end date has not been set'
-		const seconds = dateToBigintSeconds(new Date(endTime.value))
+		const seconds = dateToBigintSeconds(endTime.value)
 		if (maximumMarketEndData.deepValue === undefined) return 'End Date has not been fetch'
 		if (seconds > maximumMarketEndData.deepValue) return 'Market End data is too far in future'
 		if (affiliateValidator.deepValue === undefined) return 'Affiliate validator is missing'
@@ -310,7 +310,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (endTime.value === undefined) throw new Error('missing endTime')
-		const marketEndTimeUnixTimeStamp = dateToBigintSeconds(new Date(endTime.value))
+		const marketEndTimeUnixTimeStamp = dateToBigintSeconds(endTime.value)
 		if (affiliateValidator.deepValue === undefined) throw new Error('missing affiliateValidator')
 		if (affiliateFeeDivisor.deepValue === undefined) throw new Error('missing affiliateFeeDivisor')
 		if (designatedReporterAddress.deepValue === undefined) throw new Error('missing designatedReporterAddress')
