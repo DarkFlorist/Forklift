@@ -200,7 +200,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		}
 
 		return <div>
-			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em', paddingBottom: '10px' } }>
+			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em', paddingBottom: '10px', paddingTop: '10px' } }>
 				<Input
 					class = 'input reporting-panel-input'
 					type = 'text'
