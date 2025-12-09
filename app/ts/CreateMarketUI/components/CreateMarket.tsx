@@ -79,15 +79,30 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 		daiAllowanceToBeSet.deepValue = 2n ** 256n - 1n
 	}
 
-	const daiAllowanceText = useComputed(() => `Allowed ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2) } DAI (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2) } DAI)`)
-	const repAllowanceText = useComputed(() => `Allowed ${ bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (required: ${ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) })`)
+	const getAllowanceColor = ((allowed: bigint | undefined, required: bigint | undefined) => {
+		if (allowed === undefined || required === undefined) return 'white'
+		if (allowed < required) return '#b43c42'
+		return 'rgb(0, 255, 198)'
+	})
+
+	const daiAllowance = useComputed(() => {
+		const daiAmount = bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2)
+		const required = bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2)
+		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedDai.deepValue, marketCreationCostDai.deepValue) }` }>Allowed <b>{ daiAmount }</b> DAI (required: { required }) </p>
+	})
+
+	const repAllowance = useComputed(() => {
+		const repAmount = bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2)
+		const repTokenName = getRepTokenName(universe.deepValue?.repTokenName)
+		const required = bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2)
+		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedRep.deepValue, marketCreationCostRep.deepValue) }` }>Allowed <b>{ repAmount }</b> { repTokenName } (required: { required }) </p>
+	})
+
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <div class = 'form-grid'>
 		<h3>Allowances</h3>
 		<div style = { { display: 'grid', gap: '0.5em', gridTemplateColumns: 'auto auto auto' } }>
-			<div>
-				{ daiAllowanceText }
-			</div>
+			{ daiAllowance }
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
 					class = 'input reporting-panel-input'
@@ -121,9 +136,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 				text = { useComputed(() => 'Set DAI allowance') }
 				callBackWhenIncluded = { refreshBalances }
 			/>
-			<div>
-				{ repAllowanceText }
-			</div>
+			{ repAllowance }
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
 				<Input
 					class = 'input reporting-panel-input'
