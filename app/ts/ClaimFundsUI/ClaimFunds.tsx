@@ -237,6 +237,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 			availableShareData.deepValue = undefined
 			availableDisputes.deepValue = undefined
 			availableReports.deepValue = undefined
+			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
 			selectedShares.value = []
 			selectedDisputes.value = []
 			selectedReports.value = []
