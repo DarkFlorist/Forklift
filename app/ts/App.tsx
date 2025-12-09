@@ -336,6 +336,8 @@ export function App() {
 		} catch(error: unknown) {
 			showUnexpectedError(error)
 			currentUniverse.deepValue = undefined
+			selectedUniverse.deepValue = DEFAULT_UNIVERSE
+			pathSignal.value = '#/404'
 		}
 	}
 
@@ -395,14 +397,12 @@ export function App() {
 
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (writeClient === undefined) return
+		if (reputationTokenAddress === undefined) return
 		const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
 		const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
-		if (reputationTokenAddress) {
-			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
-		}
+		repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
 		daiBalance.deepValue = await daiPromise
 		ethBalance.deepValue = await ethPromise
-		await updateForkValues(writeClient, reputationTokenAddress)
 	}
 
 	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universeInformation: UniverseInformation | undefined) => {
@@ -421,6 +421,8 @@ export function App() {
 		if (maybeReadClient === undefined) return
 		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
 	}
+
+	useSignalEffect(() => { updateForkValues(maybeReadClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError) })
 
 	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: hidden;'><div class = 'app'><CenteredBigSpinner/> </div></main>
 
