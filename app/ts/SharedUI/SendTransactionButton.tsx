@@ -37,9 +37,10 @@ type SendTransactionButtonProps = {
 	text: Signal<string>
 	className?: string
 	style?: Record<string, string | number>
+	outerStyle?: Record<string, string | number>
 }
 
-export const SendTransactionButton = ({ style, className, transactionStatus, sendTransaction, maybeWriteClient, disabled, text, callBackWhenIncluded }: SendTransactionButtonProps) => {
+export const SendTransactionButton = ({ outerStyle, style, className, transactionStatus, sendTransaction, maybeWriteClient, disabled, text, callBackWhenIncluded }: SendTransactionButtonProps) => {
 	const onClick = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
 		try {
@@ -89,7 +90,7 @@ export const SendTransactionButton = ({ style, className, transactionStatus, sen
 		if (transactionStatus.value?.status !== 'error') return <></>
 		return <p class = 'error-component'> { transactionStatus.value?.message } </p>
 	})
-	return <div style = { 'width: 100%' }>
+	return <div style = { outerStyle ?? { width: '100%' } }>
 		<button
 			style = { style ?? { width: '100%' } }
 			class = { className ?? 'button button-primary' }

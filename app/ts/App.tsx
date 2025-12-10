@@ -430,7 +430,7 @@ export function App() {
 
 	return <main style = 'overflow: hidden;'>
 		<div class = 'app'>
-			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: auto auto auto;'>
+			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: 1fr auto 1fr;;'>
 				<div class = 'forklift'>
 					<img src = 'favicon.ico' alt = 'Icon' />
 					<div>
@@ -440,6 +440,7 @@ export function App() {
 				</div>
 				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ?
 					<SendTransactionButton
+						outerStyle = { { 'align-self': 'center' } }
 						transactionStatus = { pendingExtraUtilsStatus }
 						sendTransaction = { deployAugurExtraUtilitiesButton }
 						maybeWriteClient = { maybeWriteClient }
@@ -452,7 +453,7 @@ export function App() {
 						} }
 					/>
  				: <div></div> }
-				<div style = 'display: flex; align-items: center;'>
+				<div style = 'display: flex; align-items: center; justify-self: end;'>
 					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount } showUnexpectedError = { showUnexpectedError }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
