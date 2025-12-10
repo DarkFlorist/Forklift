@@ -168,13 +168,13 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 				alreadyContributedToOutcomeStake: undefined,
 				universe: undefined
 			} as const
-			return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing, marketData.deepValue.lastCompletedCrowdSourcer)
+			return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing, marketData.deepValue.lastCompletedCrowdSourcer, forkValues.deepValue.disputeThresholdForFork)
 		} else {
 			if (selectedOutcome.value === null) return undefined
 			const outcomeStake = outcomeStakes.deepValue.find((outcome) => outcome.outcomeName === selectedOutcome.value)
 			const totalStake = outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n)
 			if (outcomeStake === undefined) return undefined
-			return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing, marketData.deepValue.lastCompletedCrowdSourcer)
+			return maxStakeAmountForOutcome(outcomeStake, totalStake, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValues.deepValue.disputeThresholdForDisputePacing, marketData.deepValue.lastCompletedCrowdSourcer, forkValues.deepValue.disputeThresholdForFork)
 		}
 	})
 
