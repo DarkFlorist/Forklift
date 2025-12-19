@@ -12,7 +12,6 @@ import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
-import { getAllPayoutNumeratorCombinations } from './augurUtils.js'
 import { Address, ContractFunctionExecutionError, decodeEventLog, encodePacked, keccak256 } from 'viem'
 import * as funtypes from 'funtypes'
 import { LiteralConverterParserFactory } from '../types/types.js'
@@ -104,24 +103,6 @@ export const fetchMarketData = async (readClient: ReadClient, marketAddress: Acc
 	return { ...hotLoadingMarketData, universe: await universePromise, marketType, reportingState, repBond: await repBondPromise, marketAddress, parsedExtraInfo: parseMarketExtraInfo(hotLoadingMarketData.extraInfo), lastCompletedCrowdSourcer }
 }
 
-export const fetchHotLoadingCurrentDisputeWindowData = async (readClient: ReadClient, universe: AccountAddress) => {
-	return await readClient.readContract({
-		abi: HOT_LOADING_ABI,
-		functionName: 'getCurrentDisputeWindowData',
-		address: HOT_LOADING_ADDRESS,
-		args: [AUGUR_CONTRACT, universe]
-	})
-}
-
-export const fetchHotLoadingTotalValidityBonds = async (readClient: ReadClient, marketAddresses: readonly AccountAddress[]) => {
-	return await readClient.readContract({
-		abi: HOT_LOADING_ABI,
-		functionName: 'getTotalValidityBonds',
-		address: HOT_LOADING_ADDRESS,
-		args: [marketAddresses]
-	})
-}
-
 export const doInitialReport = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
 	return await writeClient.writeContract({
 		abi: MARKET_ABI,
@@ -157,12 +138,6 @@ export const getStakeInOutcome = async (readClient: ReadClient, market: AccountA
 		address: market,
 		args: [bytes32String(payoutDistributionHash)]
 	})
-}
-
-export const getStakesOnAllOutcomesOnYesNoMarketOrCategorical = async (readClient: ReadClient, market: AccountAddress, numOutcomes: bigint, numTicks: EthereumQuantity) => {
-	const allPayoutNumeratorCombinations = getAllPayoutNumeratorCombinations(numOutcomes, numTicks)
-	const payoutDistributionHashes = allPayoutNumeratorCombinations.map((payoutNumerators) => EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)))
-	return await Promise.all(payoutDistributionHashes.map((payoutDistributionHash) => getStakeInOutcome(readClient, market, payoutDistributionHash)))
 }
 
 export const contributeToMarketDispute = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
@@ -255,16 +230,6 @@ export const getStakeOfReportingParticipant = async (readClient: ReadClient, mar
 	return await readClient.readContract({
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getStake',
-		address: market,
-		args: []
-	})
-}
-
-// false if we are in fast reporting
-export const getDisputePacingOn = async (readClient: ReadClient, market: AccountAddress) => {
-	return await readClient.readContract({
-		abi: MARKET_ABI,
-		functionName: 'getDisputePacingOn',
 		address: market,
 		args: []
 	})
@@ -402,7 +367,7 @@ export const redeemStake = async (writeClient: WriteClient, reportingParticipant
 
 export const getAvailableShareData = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
-	const pageSize = 10n
+	const pageSize = 30n
 	let pages: { market: `0x${ string }`, payout: bigint }[] = []
 	do {
 		const page = await readClient.readContract({
@@ -420,7 +385,7 @@ export const getAvailableShareData = async (readClient: ReadClient, account: Acc
 
 export const getAvailableReports = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
-	const pageSize = 10n
+	const pageSize = 30n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
 		const page = await readClient.readContract({
@@ -472,15 +437,6 @@ export const migrateThroughOneFork = async (writeClient: WriteClient, market: Ac
 		functionName: 'migrateThroughOneFork',
 		address: market,
 		args: [initialReportPayoutNumerators, initialReportReason]
-	})
-}
-
-export const getForkingMarket = async (readClient: ReadClient, market: AccountAddress) => {
-	return await readClient.readContract({
-		abi: MARKET_ABI,
-		functionName: 'getForkingMarket',
-		address: market,
-		args: []
 	})
 }
 
