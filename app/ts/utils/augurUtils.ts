@@ -5,7 +5,7 @@ import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
 import { GENESIS_UNIVERSE, YES_NO_OUTCOMES } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
-import { indexOfMax, min } from './utils.js'
+import { indexOfMax } from './utils.js'
 
 export const getUniverseName = (universe: UniverseInformation) => {
 	if (BigInt(universe.universeAddress) == BigInt(GENESIS_UNIVERSE)) return `Genesis (${ universe.repTokenName })`
@@ -77,15 +77,15 @@ export const getMarketUrl = (universe: AccountAddress) => `#/reporting?market=${
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/reporting/Market.sol#L384C51-L384C91
 export const requiredStake = (allStake: bigint, stakeInOutcome: bigint) => (2n * allStake) - (3n * stakeInOutcome)
 
-export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake: bigint, isSlowReporting: boolean, preemptiveDisputeCrowdsourcerStake: bigint, disputeThresholdForDisputePacing: bigint, lastCompletedCrowdSourcer: Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>, disputeThresholdForFork: bigint) => {
+export const maxStakeAmountForOutcome = (outcomeStake: OutcomeStake, totalStake: bigint, isSlowReporting: boolean, preemptiveDisputeCrowdsourcerStake: bigint, disputeThresholdForDisputePacing: bigint, lastCompletedCrowdSourcer: Awaited<ReturnType<typeof getLastCompletedCrowdSourcer>>) => {
 	const alreadyContributed = outcomeStake.alreadyContributedToOutcomeStake || 0n
 	// there's a bug in https://github.com/AugurProject/augur/blob/master/packages/augur-core/src/contracts/reporting/Market.sol#L383 that results the total stake calculation being wrong. This happens only when prestaking on speed rounds. The bug causes size and stake deviate from each other
 	const isBuggySpeedRound = (!isSlowReporting && lastCompletedCrowdSourcer !== undefined && lastCompletedCrowdSourcer.size !== lastCompletedCrowdSourcer.stake && outcomeStake.status === 'Winning')
-	if (isBuggySpeedRound || totalStake === 0n) return min(disputeThresholdForFork, disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake - alreadyContributed)
+	if (isBuggySpeedRound || totalStake === 0n) return disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake - alreadyContributed
 	const requiredStakeForTheRound = requiredStake(totalStake, outcomeStake.repStake)
-	if (isSlowReporting) return min(disputeThresholdForFork, outcomeStake.status === 'Losing' ? requiredStakeForTheRound - alreadyContributed : 0n)
+	if (isSlowReporting) return outcomeStake.status === 'Losing' ? requiredStakeForTheRound - alreadyContributed : 0n
 	const targetStake = outcomeStake.status === 'Losing' ? requiredStakeForTheRound : disputeThresholdForDisputePacing - preemptiveDisputeCrowdsourcerStake
-	return min(disputeThresholdForFork, targetStake - alreadyContributed)
+	return targetStake - alreadyContributed
 }
 
 // https://github.com/AugurProject/augur/blob/bd13a797016b373834e9414096c6086f35aa628f/packages/augur-core/src/contracts/Augur.sol#L321

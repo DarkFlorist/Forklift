@@ -44,7 +44,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketD
 		if (outcomeStakes.deepValue === undefined) return []
 		if (forkValues.deepValue === undefined) return []
 		const forkValue = forkValues.deepValue
-		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValue.disputeThresholdForDisputePacing, marketData.deepValue?.lastCompletedCrowdSourcer, forkValue.disputeThresholdForFork))
+		return outcomeStakes.deepValue.map((outcomeStake) => maxStakeAmountForOutcome(outcomeStake, totalStake.value, isSlowReporting.value, preemptiveDisputeCrowdsourcerStake.deepValue || 0n, forkValue.disputeThresholdForDisputePacing, marketData.deepValue?.lastCompletedCrowdSourcer))
 	})
 
 	return <div class = 'outcome-options'> {
