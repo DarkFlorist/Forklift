@@ -21,10 +21,10 @@ interface DisplayExtraInfoProps {
 export const DisplayExtraInfo = ({ marketData }: DisplayExtraInfoProps) => {
 	if (marketData.deepValue === undefined) return <></>
 	if (marketData.deepValue.parsedExtraInfo === undefined) {
-		return <>
-			<span>ERROR! Failed to parse Extra data, this market is likely invalid. Unparsed extra data:</span>
-			<span>{ marketData.deepValue.extraInfo }</span>
-		</>
+		return <div class = 'error-box'>
+			ERROR! Failed to parse Extra data, this market is likely invalid. Unparsed extra data:
+			<div>{ marketData.deepValue.extraInfo }</div>
+		</div>
 	}
 	return <>
 		<span>{ marketData.deepValue.parsedExtraInfo.longDescription }</span>
