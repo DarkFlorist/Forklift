@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { Signal, useComputed, useSignal } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
@@ -10,6 +10,7 @@ import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 import { useState } from 'preact/hooks'
 import { getOutcomeName, getRepTokenName } from '../utils/augurUtils.js'
+import { LoadingButton } from '../SharedUI/LoadingButton.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -229,28 +230,58 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 	})
 
 	const [ConnectedClaim] = useState(() => ({ writeClient }: { writeClient: WriteClient }) => {
-		useSignalEffect(() => { queryForData(maybeReadClient.deepValue).catch(showUnexpectedError) })
+		const isLoadingShareData = useSignal<boolean>(false)
 
-		const queryForData = async (readClient: ReadClient | undefined) => {
+		const queryShareData = async () => {
+			const readClient = maybeReadClient.deepValue
 			if (readClient === undefined) return
-			loading.value = true
-			availableShareData.deepValue = undefined
-			availableDisputes.deepValue = undefined
-			availableReports.deepValue = undefined
-			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
-			selectedShares.value = []
-			selectedDisputes.value = []
-			selectedReports.value = []
 			if (readClient.account?.address === undefined) return
+			isLoadingShareData.value = true
+			selectedShares.value = []
 			try {
 				availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
+			} catch(error: unknown) {
+				showUnexpectedError(error)
+			} finally {
+				isLoadingShareData.value = false
+				updateTokenBalancesSignal.value++
+			}
+		}
+
+		const isLoadingDisputesAndReports = useSignal<boolean>(false)
+		const queryDisputesAndReports = async () => {
+			const readClient = maybeReadClient.deepValue
+			if (readClient === undefined) return
+			if (readClient.account?.address === undefined) return
+			isLoadingDisputesAndReports.value = true
+			selectedDisputes.value = []
+			selectedReports.value = []
+			try {
 				availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
 				availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-				if (isAugurExtraUtilitiesDeployedSignal.deepValue === true) {
-					availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-				}
+			} catch(error: unknown) {
+				showUnexpectedError(error)
 			} finally {
-				loading.value = false
+				isLoadingDisputesAndReports.value = false
+				updateTokenBalancesSignal.value++
+			}
+		}
+
+		const isLoadingDisputeCrowdSourcers = useSignal<boolean>(false)
+		const queryAvailableClaimsFromForkingDisputeCrowdSourcers = async () => {
+			const readClient = maybeReadClient.deepValue
+			if (readClient === undefined) return
+			if (readClient.account?.address === undefined) return
+			isLoadingDisputeCrowdSourcers.value = true
+			selectedForkedCrowdSourcers.value = []
+			try {
+				if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
+				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+			} catch(error: unknown) {
+				showUnexpectedError(error)
+			} finally {
+				isLoadingDisputeCrowdSourcers.value = false
+				updateTokenBalancesSignal.value++
 			}
 		}
 
@@ -261,37 +292,31 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 			return await redeemStake(writeClient, reportingParticipants, disputeWindows)
 		}
 
-		const refreshClaim = async () => {
-			updateTokenBalancesSignal.value++
-			selectedDisputes.value = []
-			selectedReports.value = []
-			return await queryForData(writeClient).catch(showUnexpectedError)
-		}
 		const claimWinningShares = async () => {
 			return await claimMarketWinnings(writeClient, selectedShares.value)
 		}
-		const refreshShares = async () => {
-			updateTokenBalancesSignal.value++
-			selectedShares.value = []
-			return await queryForData(writeClient).catch(showUnexpectedError)
-		}
+
 		const claimForkDisputes = async () => {
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
 			const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 			if (selected.length === 0) throw new Error('nothing to claim')
 			return await forkReportingParticipants(writeClient, selected)
 		}
-		const refreshClaimForkDisputes = async () => {
-			updateTokenBalancesSignal.value++
-			selectedForkedCrowdSourcers.value = []
-			return await queryForData(writeClient).catch(showUnexpectedError)
-		}
+
+		const isForkDisputesDisabled = useComputed(() => isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
 		return <div class = 'subApplication'>
 			<section class = 'subApplication-card'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
 					<div style = 'display: grid; width: 100%; gap: 10px;'>
 						<DisplayShareData loading = { loading } pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
+						<LoadingButton
+							isLoading = { isLoadingShareData }
+							startLoading = { queryShareData }
+							disabled = { useComputed(() => false) }
+							text = { useComputed(() => availableShareData.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
+							className = 'button loading-button button-secondary'
+						/>
 						{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
@@ -300,12 +325,19 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { claimWinningSharesDisabled }
 								text = { useComputed(() => `Redeem Winning shares from ${ selectedShares.value.length } markets`) }
-								callBackWhenIncluded = { refreshShares }
+								callBackWhenIncluded = { queryShareData }
 							/>
 						</> }
 						<DisplayDisputesData loading = { loading } pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 						<DisplayReportsData loading = { loading } pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
-						{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length == 0 ? <></> : <>
+						<LoadingButton
+							isLoading = { isLoadingDisputesAndReports }
+							startLoading = { queryDisputesAndReports }
+							disabled = { useComputed(() => false) }
+							text = { useComputed(() => availableDisputes.deepValue === undefined || availableReports.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
+							className = 'button loading-button button-secondary'
+						/>
+						{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length === 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
 								transactionStatus = { pendingDisputesAndReportsTransactionStatus }
@@ -313,10 +345,17 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { participationTokensDisabled }
 								text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds` )}
-								callBackWhenIncluded = { refreshClaim }
+								callBackWhenIncluded = { queryDisputesAndReports }
 							/>
 						</> }
 						<ForkAndRedeemDisputeCrowdSourcers isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+						<LoadingButton
+							isLoading = { isLoadingDisputeCrowdSourcers }
+							startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers }
+							disabled = { isForkDisputesDisabled }
+							text = { useComputed(() => availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
+							className = 'button loading-button button-secondary'
+						/>
 						{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
@@ -325,7 +364,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { claimForkDisputesDisabled }
 								text = { useComputed(() => `Redeem ${ selectedForkedCrowdSourcers.value.length } fork disputes` )}
-								callBackWhenIncluded = { refreshClaimForkDisputes }
+								callBackWhenIncluded = { queryAvailableClaimsFromForkingDisputeCrowdSourcers }
 							/>
 						</> }
 					</div>
