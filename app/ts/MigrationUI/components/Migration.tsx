@@ -38,7 +38,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const migrationDisabled = useComputed(() => false)
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
-	const isRepV1ApprovedForMigration = useOptionalSignal<boolean>(true)
 	const repTotalTheoreticalSupply = useOptionalSignal<EthereumQuantity>(undefined)
 	const repSupply = useOptionalSignal<EthereumQuantity>(undefined)
 	const winningUniverse = useOptionalSignal<UniverseInformation>(undefined)
@@ -57,19 +56,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		if (universe.deepValue === undefined) return
 		if (universeForkingInformation.deepValue === undefined) return
 		loading.value = true
-		winningUniverse.deepValue = undefined
-		parentUniverse.deepValue = undefined
-		disputeWindowInfo.deepValue = undefined
-		disputeWindowAddress.deepValue = undefined
-		isRepV1ApprovedForMigration.deepValue = undefined
-		forkingMarketData.deepValue = undefined
-		forkingOutcomeStakes.deepValue = undefined
-		forkValues.deepValue = undefined
-		repTotalTheoreticalSupply.deepValue = undefined
-		repSupply.deepValue = undefined
-		reputationBalance.deepValue = undefined
 		try {
-
 			if (readClient.account?.address !== undefined) {
 				reputationBalance.deepValue = await getErc20TokenBalance(readClient, universe.deepValue.reputationTokenAddress, readClient.account.address)
 			} else {
