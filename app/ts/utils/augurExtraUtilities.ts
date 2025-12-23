@@ -20,7 +20,7 @@ export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
 
 export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
-	const pageSize = 10n
+	const pageSize = 30n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
 	do {
 		const page = await readClient.readContract({
@@ -47,7 +47,7 @@ export const forkReportingParticipants = async (writeClient: WriteClient, report
 
 export const getReportingParticipantsForMarket = async (readClient: ReadClient, market: AccountAddress) => {
 	let offset = 0n
-	const pageSize = 10n
+	const pageSize = 30n
 	let pages: { size: bigint; stake: bigint; payoutNumerators: readonly bigint[]; }[] = []
 	const numParticipants = await readClient.readContract({
 		abi: MARKET_ABI,

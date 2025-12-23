@@ -66,12 +66,6 @@ export function bigintToDecimalStringWithUnknownAndPracticallyInfinite(value: bi
 	return bigintToDecimalString(value, power, maxDecimals)
 }
 
-export function isSameAddress(address1: `0x${ string }` | undefined, address2: `0x${ string }` | undefined) {
-	if (address1 === undefined && address2 === undefined) return true
-	if (address1 === undefined || address2 === undefined) return false
-	return address1.toLowerCase() === address2.toLowerCase()
-}
-
 export const formatUnixTimestampIso = (timestamp: bigint): string => {
 	const date = new Date(Number(timestamp) * 1000)
 	return date.toISOString()
