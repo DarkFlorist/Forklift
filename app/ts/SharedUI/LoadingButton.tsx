@@ -27,7 +27,7 @@ export const LoadingButton = ({ style, className, isLoading, startLoading, disab
 		<button
 			style = { style ?? { width: '100%' } }
 			class = { className ?? 'button button-primary loading-button' }
-			disabled = { disableButton }
+			disabled = { disableButton.value }
 			onClick = { onClick }>
 				{ text.value } { spinner.value }
 		</button>
