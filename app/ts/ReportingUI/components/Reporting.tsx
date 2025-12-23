@@ -421,7 +421,7 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 	const isInvalidMarketAddress = useSignal<boolean>(false)
 	const forkingMarketFinalized = useOptionalSignal<boolean>(undefined)
 	const isMarketDisavowed = useOptionalSignal<boolean>(undefined)
-	const winningUniverse = new OptionalSignal<UniverseInformation>(undefined)
+	const winningUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const pendingTransactionStatus = useSignal<TransactionStatus>(undefined)
 	const loading = useSignal<boolean>(false)
 
