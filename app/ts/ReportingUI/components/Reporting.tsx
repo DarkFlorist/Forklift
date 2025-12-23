@@ -383,9 +383,10 @@ export const ReportingHistory = ({ maybeReadClient, reportingHistory, marketData
 			isLoading = { loadingReportingHistory }
 			startLoading = { fetchReportingHistory }
 			disabled = { reportingHistoryFetchDisabled }
-			text = { useComputed(() => 'Fetch Reporting History') }
 			className = 'button loading-button button-secondary'
-		/>
+		>
+			Fetch Reporting History
+		</LoadingButton>
 
 		<div class = 'reporting-summary'>
 			<span><b>Total { repTokenName.value } Staked:</b> { bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2) } { repTokenName.value }</span>
@@ -597,8 +598,9 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 							isLoading = { loading }
 							startLoading = { refreshDataButton }
 							disabled = { useComputed(() => false) }
-							text = { useComputed(() => 'Refresh') }
-						/>
+						>
+							Refresh
+						</LoadingButton>
 					</div>
 				</> }>
 					{ showReporting.value === true ? <>
