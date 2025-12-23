@@ -313,7 +313,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 						<LoadingButton
 							isLoading = { isLoadingShareData }
 							startLoading = { queryShareData }
-							disabled = { useComputed(() => false) }
+							disabled = { useSignal(false) }
 							text = { useComputed(() => availableShareData.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
 							className = 'button loading-button button-secondary'
 						/>
