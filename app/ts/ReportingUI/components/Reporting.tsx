@@ -470,7 +470,7 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 		if (maybeReadClient === undefined) return
 		if (selectedMarket === undefined) return
 		if (universe.deepValue === undefined) return
-		if (isAugurExtraUtilitiesDeployedSignal.deepValue === undefined) return
+		if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) return
 		forkingMarketFinalized.deepValue = undefined
 		isMarketDisavowed.deepValue = undefined
 		winningUniverse.deepValue = undefined
