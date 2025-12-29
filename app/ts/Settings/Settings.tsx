@@ -56,7 +56,7 @@ export const Settings = () => {
 							value = { rpcCandidate.value }
 							onInput = { e => handleRpc(e.currentTarget.value) }
 						/>
-						<button class = 'button button-secondary button-small' disabled = { invalidUrl.value } onClick = { setRpc }> Set</button>
+						<button class = 'button button-secondary' disabled = { invalidUrl.value } onClick = { setRpc }> Set RPC</button>
 					</div>
 					{ invalidUrl.value && rpcCandidate.value !== undefined ? <p class = 'error-component'>Invalid RPC URL</p> : <></> }
 					{ rpcFailedTest.value === true ? <p class = 'error-component'>The given URL is not a valid Mainnet RPC URL</p> : <></> }
