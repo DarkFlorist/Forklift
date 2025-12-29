@@ -8,6 +8,7 @@ import { MarketData } from './Market.js'
 import { UniverseLink } from './links.js'
 import { SendTransactionButton, TransactionStatus } from './SendTransactionButton.js'
 import { WriteClient } from '../utils/ethereumWallet.js'
+import { CenteredBigSpinner } from './Spinner.js'
 
 
 export type MarketOutcomeWithUniverse = {
@@ -129,7 +130,7 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 				transactionStatus = { transactionStatus }
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
-				disabled = { disabled }
+				disabled = { new Signal(false) }
 				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
@@ -167,7 +168,7 @@ type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 }
 
 export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStakes, selectedOutcome, disabled, pathSignal, refreshStakes, universe, maybeWriteClient }: MarketReportingForYesNoAndCategoricalWithoutStakeProps) => {
-	if (outcomeStakes.deepValue === undefined) return <></>
+	if (outcomeStakes.deepValue === undefined) return <CenteredBigSpinner/>
 
 	return <div class = 'outcome-options'> {
 		outcomeStakes.deepValue.map((outcomeStake) => <OutcomeStakeComponent refreshStakes = { refreshStakes } universe = { universe } maybeWriteClient = { maybeWriteClient } outcomeStake = { outcomeStake } selectedOutcome = { selectedOutcome } disabled = { disabled } pathSignal = { pathSignal }/>)

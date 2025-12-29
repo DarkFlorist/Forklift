@@ -10,6 +10,7 @@ import { UniverseLink } from './links.js'
 import { SendTransactionButton, TransactionStatus } from './SendTransactionButton.js'
 import { WriteClient } from '../utils/ethereumWallet.js'
 import { createChildUniverse } from '../utils/augurContractUtils.js'
+import { CenteredBigSpinner } from './Spinner.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
@@ -52,7 +53,7 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 				transactionStatus = { transactionStatus }
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
-				disabled = { disabled }
+				disabled = { new Signal(false) }
 				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
@@ -139,7 +140,7 @@ type ReportedScalarInputsProps = {
 }
 
 export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsourcerStake, universe }: ReportedScalarInputsProps) => {
-	if (outcomeStakes.deepValue === undefined) return <></>
+	if (outcomeStakes.deepValue === undefined) return <CenteredBigSpinner/>
 
 	const totalStake = useComputed(() => outcomeStakes.deepValue === undefined ? 0n : outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n))
 	return <div style = { { display: 'grid', gridTemplateColumns: 'max-content max-content max-content max-content', gap: '0.5rem', alignItems: 'center' } }> {
