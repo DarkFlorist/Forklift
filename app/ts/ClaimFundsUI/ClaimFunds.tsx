@@ -310,12 +310,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
 					<div style = 'display: grid; width: 100%; gap: 10px;'>
 						<DisplayShareData loading = { loading } pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
-						<LoadingButton
-							isLoading = { isLoadingShareData }
-							startLoading = { queryShareData }
-							disabled = { useSignal(false) }
-							className = 'button loading-button button-secondary'
-						>
+						<LoadingButton isLoading = { isLoadingShareData } startLoading = { queryShareData } disabled = { useSignal(false) } className = 'button loading-button button-secondary'>
 							{ availableShareData.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
 						</LoadingButton>
 						{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <>
@@ -331,12 +326,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 						</> }
 						<DisplayDisputesData loading = { loading } pathSignal = { pathSignal } availableDisputes = { availableDisputes } selectedDisputes = { selectedDisputes }/>
 						<DisplayReportsData loading = { loading } pathSignal = { pathSignal } availableReports = { availableReports } selectedReports = { selectedReports }/>
-						<LoadingButton
-							isLoading = { isLoadingDisputesAndReports }
-							startLoading = { queryDisputesAndReports }
-							disabled = { useComputed(() => false) }
-							className = 'button loading-button button-secondary'
-						>
+						<LoadingButton isLoading = { isLoadingDisputesAndReports } startLoading = { queryDisputesAndReports } disabled = { useComputed(() => false) } className = 'button loading-button button-secondary'>
 							{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
 						</LoadingButton>
 						{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length === 0 ? <></> : <>
@@ -351,12 +341,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 							/>
 						</> }
 						<ForkAndRedeemDisputeCrowdSourcers isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
-						<LoadingButton
-							isLoading = { isLoadingDisputeCrowdSourcers }
-							startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers }
-							disabled = { isForkDisputesDisabled }
-							className = 'button loading-button button-secondary'
-						>
+						<LoadingButton isLoading = { isLoadingDisputeCrowdSourcers } startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers } disabled = { isForkDisputesDisabled } className = 'button loading-button button-secondary'>
 							{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
 						</LoadingButton>
 						{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0 ? <></> : <>
