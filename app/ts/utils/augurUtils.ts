@@ -1,7 +1,7 @@
 import { MarketData } from '../SharedUI/Market.js'
 import { OutcomeStake } from '../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { AccountAddress, EthereumQuantity, MarketType, UniverseInformation } from '../types/types.js'
-import { getLastCompletedCrowdSourcer } from './augurContractUtils.js'
+import { getLastCompletedCrowdSourcer, getUniverseForkingInformation } from './augurContractUtils.js'
 import { GENESIS_UNIVERSE, YES_NO_OUTCOMES } from './constants.js'
 import { assertNever } from './errorHandling.js'
 import { bigintToDecimalString, stringToUint8Array, stripTrailingZeros } from './ethereumUtils.js'
@@ -120,4 +120,8 @@ export const getPayoutNumeratorsFromScalarOutcome = (invalid: boolean, selectedS
 	if (scaled > numTicks) throw new Error('selectedScalarOutcome is is too big')
 	if (scaled < 0n) throw new Error('selectedScalarOutcome is is too small')
 	return [0n, scaled, numTicks - scaled] as const
+}
+
+export const hasForkEnded = (universeForkingInformation: Awaited<ReturnType<typeof getUniverseForkingInformation>>, currentTimeInBigIntSeconds: bigint) => {
+	return universeForkingInformation.isForking && currentTimeInBigIntSeconds > universeForkingInformation.forkEndTime
 }
