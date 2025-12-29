@@ -1,17 +1,17 @@
 import { Signal, useComputed } from '@preact/signals'
 import { Spinner } from './Spinner.js'
-
+import { JSX } from 'preact/jsx-runtime'
 
 type SendTransactionButtonProps = {
 	isLoading: Signal<boolean>
 	startLoading: () => Promise<void>
 	disabled: Signal<boolean>
-	text: Signal<string>
+	children: JSX.Element | string
 	className?: string
 	style?: Record<string, string | number>
 }
 
-export const LoadingButton = ({ style, className, isLoading, startLoading, disabled, text }: SendTransactionButtonProps) => {
+export const LoadingButton = ({ style, className, isLoading, startLoading, disabled, children }: SendTransactionButtonProps) => {
 	const onClick = async () => {
 		try {
 			isLoading.value = true
@@ -27,9 +27,9 @@ export const LoadingButton = ({ style, className, isLoading, startLoading, disab
 		<button
 			style = { style ?? { width: '100%' } }
 			class = { className ?? 'button button-primary loading-button' }
-			disabled = { disableButton.value }
+			disabled = { disableButton }
 			onClick = { onClick }>
-				{ text.value } { spinner.value }
+				{ children } { spinner.value }
 		</button>
 	</div>
 }

@@ -314,9 +314,10 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 							isLoading = { isLoadingShareData }
 							startLoading = { queryShareData }
 							disabled = { useSignal(false) }
-							text = { useComputed(() => availableShareData.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
 							className = 'button loading-button button-secondary'
-						/>
+						>
+							{ availableShareData.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
+						</LoadingButton>
 						{ availableShareData.deepValue === undefined || availableShareData.deepValue.length == 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
@@ -334,9 +335,10 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 							isLoading = { isLoadingDisputesAndReports }
 							startLoading = { queryDisputesAndReports }
 							disabled = { useComputed(() => false) }
-							text = { useComputed(() => availableDisputes.deepValue === undefined || availableReports.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
 							className = 'button loading-button button-secondary'
-						/>
+						>
+							{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
+						</LoadingButton>
 						{ availableDisputes.deepValue === undefined || availableReports.deepValue === undefined || availableDisputes.deepValue.length + availableReports.deepValue.length === 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
@@ -353,9 +355,10 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 							isLoading = { isLoadingDisputeCrowdSourcers }
 							startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers }
 							disabled = { isForkDisputesDisabled }
-							text = { useComputed(() => availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims') }
 							className = 'button loading-button button-secondary'
-						/>
+						>
+							{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
+						</LoadingButton>
 						{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0 ? <></> : <>
 							<SendTransactionButton
 								className = 'button button-primary'
