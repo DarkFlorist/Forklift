@@ -198,6 +198,8 @@ interface ClaimFundsProps {
 	pathSignal: Signal<string>
 	showUnexpectedError: (error: unknown) => void
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
+	currentTimeInBigIntSeconds: Signal<bigint>
+	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
 
 export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError, universeForkingInformation }: ClaimFundsProps) => {
