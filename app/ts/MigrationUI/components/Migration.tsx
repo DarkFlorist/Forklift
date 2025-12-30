@@ -3,7 +3,7 @@ import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation 
 import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getRepTotalTheoreticalSupply, getTotalSupply, getUniverseForkingInformation, getUniverseInformation, getWinningChildUniverse, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
-import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName } from '../../utils/augurUtils.js'
+import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
@@ -35,7 +35,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 	const selectedPayoutNumerators = useOptionalSignal<readonly bigint[]>(undefined)
 	const parentUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const forkValues = useOptionalSignal<Awaited<ReturnType<typeof getForkValues>>>(undefined)
-	const migrationDisabled = useComputed(() => false)
+	const migrationDisabled = useComputed(() => universeForkingInformation.deepValue === undefined || hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value))
 	const disputeWindowInfo = useOptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>(undefined)
 	const disputeWindowAddress = useOptionalSignal<AccountAddress>(undefined)
 	const repTotalTheoreticalSupply = useOptionalSignal<EthereumQuantity>(undefined)
