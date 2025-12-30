@@ -346,7 +346,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 						class = 'input'
 						type = 'text'
 						width = '100%'
-						placeholder = 'Claim for a different address (if empty, claiming for your address)'
+						placeholder = 'Claim for a different address (if empty, claim for your address)'
 						value = { viewingAddress }
 						sanitize = { (addressString: string) => addressString }
 						tryParse = { parseAddressForInput }
