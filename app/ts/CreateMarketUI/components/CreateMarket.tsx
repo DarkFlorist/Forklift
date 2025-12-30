@@ -1,9 +1,9 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategoricalMarket, estimateGasCreateYesNoMarket, getCreatedMarketAddressFromTransactionhash, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
-import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
+import { AccountAddress, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { bigintToDecimalString, bigintToDecimalStringWithUnknown, bigintToDecimalStringWithUnknownAndPracticallyInfinite, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
+import { bigintToDecimalStringWithUnknown, bigintToDecimalStringWithUnknownAndPracticallyInfinite, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
@@ -15,6 +15,7 @@ import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTra
 import { getRepTokenName } from '../../utils/augurUtils.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MarketLink } from '../../SharedUI/links.js'
+import { parse16DecimalBigintForInput, parse18DecimalBigintForInput, parseAddressForInput, parseCommaSeparatedString, serialize16DecimalBigintForInput, serialize18DecimalBigintForInput, serializeAddressForInput, serializeCommaSeparatedString } from '../../utils/inputParsing.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -112,16 +113,8 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					style = { { maxWidth: '300px' } }
 					value = { daiAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
-					tryParse = { (amount: string | undefined) => {
-						if (amount === undefined) return { ok: false } as const
-						if (!isDecimalString(amount.trim())) return { ok: false } as const
-						const parsed = decimalStringToBigint(amount.trim(), 18n)
-						return { ok: true, value: parsed } as const
-					}}
-					serialize = { (amount: EthereumQuantity | undefined) => {
-						if (amount === undefined) return ''
-						return bigintToDecimalString(amount, 18n, 18)
-					}}
+					tryParse = { parse18DecimalBigintForInput }
+					serialize = { serialize18DecimalBigintForInput }
 				/>
 				<span class = 'unit'>DAI</span>
 				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxDaiAllowance }>Max</button>
@@ -146,16 +139,8 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					style = { { maxWidth: '300px' } }
 					value = { repAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
-					tryParse = { (amount: string | undefined) => {
-						if (amount === undefined) return { ok: false } as const
-						if (!isDecimalString(amount.trim())) return { ok: false } as const
-						const parsed = decimalStringToBigint(amount.trim(), 18n)
-						return { ok: true, value: parsed } as const
-					}}
-					serialize = { (amount: EthereumQuantity | undefined) => {
-						if (amount === undefined) return ''
-						return bigintToDecimalString(amount, 18n, 18)
-					}}
+					tryParse = { parse18DecimalBigintForInput }
+					serialize = { serialize18DecimalBigintForInput }
 				/>
 				<span class = 'unit'>{ repTokenName.value }</span>
 				<button class = 'button button-secondary button-small' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxRepAllowance }>Max</button>
@@ -505,19 +490,8 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						disabled = { useSignal(false) }
 						value = { feePerCashInAttoCash }
 						sanitize = { (amount: string) => amount.trim() }
-						tryParse = { (amount: string | undefined) => {
-							if (amount === undefined) return { ok: false } as const
-							if (!isDecimalString(amount.trim())) return { ok: false } as const
-							const parsed = decimalStringToBigint(amount.trim(), 16n)
-							if (parsed < 0n) return { ok: false } as const
-							if (parsed > 100n * 10n ** 16n) return { ok: false } as const
-							return { ok: true, value: parsed } as const
-						}}
-						serialize = { (amount: EthereumQuantity | undefined) => {
-							if (amount === undefined) return ''
-							return bigintToDecimalString(amount, 16n, 16)
-						}}
-						invalidSignal = { useSignal<boolean>(false) }
+						tryParse = { parse16DecimalBigintForInput }
+						serialize = { serialize16DecimalBigintForInput }
 					/>
 				</div>
 
@@ -532,17 +506,8 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						placeholder = '0x...'
 						value = { affiliateValidator }
 						sanitize = { (addressString: string) => addressString }
-						tryParse = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return { ok: false } as const
-							const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-							if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-							return { ok: false } as const
-						}}
-						serialize = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.trim()
-						} }
-						invalidSignal = { useSignal<boolean>(false) }
+						tryParse = { parseAddressForInput }
+						serialize = { serializeAddressForInput }
 					/>
 				</div>
 
@@ -568,17 +533,8 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						placeholder = '0x...'
 						value = { designatedReporterAddress }
 						sanitize = { (addressString: string) => addressString }
-						tryParse = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return { ok: false } as const
-							const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-							if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-							return { ok: false } as const
-						}}
-						serialize = { (marketAddressString: string | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.trim()
-						} }
-						invalidSignal = { useSignal<boolean>(false) }
+						tryParse = { parseAddressForInput }
+						serialize = { serializeAddressForInput }
 					/>
 				</div>
 
@@ -603,17 +559,9 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						width = '100%'
 						placeholder = 'Cryptocurrency, goats'
 						value = { categories }
-						sanitize = { (addressString: string) => addressString }
-						tryParse = { (maybeStringSeparatedArray: string | undefined) => {
-							if (maybeStringSeparatedArray === undefined) return { ok: false } as const
-							const categories = maybeStringSeparatedArray.split(',').map((element) => element.trim())
-							return { ok: true, value: categories } as const
-						}}
-						serialize = { (marketAddressString: readonly string[] | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.join(', ')
-						} }
-						invalidSignal = { useSignal<boolean>(false) }
+						sanitize = { (categoryString: string) => categoryString }
+						tryParse = { parseCommaSeparatedString }
+						serialize = { serializeCommaSeparatedString }
 					/>
 				</div>
 
@@ -627,17 +575,9 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						width = '100%'
 						placeholder = 'Tardigrades, Eggs'
 						value = { tags }
-						sanitize = { (addressString: string) => addressString }
-						tryParse = { (maybeStringSeparatedArray: string | undefined) => {
-							if (maybeStringSeparatedArray === undefined) return { ok: false } as const
-							const categories = maybeStringSeparatedArray.split(',').map((element) => element.trim())
-							return { ok: true, value: categories } as const
-						}}
-						serialize = { (marketAddressString: readonly string[] | undefined) => {
-							if (marketAddressString === undefined) return ''
-							return marketAddressString.join(', ')
-						} }
-						invalidSignal = { useSignal<boolean>(false) }
+						sanitize = { (tagsString: string) => tagsString }
+						tryParse = { parseCommaSeparatedString }
+						serialize = { serializeCommaSeparatedString }
 					/>
 				</div>
 
