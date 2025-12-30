@@ -96,6 +96,7 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<h1>Reputation V1 to V2 Migration</h1>
+			<span> If you still hold REPv1 tokens, you can migrate it to REPv2 here. If a fork occurs on Augur V2, any REPv1 that has not been migrated will no longer be usable.</span>
 			{ repV1Info }
 			<div class = 'button-group'>
 				<SendTransactionButton

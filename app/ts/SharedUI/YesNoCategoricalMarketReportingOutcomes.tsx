@@ -102,7 +102,7 @@ export type MarketOutcome = {
 }
 
 type OutcomeStakeComponentProps = {
-	outcomeStake: MarketOutcomeWithUniverse
+	outcomeStake: Signal<MarketOutcomeWithUniverse>
 	selectedOutcome: Signal<string | null>
 	pathSignal: Signal<string>
 	disabled: Signal<boolean>
@@ -116,15 +116,15 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 	const createUniverse = async () => {
 		if (maybeWriteClient.deepValue === undefined) throw new Error('client missing')
 		if (universe.deepValue?.universeAddress === undefined) throw new Error('universe missing')
-		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, outcomeStake.payoutNumerators)
+		return await createChildUniverse(maybeWriteClient.deepValue, universe.deepValue.universeAddress, outcomeStake.value.payoutNumerators)
 	}
 
-	const outcomeNameText = useComputed(() => `Create "${ outcomeStake.outcomeName }" Universe`)
+	const outcomeNameText = useComputed(() => `Create "${ outcomeStake.value.outcomeName }" Universe`)
 
-	const universeSignal = useComputed(() => outcomeStake.universe)
+	const universeSignal = useComputed(() => outcomeStake.value.universe)
 
 	const universeLinkOrButton = useComputed(() => {
-		if (outcomeStake.universe === undefined) {
+		if (outcomeStake.value.universe === undefined) {
 			return <SendTransactionButton
 				className = 'button button-secondary'
 				transactionStatus = { transactionStatus }
@@ -139,17 +139,17 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 		}
 	})
 
-	return <div class = 'outcome-option' key = { outcomeStake.outcomeName } style = { 'grid-template-columns: max-content max-content 1fr;'}>
+	return <div class = 'outcome-option' key = { outcomeStake.value.outcomeName } style = { 'grid-template-columns: max-content max-content 1fr;'}>
 		<input
 			disabled = { disabled }
 			type = 'radio'
 			class = 'custom-input'
 			name = 'selectedOutcome'
-			checked = { selectedOutcome.value === outcomeStake.outcomeName }
-			onChange = { () => { selectedOutcome.value = outcomeStake.outcomeName } }
+			checked = { selectedOutcome.value === outcomeStake.value.outcomeName }
+			onChange = { () => { selectedOutcome.value = outcomeStake.value.outcomeName } }
 		/>
 		<div class = 'outcome-info'>
-			<b>{ outcomeStake.outcomeName }</b>
+			<b>{ outcomeStake.value.outcomeName }</b>
 		</div>
 		<div style = { 'justify-self: end;' }>
 			{ universeLinkOrButton.value }
@@ -171,6 +171,15 @@ export const MarketReportingForYesNoAndCategoricalWithoutStake = ({ outcomeStake
 	if (outcomeStakes.deepValue === undefined) return <CenteredBigSpinner/>
 
 	return <div class = 'outcome-options'> {
-		outcomeStakes.deepValue.map((outcomeStake) => <OutcomeStakeComponent refreshStakes = { refreshStakes } universe = { universe } maybeWriteClient = { maybeWriteClient } outcomeStake = { outcomeStake } selectedOutcome = { selectedOutcome } disabled = { disabled } pathSignal = { pathSignal }/>)
+		outcomeStakes.deepValue.map((outcomeStake, outcomeStakeIndex) => {
+			const outcomeStakeSignal = useComputed(() => {
+				const currentOutcomeStakes = outcomeStakes.deepValue
+				if (currentOutcomeStakes === undefined) return outcomeStake
+				const foundOne = currentOutcomeStakes[outcomeStakeIndex]
+				if (foundOne === undefined) return outcomeStake
+				return foundOne
+			})
+			return <OutcomeStakeComponent refreshStakes = { refreshStakes } universe = { universe } maybeWriteClient = { maybeWriteClient } outcomeStake = { outcomeStakeSignal } selectedOutcome = { selectedOutcome } disabled = { disabled } pathSignal = { pathSignal }/>
+		})
 	} </div>
 }

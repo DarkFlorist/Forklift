@@ -5,7 +5,7 @@ import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
 import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContracts.js'
-import { addUniversesToClaims } from './augurContractUtils.js'
+import { addMarketDataToClaims } from './augurContractUtils.js'
 
 export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
@@ -33,7 +33,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
+	return await addMarketDataToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.amount > 0n))
 }
 
 export const forkReportingParticipants = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[]) => {
