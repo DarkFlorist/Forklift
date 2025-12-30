@@ -30,7 +30,6 @@ type ScalarInputProps = {
 export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, minValue, maxValue, numTicks, unit, invalid, disabled, selectedOutcomeUniverse, pathSignal }: ScalarInputProps) {
 	const tradeInterval = useComputed(() => getTradeInterval(maxValue.value - minValue.value, numTicks.value))
 	const isSliderAndInputDisabled = useComputed(() => disabled.value || invalid.value)
-	const invalidInput = useSignal<boolean>(false)
 	const transactionStatus = useSignal<TransactionStatus>(undefined)
 
 	const createUniverse = async () => {
@@ -99,7 +98,6 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 						if (amount === undefined) return ''
 						return bigintToDecimalString(amount, 18n, 18)
 					} }
-					invalidSignal = { invalidInput }
 				/>
 				<div class = 'unit'> { unit.value } </div>
 			</div>

@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getWinningChildUniverse, isMarketFinalized, getUniverseInformation, isValidAugurMarket, getUniverseForkingInformation } from '../../utils/augurContractUtils.js'
-import { areEqualArrays, bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../../utils/ethereumUtils.js'
+import { areEqualArrays, bigintToDecimalString } from '../../utils/ethereumUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { MarketOutcomeWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
@@ -16,6 +16,7 @@ import { min } from '../../utils/utils.js'
 import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
+import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalBigintForInput, serializeAddressForInput } from '../../utils/inputParsing.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -285,16 +286,8 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 						style = { { maxWidth: '300px' } }
 						value = { amountInput }
 						sanitize = { (amount: string) => amount.trim() }
-						tryParse = { (amount: string | undefined) => {
-							if (amount === undefined) return { ok: false } as const
-							if (!isDecimalString(amount.trim())) return { ok: false } as const
-							const parsed = decimalStringToBigint(amount.trim(), 18n)
-							return { ok: true, value: parsed } as const
-						}}
-						serialize = { (amount: EthereumQuantity | undefined) => {
-							if (amount === undefined) return ''
-							return bigintToDecimalString(amount, 18n, 18)
-						}}
+						tryParse = { parse18DecimalBigintForInput }
+						serialize = { serialize18DecimalBigintForInput }
 					/>
 					<span class = 'unit'>{ getRepTokenName(universe.deepValue?.repTokenName)  }</span>
 					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
@@ -414,7 +407,6 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 	const preemptiveDisputeCrowdsourcerAddress = useOptionalSignal<AccountAddress>(undefined)
 	const preemptiveDisputeCrowdsourcerStake = useOptionalSignal<bigint>(undefined)
 	const reportingHistory = useSignal<readonly ReportingHistoryElement[]>([])
-	const isInvalidMarketAddress = useSignal<boolean>(false)
 	const forkingMarketFinalized = useOptionalSignal<boolean>(undefined)
 	const isMarketDisavowed = useOptionalSignal<boolean>(undefined)
 	const winningUniverse = useOptionalSignal<UniverseInformation>(undefined)
@@ -577,17 +569,8 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 							placeholder = 'Market address'
 							value = { selectedMarket }
 							sanitize = { (addressString: string) => addressString }
-							tryParse = { (marketAddressString: string | undefined) => {
-								if (marketAddressString === undefined) return { ok: false } as const
-								const parsed = EthereumAddress.safeParse(marketAddressString.trim())
-								if (parsed.success) return { ok: true, value: marketAddressString.trim() } as const
-								return { ok: false } as const
-							}}
-							serialize = { (marketAddressString: string | undefined) => {
-								if (marketAddressString === undefined) return ''
-								return marketAddressString.trim()
-							} }
-							invalidSignal = { isInvalidMarketAddress }
+							tryParse = { parseAddressForInput }
+							serialize = { serializeAddressForInput }
 						/>
 						<LoadingButton isLoading = { loading } startLoading = { refreshDataButton } disabled = { useComputed(() => false) }>
 							Refresh

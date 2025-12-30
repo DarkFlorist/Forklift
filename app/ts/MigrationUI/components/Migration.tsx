@@ -5,7 +5,7 @@ import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToDecimalString, decimalStringToBigint, formatUnixTimestampIso, isDecimalString } from '../../utils/ethereumUtils.js'
+import { bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -16,6 +16,7 @@ import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 import { Input } from '../../SharedUI/Input.js'
 import { useState } from 'preact/hooks'
+import { parse18DecimalBigintForInput, serialize18DecimalBigintForInput } from '../../utils/inputParsing.js'
 
 interface MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -196,16 +197,8 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					style = { { maxWidth: '300px' } }
 					value = { reputationToMigrate }
 					sanitize = { (amount: string) => amount.trim() }
-					tryParse = { (amount: string | undefined) => {
-						if (amount === undefined) return { ok: false } as const
-						if (!isDecimalString(amount.trim())) return { ok: false } as const
-						const parsed = decimalStringToBigint(amount.trim(), 18n)
-						return { ok: true, value: parsed } as const
-					}}
-					serialize = { (amount: EthereumQuantity | undefined) => {
-						if (amount === undefined) return ''
-						return bigintToDecimalString(amount, 18n, 18)
-					}}
+					tryParse = { parse18DecimalBigintForInput }
+					serialize = { serialize18DecimalBigintForInput }
 				/>
 				<span class = 'unit'>{ repName.value }</span>
 				<button class = 'button button-secondary button-small ' style = { { whiteSpace: 'nowrap' } } onClick = { setMaxReputationToMigrate }>Max</button>
