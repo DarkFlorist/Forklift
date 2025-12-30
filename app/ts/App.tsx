@@ -357,9 +357,7 @@ export function App() {
 		if (window.ethereum === undefined) {
 			updateWalletSignals(undefined)
 		} else {
-			window.ethereum.on('accountsChanged', (accounts) => {
-				updateWalletSignals(accounts[0])
-			})
+			window.ethereum.on('accountsChanged', (accounts) => { updateWalletSignals(accounts[0]) })
 			window.ethereum.on('chainChanged', async () => { updateChainId() })
 			try {
 				loadingAccount.value = true
