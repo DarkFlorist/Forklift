@@ -11,6 +11,8 @@ import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransa
 import { useState } from 'preact/hooks'
 import { getOutcomeName, getRepTokenName, hasForkEnded } from '../utils/augurUtils.js'
 import { LoadingButton } from '../SharedUI/LoadingButton.js'
+import { Input } from '../SharedUI/Input.js'
+import { parseAddressForInput, serializeAddressForInput } from '../utils/inputParsing.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -223,6 +225,9 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 	const participationTokensDisabled = useComputed(() => selectedDisputes.value.length + selectedReports.value.length === 0)
 	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 || isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
+	const viewingAddress = useOptionalSignal<AccountAddress>(undefined)
+	const currentViewingAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeWriteClient.deepValue?.account.address : viewingAddress.deepValue)
+
 	const [DisconnectedClaim] = useState(() => () => {
 		return <div class = 'subApplication'>
 			<section class = 'subApplication-card'>
@@ -244,6 +249,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 
 	useSignalEffect(() => {
 		maybeWriteClient.deepValue
+		currentViewingAddress.value
 		clearData()
 	})
 
@@ -252,13 +258,13 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 
 		const queryShareData = async () => {
 			selectedShares.value = []
-			availableShareData.deepValue = []
+			availableShareData.deepValue = undefined
 			const readClient = maybeReadClient.deepValue
 			if (readClient === undefined) return
-			if (readClient.account?.address === undefined) return
+			if (currentViewingAddress.value === undefined) return
 			isLoadingShareData.value = true
 			try {
-				availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address))
+				availableShareData.deepValue = (await getAvailableShareData(readClient, currentViewingAddress.value))
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -272,14 +278,14 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			const readClient = maybeReadClient.deepValue
 			selectedDisputes.value = []
 			selectedReports.value = []
-			availableDisputes.deepValue = []
-			availableReports.deepValue = []
+			availableDisputes.deepValue = undefined
+			availableReports.deepValue = undefined
 			if (readClient === undefined) return
-			if (readClient.account?.address === undefined) return
+			if (currentViewingAddress.value === undefined) return
 			isLoadingDisputesAndReports.value = true
 			try {
-				availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
-				availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableDisputes.deepValue = (await getAvailableDisputes(readClient, currentViewingAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableReports.deepValue = (await getAvailableReports(readClient, currentViewingAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -293,14 +299,14 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			const readClient = maybeReadClient.deepValue
 			isLoadingDisputeCrowdSourcers.value = true
 			selectedForkedCrowdSourcers.value = []
-			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = []
+			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
 			if (readClient === undefined) return
-			if (readClient.account?.address === undefined) return
+			if (currentViewingAddress.value === undefined) return
 			if (universeForkingInformation.deepValue === undefined) return
 			try {
 				if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
 				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) return
-				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)
+				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, currentViewingAddress.value)
 				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = disputesClaims
 					.filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
@@ -318,9 +324,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			return await redeemStake(writeClient, reportingParticipants, disputeWindows)
 		}
 
-		const claimWinningShares = async () => {
-			return await claimMarketWinnings(writeClient, selectedShares.value)
-		}
+		const claimWinningShares = async () => await claimMarketWinnings(writeClient, selectedShares.value)
 
 		const claimForkDisputes = async () => {
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
@@ -331,9 +335,23 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 
 		const isForkDisputesDisabled = useComputed(() => isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
+		const redeemForStringExtension = useComputed(() => viewingAddress.value === undefined ? '' : ` for ${ viewingAddress.value }`)
+
 		return <div class = 'subApplication'>
 			<section class = 'subApplication-card'>
 				<div style = 'display: grid; width: 100%; gap: 10px;'>
+					<Input
+						style = 'height: fit-content;'
+						key = 'market-reporting-input'
+						class = 'input'
+						type = 'text'
+						width = '100%'
+						placeholder = 'Claim for a different address (if empty, claim for your address)'
+						value = { viewingAddress }
+						sanitize = { (addressString: string) => addressString }
+						tryParse = { parseAddressForInput }
+						serialize = { serializeAddressForInput }
+					/>
 					<div style = 'display: grid; width: 100%; gap: 10px;'>
 						<DisplayShareData loading = { loading } pathSignal = { pathSignal } availableShareData = { availableShareData } selectedShares = { selectedShares }/>
 						<LoadingButton isLoading = { isLoadingShareData } startLoading = { queryShareData } disabled = { useSignal(false) } className = 'button loading-button button-secondary'>
@@ -346,7 +364,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 								sendTransaction = { claimWinningShares }
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { claimWinningSharesDisabled }
-								text = { useComputed(() => `Redeem Winning shares from ${ selectedShares.value.length } markets`) }
+								text = { useComputed(() => `Redeem Winning shares from ${ selectedShares.value.length } markets${ redeemForStringExtension.value }`) }
 								callBackWhenIncluded = { queryShareData }
 							/>
 						</> }
@@ -362,11 +380,12 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 								sendTransaction = { claim }
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { participationTokensDisabled }
-								text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter or dispute crowdsourcer bonds` )}
+								text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter or dispute crowdsourcer bonds${ redeemForStringExtension.value }` )}
 								callBackWhenIncluded = { queryDisputesAndReports }
 							/>
 						</> }
 						<ForkAndRedeemDisputeCrowdSourcers isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+
 						<LoadingButton isLoading = { isLoadingDisputeCrowdSourcers } startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers } disabled = { isForkDisputesDisabled } className = 'button loading-button button-secondary'>
 							{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }
 						</LoadingButton>
@@ -377,7 +396,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 								sendTransaction = { claimForkDisputes }
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { claimForkDisputesDisabled }
-								text = { useComputed(() => `Redeem ${ selectedForkedCrowdSourcers.value.length } fork disputes` )}
+								text = { useComputed(() => `Redeem ${ selectedForkedCrowdSourcers.value.length } fork disputes${ redeemForStringExtension.value }` )}
 								callBackWhenIncluded = { queryAvailableClaimsFromForkingDisputeCrowdSourcers }
 							/>
 						</> }
