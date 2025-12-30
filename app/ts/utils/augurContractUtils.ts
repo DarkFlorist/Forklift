@@ -380,7 +380,7 @@ export const getAvailableShareData = async (readClient: ReadClient, account: Acc
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n)
+	return pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.payout > 0n)
 }
 
 export const getAvailableReports = async (readClient: ReadClient, account: AccountAddress) => {
@@ -398,10 +398,10 @@ export const getAvailableReports = async (readClient: ReadClient, account: Accou
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
+	return await addMarketDataToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.amount > 0n))
 }
 
-export const addUniversesToClaims = async<DisputeItemType extends { market: Address }> (readClient: ReadClient, disputes: DisputeItemType[]) => {
+export const addMarketDataToClaims = async<DisputeItemType extends { market: Address }> (readClient: ReadClient, disputes: DisputeItemType[]) => {
 	const uniqueMarkets = Array.from(new Set(disputes.map(disputeItem => disputeItem.market)))
 	const markets = await Promise.all(uniqueMarkets.map(async(marketAddress) => await fetchMarketData(readClient, marketAddress)))
 
@@ -428,7 +428,7 @@ export const getAvailableDisputes = async (readClient: ReadClient, account: Acco
 		offset += pageSize
 	} while(true)
 
-	return await addUniversesToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n))
+	return await addMarketDataToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.amount > 0n))
 }
 
 export const migrateThroughOneFork = async (writeClient: WriteClient, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {

@@ -1,15 +1,15 @@
-import { Signal, useComputed, useSignal } from '@preact/signals'
+import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { getAvailableDisputes, getAvailableReports, getAvailableShareData, redeemStake } from '../utils/augurContractUtils.js'
+import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation, redeemStake } from '../utils/augurContractUtils.js'
 import { claimMarketWinnings, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 import { useState } from 'preact/hooks'
-import { getOutcomeName, getRepTokenName } from '../utils/augurUtils.js'
+import { getOutcomeName, getRepTokenName, hasForkEnded } from '../utils/augurUtils.js'
 import { LoadingButton } from '../SharedUI/LoadingButton.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
@@ -198,9 +198,11 @@ interface ClaimFundsProps {
 	pathSignal: Signal<string>
 	showUnexpectedError: (error: unknown) => void
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
+	currentTimeInBigIntSeconds: Signal<bigint>
+	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
 
-export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError }: ClaimFundsProps) => {
+export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError, universeForkingInformation }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
 	const availableReports = useOptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>(undefined)
@@ -229,17 +231,34 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		</div>
 	})
 
+	const clearData = () => {
+		selectedShares.value = []
+		selectedDisputes.value = []
+		selectedReports.value = []
+		selectedForkedCrowdSourcers.value = []
+		availableShareData.deepValue = undefined
+		availableDisputes.deepValue = undefined
+		availableReports.deepValue = undefined
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
+	}
+
+	useSignalEffect(() => {
+		maybeWriteClient.deepValue
+		clearData()
+	})
+
 	const [ConnectedClaim] = useState(() => ({ writeClient }: { writeClient: WriteClient }) => {
 		const isLoadingShareData = useSignal<boolean>(false)
 
 		const queryShareData = async () => {
+			selectedShares.value = []
+			availableShareData.deepValue = []
 			const readClient = maybeReadClient.deepValue
 			if (readClient === undefined) return
 			if (readClient.account?.address === undefined) return
 			isLoadingShareData.value = true
-			selectedShares.value = []
 			try {
-				availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address)).filter((data) => data.payout > 0n)
+				availableShareData.deepValue = (await getAvailableShareData(readClient, readClient.account.address))
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -251,14 +270,16 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		const isLoadingDisputesAndReports = useSignal<boolean>(false)
 		const queryDisputesAndReports = async () => {
 			const readClient = maybeReadClient.deepValue
+			selectedDisputes.value = []
+			selectedReports.value = []
+			availableDisputes.deepValue = []
+			availableReports.deepValue = []
 			if (readClient === undefined) return
 			if (readClient.account?.address === undefined) return
 			isLoadingDisputesAndReports.value = true
-			selectedDisputes.value = []
-			selectedReports.value = []
 			try {
-				availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
-				availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+				availableDisputes.deepValue = (await getAvailableDisputes(readClient, readClient.account.address)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableReports.deepValue = (await getAvailableReports(readClient, readClient.account.address)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -270,13 +291,18 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 		const isLoadingDisputeCrowdSourcers = useSignal<boolean>(false)
 		const queryAvailableClaimsFromForkingDisputeCrowdSourcers = async () => {
 			const readClient = maybeReadClient.deepValue
-			if (readClient === undefined) return
-			if (readClient.account?.address === undefined) return
 			isLoadingDisputeCrowdSourcers.value = true
 			selectedForkedCrowdSourcers.value = []
+			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = []
+			if (readClient === undefined) return
+			if (readClient.account?.address === undefined) return
+			if (universeForkingInformation.deepValue === undefined) return
 			try {
 				if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
-				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = (await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)).filter((data) => data.amount > 0n)
+				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) return
+				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, readClient.account.address)
+				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = disputesClaims
+					.filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -346,7 +372,7 @@ export const ClaimFunds = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBal
 								sendTransaction = { claim }
 								maybeWriteClient = { maybeWriteClient }
 								disabled = { participationTokensDisabled }
-								text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter and dispute crowdsourcer bonds` )}
+								text = { useComputed(() => `Redeem ${ selectedDisputes.value.length + selectedReports.value.length } Participation Tokens, winning initial reporter or dispute crowdsourcer bonds` )}
 								callBackWhenIncluded = { queryDisputesAndReports }
 							/>
 						</> }
