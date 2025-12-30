@@ -193,6 +193,8 @@ const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Sig
 	</div>
 }
 
+const getLocalTimeInSeconds = () => BigInt(Math.floor(Date.now() / 1000))
+
 export function App() {
 	const loadingAccount = useSignal<boolean>(false)
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
@@ -206,7 +208,7 @@ export function App() {
 	const universeForkingInformation = useOptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>(undefined)
 	const account = useOptionalSignal<AccountAddress>(undefined)
 	const activeTab = useSignal(0)
-	const currentTimeInBigIntSeconds = useSignal<bigint>(BigInt(Math.floor(Date.now() / 1000)))
+	const currentTimeInBigIntSeconds = useSignal<bigint>(getLocalTimeInSeconds())
 
 	const ethBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const repBalance = useOptionalSignal<EthereumQuantity>(undefined)
@@ -302,18 +304,25 @@ export function App() {
 		pathSignal.value = paramsToHashPath(tabs[activeTab.value]?.path || '404', selectedMarket.deepValue, selectedUniverse.deepValue)
 	})
 
-	useEffect(() => {
-		const id = setInterval(async () => {
-			if (maybeReadClient.deepValue) {
-				try {
-					currentTimeInBigIntSeconds.value = await getCurrentBlockTimeInBigIntSeconds(maybeReadClient.deepValue)
-				} catch(e: unknown) {
-					showUnexpectedError(e)
-				}
-			} else {
-				currentTimeInBigIntSeconds.value = BigInt((new Date()).getSeconds() * 1000)
+	const refreshTime = async () => {
+		if (maybeReadClient.deepValue) {
+			try {
+				currentTimeInBigIntSeconds.value = await getCurrentBlockTimeInBigIntSeconds(maybeReadClient.deepValue)
+			} catch(e: unknown) {
+				showUnexpectedError(e)
 			}
-		}, 12000)
+		} else {
+			currentTimeInBigIntSeconds.value = getLocalTimeInSeconds()
+		}
+	}
+
+	useSignalEffect(() => {
+		maybeReadClient.deepValue
+		refreshTime()
+	})
+
+	useEffect(() => {
+		const id = setInterval(refreshTime, 12000)
 		return () => clearInterval(id)
 	})
 
