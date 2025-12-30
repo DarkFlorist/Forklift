@@ -2,7 +2,7 @@ import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumQuantity, UniverseInformation } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
-import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
+import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, WriteClient } from './utils/ethereumWallet.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { assertNever, ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
@@ -74,20 +74,12 @@ interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	loadingAccount: Signal<boolean>
 	children?: preact.ComponentChildren
-	showUnexpectedError: (error: unknown) => void
-	initializeAccount: (account: AccountAddress | undefined) => Promise<void>
+	initializeAccount: () => Promise<void>
 }
 
-const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children, showUnexpectedError }: WalletComponentProps) => {
-	if (loadingAccount.value) return <></>
+const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children }: WalletComponentProps) => {
+	if (loadingAccount.value) return <Spinner/>
 	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
-	const connect = async () => {
-		try {
-			await initializeAccount(await requestAccounts())
-		} catch(e: unknown) {
-			showUnexpectedError(e)
-		}
-	}
 	return <div class = 'wallet-container'>
 		{ accountAddress.value !== undefined ? <>
 			<span class = 'wallet-connected-label'>
@@ -95,7 +87,7 @@ const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, c
 			</span>
 			{ children }
 		</> : (
-			<button class = 'wallet-connect-button' onClick = { connect }>
+			<button class = 'wallet-connect-button' onClick = { initializeAccount }>
 				Connect Wallet
 			</button>
 		) }
@@ -181,11 +173,6 @@ const Tabs = ({ tabs, activeTab }: TabsProps) => {
 	)
 }
 
-const updateWalletSignals = (maybeReadClient: OptionalSignal<ReadClient>, maybeWriteClient: OptionalSignal<WriteClient>, account: AccountAddress | undefined) => {
-	maybeReadClient.deepValue = account === undefined ? createReadClient(undefined, getUsedRpc()) : createWriteClient(account)
-	maybeWriteClient.deepValue = account === undefined ? undefined : createWriteClient(account)
-}
-
 const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Signal<bigint>}) => {
 	const time = useComputed(() => formatUnixTimestampIsoDate(currentTimeInBigIntSeconds.value))
 	return <div class = 'time'>
@@ -201,7 +188,6 @@ export function App() {
 	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
 	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
 	const chainId = useSignal<number | undefined>(undefined)
-	const inputTimeoutRef = useRef<number | null>(null)
 	const selectedUniverse = useOptionalSignal<AccountAddress>(undefined)
 	const currentUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const selectedMarket = useOptionalSignal<AccountAddress>(undefined)
@@ -356,9 +342,33 @@ export function App() {
 		setUniverseIfValid()
 	})
 
-	const initializeAccount = async (fetchedAccount: AccountAddress | undefined) => {
-		updateWalletSignals(maybeReadClient, maybeWriteClient, fetchedAccount)
-		account.deepValue = fetchedAccount
+	const updateWalletSignals = (newAccount: AccountAddress | undefined) => {
+		if (newAccount === undefined) {
+			maybeReadClient.deepValue = createReadClient(undefined, getUsedRpc())
+			maybeWriteClient.deepValue = undefined
+		} else {
+			maybeReadClient.deepValue = createWriteClient(newAccount)
+			maybeWriteClient.deepValue = maybeReadClient.deepValue
+		}
+		account.deepValue = newAccount
+	}
+
+	const initializeAccount = async () => {
+		if (window.ethereum === undefined) {
+			updateWalletSignals(undefined)
+		} else {
+			window.ethereum.on('accountsChanged', (accounts) => { updateWalletSignals(accounts[0]) })
+			window.ethereum.on('chainChanged', async () => { updateChainId() })
+			try {
+				loadingAccount.value = true
+				updateWalletSignals(await getAccounts())
+			} catch(e) {
+				showUnexpectedError(e)
+				updateWalletSignals(undefined)
+			} finally {
+				loadingAccount.value = false
+			}
+		}
 		try {
 			await updateChainId()
 			await setUniverseIfValid()
@@ -369,34 +379,7 @@ export function App() {
 		}
 	}
 
-	useEffect(() => {
-		if (window.ethereum === undefined) {
-			initializeAccount(undefined)
-		} else {
-			window.ethereum.on('accountsChanged', (accounts) => {
-				updateWalletSignals(maybeReadClient, maybeWriteClient, accounts[0])
-				account.deepValue = accounts[0]
-			})
-			window.ethereum.on('chainChanged', async () => { updateChainId() })
-			const fetchAccount = async () => {
-				try {
-					loadingAccount.value = true
-					await initializeAccount(await getAccounts())
-				} catch(e) {
-					showUnexpectedError(e)
-					await initializeAccount(undefined)
-				} finally {
-					loadingAccount.value = false
-				}
-			}
-			fetchAccount()
-		}
-		return () => {
-			if (inputTimeoutRef.current !== null) {
-				clearTimeout(inputTimeoutRef.current)
-			}
-		}
-	}, [])
+	useEffect(() => { initializeAccount() }, [])
 
 	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
@@ -463,7 +446,7 @@ export function App() {
 					/>
  				: <div></div> }
 				<div style = 'display: flex; align-items: center; justify-self: end;'>
-					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount } showUnexpectedError = { showUnexpectedError }>
+					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount }>
 						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
