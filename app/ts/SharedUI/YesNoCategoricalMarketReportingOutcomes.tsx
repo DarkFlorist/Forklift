@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity, UniverseInformation } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
@@ -28,11 +28,11 @@ type MarketReportingOutcomesForYesNoAndCategoricalProps = {
 	selectedOutcome: Signal<string | null>
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-	isSlowReporting: Signal<boolean>
+	isSlowReporting: ReadonlySignal<boolean>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	areOutcomesDisabled: Signal<boolean>
-	canInitialReport: Signal<boolean>
-	universe: Signal<UniverseInformation>
+	areOutcomesDisabled: ReadonlySignal<boolean>
+	canInitialReport: ReadonlySignal<boolean>
+	universe: ReadonlySignal<UniverseInformation>
 }
 
 export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketData, outcomeStakes, selectedOutcome, preemptiveDisputeCrowdsourcerStake, isSlowReporting, forkValues, areOutcomesDisabled, canInitialReport }: MarketReportingOutcomesForYesNoAndCategoricalProps) => {
@@ -102,10 +102,10 @@ export type MarketOutcome = {
 }
 
 type OutcomeStakeComponentProps = {
-	outcomeStake: Signal<MarketOutcomeWithUniverse>
+	outcomeStake: ReadonlySignal<MarketOutcomeWithUniverse>
 	selectedOutcome: Signal<string | null>
-	pathSignal: Signal<string>
-	disabled: Signal<boolean>
+	pathSignal: ReadonlySignal<string>
+	disabled: ReadonlySignal<boolean>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<UniverseInformation>
 	refreshStakes: () => Promise<void>
@@ -130,7 +130,6 @@ export const OutcomeStakeComponent = ({ maybeWriteClient, universe, outcomeStake
 				transactionStatus = { transactionStatus }
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
-				disabled = { new Signal(false) }
 				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
@@ -161,7 +160,7 @@ type MarketReportingForYesNoAndCategoricalWithoutStakeProps = {
 	selectedOutcome: Signal<string | null>
 	pathSignal: Signal<string>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
-	disabled: Signal<boolean>
+	disabled: ReadonlySignal<boolean>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<UniverseInformation>
 	refreshStakes: () => Promise<void>

@@ -1,7 +1,7 @@
 import { NonHexBigInt, UniverseInformation } from '../types/types.js'
 import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { Signal, useComputed, useSignal } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { getPayoutNumeratorsFromScalarOutcome, getScalarOutcomeName, getTradeInterval, requiredStake } from '../utils/augurUtils.js'
 import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
@@ -14,13 +14,13 @@ import { CenteredBigSpinner } from './Spinner.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
-	minValue: Signal<bigint>
-	maxValue: Signal<bigint>
-	numTicks: Signal<bigint>
-	unit: Signal<string>
+	minValue: ReadonlySignal<bigint>
+	maxValue: ReadonlySignal<bigint>
+	numTicks: ReadonlySignal<bigint>
+	unit: ReadonlySignal<string>
 	invalid: Signal<boolean>
-	disabled: Signal<boolean>
-	selectedOutcomeUniverse: Signal<UniverseInformation | undefined>
+	disabled: ReadonlySignal<boolean>
+	selectedOutcomeUniverse: ReadonlySignal<UniverseInformation | undefined>
 	pathSignal: Signal<string>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<UniverseInformation>
@@ -52,7 +52,6 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 				transactionStatus = { transactionStatus }
 				sendTransaction = { createUniverse }
 				maybeWriteClient = { maybeWriteClient }
-				disabled = { new Signal(false) }
 				text = { outcomeNameText }
 				callBackWhenIncluded = { refreshStakes }
 			/>
@@ -134,7 +133,7 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 type ReportedScalarInputsProps = {
 	outcomeStakes: OptionalSignal<readonly OutcomeStake[]>
 	preemptiveDisputeCrowdsourcerStake: OptionalSignal<bigint>
-	universe: Signal<UniverseInformation>
+	universe: ReadonlySignal<UniverseInformation>
 }
 
 export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsourcerStake, universe }: ReportedScalarInputsProps) => {

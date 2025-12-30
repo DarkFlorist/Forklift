@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { MarketData } from './Market.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { MarketOutcomeWithUniverse, MarketReportingForYesNoAndCategoricalWithoutStake } from './YesNoCategoricalMarketReportingOutcomes.js'
@@ -10,7 +10,7 @@ import { UniverseInformation } from '../types/types.js'
 
 type SelectUniverseProps = {
 	marketData: OptionalSignal<MarketData>
-	disabled: Signal<boolean>
+	disabled: ReadonlySignal<boolean>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	selectedPayoutNumerators: OptionalSignal<readonly bigint[]>
 	pathSignal: Signal<string>

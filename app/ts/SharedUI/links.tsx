@@ -1,4 +1,4 @@
-import { Signal, useComputed } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed } from '@preact/signals'
 import { AccountAddress, UniverseInformation } from '../types/types.js'
 import { getMarketUrl, getUniverseName, getUniverseUrl } from '../utils/augurUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
@@ -33,7 +33,7 @@ export const OptionalMarketLink = ( { address, pathSignal }: OptionalMarketLinkP
 }
 
 interface UniverseLinkProps {
-	universe: Signal<UniverseInformation | undefined>
+	universe: ReadonlySignal<UniverseInformation | undefined>
 	pathSignal: Signal<string>
 }
 
@@ -47,7 +47,7 @@ export const UniverseLink = ( { universe, pathSignal }: UniverseLinkProps) => {
 }
 
 interface MarketLinkProps {
-	address: Signal<AccountAddress | undefined>
+	address: ReadonlySignal<AccountAddress | undefined>
 	pathSignal: Signal<string>
 }
 
@@ -61,7 +61,7 @@ export const MarketLink = ( { address, pathSignal }: MarketLinkProps) => {
 }
 
 interface EtherscanProps {
-	address: Signal<AccountAddress | undefined>
+	address: ReadonlySignal<AccountAddress | undefined>
 }
 
 export const EtherScanAddress = ({ address }: EtherscanProps) => {

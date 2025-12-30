@@ -4,7 +4,7 @@ import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowIn
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
@@ -24,7 +24,7 @@ interface MigrationProps {
 	universe: OptionalSignal<UniverseInformation>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 	pathSignal: Signal<string>
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 	updateTokenBalancesSignal: Signal<number>
 	showUnexpectedError: (error: unknown) => void
 }
@@ -193,7 +193,6 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					class = 'input reporting-panel-input'
 					type = 'text'
 					placeholder = { useComputed(() => `REP`) }
-					disabled = { useComputed(() => false) }
 					style = { { maxWidth: '300px' } }
 					value = { reputationToMigrate }
 					sanitize = { (amount: string) => amount.trim() }

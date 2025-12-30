@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumQuantity, UniverseInformation } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
@@ -38,7 +38,7 @@ const UniverseComponent = ({ universe }: UniverseComponentProps) => {
 
 interface UniverseForkingNoticeProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 	pathSignal: Signal<string>
 }
 
@@ -72,7 +72,7 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 
 interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
-	loadingAccount: Signal<boolean>
+	loadingAccount: ReadonlySignal<boolean>
 	children?: preact.ComponentChildren
 	initializeAccount: () => Promise<void>
 }
@@ -173,7 +173,7 @@ const Tabs = ({ tabs, activeTab }: TabsProps) => {
 	)
 }
 
-const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Signal<bigint>}) => {
+const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: ReadonlySignal<bigint>}) => {
 	const time = useComputed(() => formatUnixTimestampIsoDate(currentTimeInBigIntSeconds.value))
 	return <div class = 'time'>
 		<span>{ time }</span>
