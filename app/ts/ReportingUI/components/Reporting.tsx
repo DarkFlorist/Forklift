@@ -379,12 +379,7 @@ export const ReportingHistory = ({ maybeReadClient, reportingHistory, marketData
 			</div>
 		})}
 
-		<LoadingButton
-			isLoading = { loadingReportingHistory }
-			startLoading = { fetchReportingHistory }
-			disabled = { reportingHistoryFetchDisabled }
-			className = 'button loading-button button-secondary'
-		>
+		<LoadingButton isLoading = { loadingReportingHistory } startLoading = { fetchReportingHistory } disabled = { reportingHistoryFetchDisabled } className = 'button loading-button button-secondary'>
 			Fetch Reporting History
 		</LoadingButton>
 
@@ -594,11 +589,7 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 							} }
 							invalidSignal = { isInvalidMarketAddress }
 						/>
-						<LoadingButton
-							isLoading = { loading }
-							startLoading = { refreshDataButton }
-							disabled = { useComputed(() => false) }
-						>
+						<LoadingButton isLoading = { loading } startLoading = { refreshDataButton } disabled = { useComputed(() => false) }>
 							Refresh
 						</LoadingButton>
 					</div>
