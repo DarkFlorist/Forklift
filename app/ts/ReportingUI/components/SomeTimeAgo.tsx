@@ -1,4 +1,4 @@
-import { Signal, useComputed } from '@preact/signals'
+import { ReadonlySignal, useComputed } from '@preact/signals'
 import { JSX } from 'preact'
 import { humanReadableDateDelta } from '../../utils/utils.js'
 
@@ -6,7 +6,7 @@ interface SomeTimeAgoProps {
 	priorTimestamp: Date,
 	countBackwards?: boolean,
 	diffToText?: (secondsDiff: number) => JSX.Element
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 }
 
 export function SomeTimeAgo(props: SomeTimeAgoProps) {

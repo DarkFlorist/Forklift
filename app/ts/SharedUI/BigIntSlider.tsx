@@ -1,14 +1,14 @@
 import { useRef, useEffect } from 'preact/hooks'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
-import { Signal, useComputed } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed } from '@preact/signals'
 import { clamp } from '../utils/utils.js'
 
 type BigIntSliderProps = {
-	min: Signal<bigint>
+	min: ReadonlySignal<bigint>
 	max: Signal<bigint>
 	value: OptionalSignal<bigint>
-	step: Signal<bigint>
-	disabled: Signal<boolean>
+	step: ReadonlySignal<bigint>
+	disabled: ReadonlySignal<boolean>
 }
 
 export function BigIntSlider({ min, max, value, step, disabled }: BigIntSliderProps) {

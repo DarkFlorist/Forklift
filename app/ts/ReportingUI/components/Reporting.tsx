@@ -1,7 +1,7 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getWinningChildUniverse, isMarketFinalized, getUniverseInformation, isValidAugurMarket, getUniverseForkingInformation } from '../../utils/augurContractUtils.js'
 import { areEqualArrays, bigintToDecimalString } from '../../utils/ethereumUtils.js'
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { MarketOutcomeWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
@@ -22,7 +22,7 @@ interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
 	outcomeStakes: OptionalSignal<readonly MarketOutcomeWithUniverse[]>
 	maybeWriteClient: OptionalSignal<WriteClient>
-	disabled: Signal<boolean>
+	disabled: ReadonlySignal<boolean>
 	forkingMarketFinalized: OptionalSignal<boolean>
 	refreshData: () => Promise<void>
 	pathSignal: Signal<string>
@@ -389,7 +389,7 @@ interface ReportingProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
 	universe: OptionalSignal<UniverseInformation>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 	selectedMarket: OptionalSignal<AccountAddress>
 	repBalance: OptionalSignal<bigint>
 	updateTokenBalancesSignal: Signal<number>

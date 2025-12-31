@@ -1,4 +1,4 @@
-import { Signal, useComputed } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed } from '@preact/signals'
 import { EtherScanTransactionHash } from './links.js'
 import { Spinner } from './Spinner.js'
 import { WriteClient } from '../utils/ethereumWallet.js'
@@ -19,7 +19,7 @@ export type TransactionStatus = {
 
 
 type TransactionHashProps = {
-	transactionStatus: Signal<TransactionStatus>
+	transactionStatus: ReadonlySignal<TransactionStatus>
 }
 
 export const TransactionHash = ({ transactionStatus }: TransactionHashProps) => {
@@ -33,8 +33,8 @@ type SendTransactionButtonProps = {
 	sendTransaction: () => Promise<`0x${ string }`>
 	callBackWhenIncluded: (transactionHash: `0x${ string }`) => Promise<void>
 	maybeWriteClient: OptionalSignal<WriteClient>
-	disabled: Signal<boolean>
-	text: Signal<string>
+	disabled?: ReadonlySignal<boolean>
+	text: ReadonlySignal<string>
 	className?: string
 	style?: Record<string, string | number>
 	outerStyle?: Record<string, string | number>
@@ -79,7 +79,7 @@ export const SendTransactionButton = ({ outerStyle, style, className, transactio
 		if (transactionStatus.value?.status === 'waitingUserToApprove') return true
 		if (transactionStatus.value?.status === 'waitingToBeIncluded') return true
 		if (transactionStatus.value?.status === 'includedAndCallingBack') return true
-		return disabled.value
+		return disabled === undefined ? false : disabled.value
 	})
 
 	const spinner = useComputed(() => {

@@ -1,4 +1,4 @@
-import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
@@ -36,7 +36,7 @@ interface DisplayShareDataProps {
 	availableShareData: OptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>
 	selectedShares: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
-	loading: Signal<boolean>
+	loading: ReadonlySignal<boolean>
 }
 
 const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, loading }: DisplayShareDataProps) => {
@@ -75,7 +75,7 @@ interface DisplayDisputesDataProps {
 	availableDisputes: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>
 	selectedDisputes: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
-	loading: Signal<boolean>
+	loading: ReadonlySignal<boolean>
 }
 
 const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, loading }: DisplayDisputesDataProps) => {
@@ -116,7 +116,7 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
 	selectedForkedCrowdSourcers: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
-	loading: Signal<boolean>
+	loading: ReadonlySignal<boolean>
 }
 
 const ForkAndRedeemDisputeCrowdSourcers = ({ isAugurExtraUtilitiesDeployedSignal, availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, loading }: ForkAndRedeemDisputeCrowdSourcersProps) => {
@@ -157,7 +157,7 @@ interface DisplayReportsDataProps {
 	availableReports: OptionalSignal<Awaited<ReturnType<typeof getAvailableReports>>>
 	selectedReports: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
-	loading: Signal<boolean>
+	loading: ReadonlySignal<boolean>
 }
 
 const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loading }: DisplayReportsDataProps) => {
@@ -200,7 +200,7 @@ interface ClaimFundsProps {
 	pathSignal: Signal<string>
 	showUnexpectedError: (error: unknown) => void
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
 

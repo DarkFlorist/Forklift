@@ -7,7 +7,7 @@ import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereum
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../utils/utils.js'
 import { JSX } from 'preact/jsx-runtime'
-import { Signal, useComputed } from '@preact/signals'
+import { ReadonlySignal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 import { EtherScanAddress } from './links.js'
 import { CenteredBigSpinner } from './Spinner.js'
@@ -113,11 +113,11 @@ interface MarketProps {
 	children?: preact.ComponentChildren
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
-	currentTimeInBigIntSeconds: Signal<bigint>
-	loading: Signal<boolean>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
+	loading: ReadonlySignal<boolean>
 }
 
-const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: Signal<bigint | undefined>, currentTimeInBigIntSeconds: Signal<bigint> }) => {
+const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: ReadonlySignal<bigint | undefined>, currentTimeInBigIntSeconds: ReadonlySignal<bigint> }) => {
 	const [timeLeft, setTimeLeft] = useState('')
 	useEffect(() => {
 		const timer = setInterval(() => {
@@ -139,7 +139,7 @@ interface ResolvingToProps {
 	marketData: OptionalSignal<MarketData>
 	forkValues: OptionalSignal<Awaited<ReturnType<typeof getForkValues>>>
 	disputeWindowInfo: OptionalSignal<Awaited<ReturnType<typeof getDisputeWindowInfo>>>
-	currentTimeInBigIntSeconds: Signal<bigint>
+	currentTimeInBigIntSeconds: ReadonlySignal<bigint>
 }
 
 const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInBigIntSeconds }: ResolvingToProps) => {
