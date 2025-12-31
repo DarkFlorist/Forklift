@@ -48,7 +48,7 @@ export const Settings = () => {
 			<div class = 'form-grid'>
 				<div class = 'form-group'>
 					<label>Ethereum RPC to use when an Ethereum wallet is not connected</label>
-					<div style = { { display: 'grid', gridTemplateColumns: 'auto min-content', gap: '0.5rem' } }>
+					<div style = { { display: 'grid', gridTemplateColumns: 'auto max-content', gap: '0.5rem' } }>
 						<input
 							class = 'input'
 							type = 'text'

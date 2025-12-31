@@ -2,7 +2,7 @@ import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from 
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumQuantity, UniverseInformation } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
-import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, WriteClient } from './utils/ethereumWallet.js'
+import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { assertNever, ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
@@ -74,7 +74,7 @@ interface WalletComponentProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	loadingAccount: ReadonlySignal<boolean>
 	children?: preact.ComponentChildren
-	initializeAccount: () => Promise<void>
+	initializeAccount: (promptWallet: boolean) => Promise<void>
 }
 
 const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children }: WalletComponentProps) => {
@@ -87,7 +87,7 @@ const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, c
 			</span>
 			{ children }
 		</> : (
-			<button class = 'wallet-connect-button' onClick = { initializeAccount }>
+			<button class = 'button button-primary' onClick = { () => initializeAccount(true) }>
 				Connect Wallet
 			</button>
 		) }
@@ -353,7 +353,7 @@ export function App() {
 		account.deepValue = newAccount
 	}
 
-	const initializeAccount = async () => {
+	const initializeAccount = async (promptWallet: boolean) => {
 		if (window.ethereum === undefined) {
 			updateWalletSignals(undefined)
 		} else {
@@ -361,7 +361,7 @@ export function App() {
 			window.ethereum.on('chainChanged', async () => { updateChainId() })
 			try {
 				loadingAccount.value = true
-				updateWalletSignals(await getAccounts())
+				updateWalletSignals(promptWallet ? await requestAccounts() : await getAccounts())
 			} catch(e) {
 				showUnexpectedError(e)
 				updateWalletSignals(undefined)
@@ -379,7 +379,7 @@ export function App() {
 		}
 	}
 
-	useEffect(() => { initializeAccount() }, [])
+	useEffect(() => { initializeAccount(false) }, [])
 
 	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()

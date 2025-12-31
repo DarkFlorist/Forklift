@@ -454,21 +454,6 @@ input[type="checkbox"].custom-input:checked::before {
 	white-space: nowrap;
 }
 
-.wallet-connect-button {
-	padding: 6px 12px;
-	font-size: 13px;
-	background-color: #00e676;
-	color: #000;
-	border: none;
-	border-radius: 6px;
-	cursor: pointer;
-	transition: background-color 0.2s ease;
-}
-
-.wallet-connect-button:hover {
-	background-color: #00c562;
-}
-
 .wallet-balances {
 	display: flex;
 	justify-content: flex-end;
