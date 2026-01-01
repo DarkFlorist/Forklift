@@ -79,7 +79,7 @@ contract AugurExtraUtilities {
 		if(_nonce <=     0xffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
 		if(_nonce <=   0xffffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce)))))));
 		if(_nonce <= 0xffffffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xda), bytes1(0x94), _origin, bytes1(0x84), uint32(_nonce)))))));
-		return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xdb), bytes1(0x94), _origin, bytes1(0x85), uint40(_nonce))))))); // more than 2^40 nonces not realistic
+		                         return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xdb), bytes1(0x94), _origin, bytes1(0x85), uint40(_nonce))))))); // more than 2^40 nonces not realistic
 	}
 
 	function getReportingParticipantsForMarket(IMarket _market, uint256 _offset, uint256 _num) external view returns (ReportingParticipant[] memory _data, bool _done) {
