@@ -37,8 +37,8 @@ contract AugurExtraUtilities {
 	struct StakeData {
 		IMarket market;
 		IDisputeCrowdsourcer bond;
-		uint256[] payoutNumerators;
 		uint256 amount;
+		uint256[] payoutNumerators;
 	}
 
 	IShareToken shareToken = IShareToken(0x9e4799ff2023819b1272eee430eadf510eDF85f0);
