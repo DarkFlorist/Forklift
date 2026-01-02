@@ -36,12 +36,12 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 	return await addMarketDataToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.amount > 0n))
 }
 
-export const forkReportingParticipants = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[]) => {
+export const forkAndRedeemReportingParticipants = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], redeemFor: AccountAddress) => {
 	return await writeClient.writeContract({
 		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 		functionName: 'forkAndRedeemReportingParticipants',
 		address: getAugurExtraUtilitiesAddress(),
-		args: [reportingParticipants]
+		args: [reportingParticipants, redeemFor]
 	})
 }
 
@@ -94,11 +94,20 @@ export const aggregateByPayoutDistribution = ( pages: { size: bigint; stake: big
 
 export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient) => (await readClient.getBlock()).timestamp
 
-export const claimMarketWinnings = async (writeClient: WriteClient, markets: readonly AccountAddress[]) => {
+export const claimTradingProceedsForMarkets = async (writeClient: WriteClient, markets: readonly AccountAddress[], shareHolder: AccountAddress) => {
 	return await writeClient.writeContract({
 		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 		functionName: 'claimTradingProceedsForMarkets',
 		address: getAugurExtraUtilitiesAddress(),
-		args: [markets]
+		args: [markets, shareHolder]
+	})
+}
+
+export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[], redeemFor: AccountAddress) => {
+	return await writeClient.writeContract({
+		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
+		functionName: 'redeemStake',
+		address: getAugurExtraUtilitiesAddress(),
+		args: [reportingParticipants, disputeWindows, redeemFor]
 	})
 }

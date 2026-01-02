@@ -8,7 +8,7 @@ interface IMarket {
 
 interface IReportingParticipant {
 	function fork() external;
-	function redeem(address sebdTo) external returns (bool);
+	function redeem(address redeemFor) external returns (bool);
 	function getSize() external view returns (uint256);
 	function getStake() external view returns (uint256);
 	function getPayoutNumerators() external view returns (uint256[] memory);
@@ -18,6 +18,10 @@ interface IDisputeCrowdsourcer {
 	function getMarket() external view returns (IMarket);
 	function balanceOf(address owner) external view returns (uint256);
 	function getPayoutNumerators() external view returns (uint256[] memory);
+}
+
+interface IDisputeWindow {
+	function redeem(address redeemFor) external returns (bool);
 }
 
 interface IShareToken {
@@ -33,8 +37,8 @@ contract AugurExtraUtilities {
 	struct StakeData {
 		IMarket market;
 		IDisputeCrowdsourcer bond;
-		uint256[] payoutNumerators;
 		uint256 amount;
+		uint256[] payoutNumerators;
 	}
 
 	IShareToken shareToken = IShareToken(0x9e4799ff2023819b1272eee430eadf510eDF85f0);
@@ -64,16 +68,15 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants) public returns (bool) {
+	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) external returns (bool) {
 		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].fork();
-			_reportingParticipants[i].redeem(msg.sender);
+			_reportingParticipants[i].redeem(_redeemFor);
 		}
 		return true;
 	}
 
 	function addressFrom(address _origin, uint _nonce) public pure returns (address) {
-		if(_nonce ==       0x00) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(0x80)))))));
 		if(_nonce <=       0x7f) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
 		if(_nonce <=       0xff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
 		if(_nonce <=     0xffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
@@ -95,9 +98,19 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function claimTradingProceedsForMarkets(IMarket[] memory _markets) external {
+	function claimTradingProceedsForMarkets(IMarket[] memory _markets, address _shareHolder) external {
 		for (uint256 _i = 0; _i < _markets.length; _i++) {
-			shareToken.claimTradingProceeds(_markets[_i], msg.sender, bytes32(0));
+			shareToken.claimTradingProceeds(_markets[_i], _shareHolder, bytes32(0));
 		}
+	}
+
+	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) external returns (bool) {
+		for (uint256 i=0; i < _reportingParticipants.length; i++) {
+			_reportingParticipants[i].redeem(_redeemFor);
+		}
+		for (uint256 i=0; i < _disputeWindows.length; i++) {
+			_disputeWindows[i].redeem(_redeemFor);
+		}
+		return true;
 	}
 }
