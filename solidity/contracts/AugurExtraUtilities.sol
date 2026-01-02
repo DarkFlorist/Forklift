@@ -76,7 +76,7 @@ contract AugurExtraUtilities {
 		return true;
 	}
 
-	function addressFrom(address _origin, uint _nonce) public pure returns (address) {
+	function addressFrom(address _origin, uint _nonce) internal pure returns (address) {
 		if(_nonce <=       0x7f) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
 		if(_nonce <=       0xff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
 		if(_nonce <=     0xffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
