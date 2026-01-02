@@ -1089,4 +1089,5 @@ svg.spinner > circle {
 	width: 100%;
 	display: grid;
 	grid-template-columns: auto min-content;
+	gap: 0.5rem;
 }
