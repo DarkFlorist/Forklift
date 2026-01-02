@@ -68,7 +68,7 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) public returns (bool) {
+	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) external returns (bool) {
 		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].fork();
 			_reportingParticipants[i].redeem(_redeemFor);
@@ -76,8 +76,7 @@ contract AugurExtraUtilities {
 		return true;
 	}
 
-	function addressFrom(address _origin, uint _nonce) public pure returns (address) {
-		if(_nonce == 0x00)       return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(0x80)))))));
+	function addressFrom(address _origin, uint _nonce) internal pure returns (address) {
 		if(_nonce <= 0x7f)       return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
 		if(_nonce <= 0xff)       return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
 		if(_nonce <= 0xffff)     return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
@@ -105,7 +104,7 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) public returns (bool) {
+	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) external returns (bool) {
 		for (uint256 i=0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].redeem(_redeemFor);
 		}
