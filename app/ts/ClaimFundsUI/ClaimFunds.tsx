@@ -2,8 +2,8 @@ import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from 
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation, redeemStake } from '../utils/augurContractUtils.js'
-import { claimMarketWinnings, forkReportingParticipants, getAvailableDisputesFromForkedMarkets } from '../utils/augurExtraUtilities.js'
+import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation } from '../utils/augurContractUtils.js'
+import { claimTradingProceedsForMarkets, forkAndRedeemReportingParticipants, getAvailableDisputesFromForkedMarkets, redeemStake } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
@@ -226,7 +226,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 || isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
 	const viewingAddress = useOptionalSignal<AccountAddress>(undefined)
-	const currentViewingAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeWriteClient.deepValue?.account.address : viewingAddress.deepValue)
+	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeWriteClient.deepValue?.account.address : viewingAddress.deepValue)
 
 	const [DisconnectedClaim] = useState(() => () => {
 		return <div class = 'subApplication'>
@@ -249,7 +249,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 
 	useSignalEffect(() => {
 		maybeWriteClient.deepValue
-		currentViewingAddress.value
+		claimForAddress.value
 		clearData()
 	})
 
@@ -261,10 +261,10 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			availableShareData.deepValue = undefined
 			const readClient = maybeReadClient.deepValue
 			if (readClient === undefined) return
-			if (currentViewingAddress.value === undefined) return
+			if (claimForAddress.value === undefined) return
 			isLoadingShareData.value = true
 			try {
-				availableShareData.deepValue = (await getAvailableShareData(readClient, currentViewingAddress.value))
+				availableShareData.deepValue = (await getAvailableShareData(readClient, claimForAddress.value))
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -281,11 +281,11 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			availableDisputes.deepValue = undefined
 			availableReports.deepValue = undefined
 			if (readClient === undefined) return
-			if (currentViewingAddress.value === undefined) return
+			if (claimForAddress.value === undefined) return
 			isLoadingDisputesAndReports.value = true
 			try {
-				availableDisputes.deepValue = (await getAvailableDisputes(readClient, currentViewingAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
-				availableReports.deepValue = (await getAvailableReports(readClient, currentViewingAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableDisputes.deepValue = (await getAvailableDisputes(readClient, claimForAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableReports.deepValue = (await getAvailableReports(readClient, claimForAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -301,12 +301,15 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			selectedForkedCrowdSourcers.value = []
 			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
 			if (readClient === undefined) return
-			if (currentViewingAddress.value === undefined) return
+			if (claimForAddress.value === undefined) return
 			if (universeForkingInformation.deepValue === undefined) return
 			try {
 				if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
-				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) return
-				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, currentViewingAddress.value)
+				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) {
+					availableClaimsFromForkingDisputeCrowdSourcers.deepValue = []
+					return
+				}
+				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, claimForAddress.value)
 				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = disputesClaims
 					.filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
@@ -321,16 +324,21 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			const reportingParticipants = Array.from(selectedReports.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 			const disputeWindows = Array.from(selectedDisputes.value) // Dispute Windows (Participation Tokens) the msg sender has tokens for
 			if (reportingParticipants.length === 0 && disputeWindows.length === 0) throw new Error('nothing to claim')
-			return await redeemStake(writeClient, reportingParticipants, disputeWindows)
+			if (claimForAddress.value === undefined) throw new Error('no claiming for address')
+			return await redeemStake(writeClient, reportingParticipants, disputeWindows, claimForAddress.value)
 		}
 
-		const claimWinningShares = async () => await claimMarketWinnings(writeClient, selectedShares.value)
+		const claimWinningShares = async () => {
+			if (claimForAddress.value === undefined) throw new Error('no claiming for address')
+			return await claimTradingProceedsForMarkets(writeClient, selectedShares.value, claimForAddress.value)
+		}
 
 		const claimForkDisputes = async () => {
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
 			const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 			if (selected.length === 0) throw new Error('nothing to claim')
-			return await forkReportingParticipants(writeClient, selected)
+			if (claimForAddress.value === undefined) throw  new Error('no claiming for address')
+			return await forkAndRedeemReportingParticipants(writeClient, selected, claimForAddress.value)
 		}
 
 		const isForkDisputesDisabled = useComputed(() => isAugurExtraUtilitiesDeployedSignal.deepValue !== true)

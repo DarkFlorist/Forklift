@@ -1,6 +1,6 @@
 import 'viem/window'
 import { AccountAddress, EthereumBytes32, EthereumQuantity, UniverseInformation } from '../types/types.js'
-import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REDEEM_STAKE_ADDRESS, REPORTING_STATES } from './constants.js'
+import { AUDIT_FUNDS_ADDRESS, AUGUR_CONTRACT, FILL_ORDER_CONTRACT, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, GENESIS_UNIVERSE, HOT_LOADING_ADDRESS, MARKET_TYPES, ORDERS_CONTRACT, REPORTING_STATES } from './constants.js'
 import { AUGUR_ABI, AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE } from '../ABI/AugurAbi.js'
 import { HOT_LOADING_ABI } from '../ABI/HotLoading.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
@@ -8,7 +8,6 @@ import { bytes32String } from './ethereumUtils.js'
 import { DISPUTE_WINDOW_ABI } from '../ABI/DisputeWindow.js'
 import { REPORTING_PARTICIPANT_ABI } from '../ABI/ReportingParticipant.js'
 import { REPUTATION_TOKEN_ABI } from '../ABI/ReputationToken.js'
-import { REDEEM_STAKE_ABI } from '../ABI/RedeemStakeAbi.js'
 import { AUDIT_FUNDS_ABI } from '../ABI/AuditFunds.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { UNIVERSE_ABI, UNIVERSE_ABI_SHORT } from '../ABI/Universe.js'
@@ -354,15 +353,6 @@ export const getCrowdsourcerInfoByPayoutNumerator = async (readClient: ReadClien
 	})
 	if (BigInt(crowdsourcer) === 0n) return undefined
 	return await getCrowdsourcerInfo(readClient, crowdsourcer)
-}
-
-export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[]) => {
-	return await writeClient.writeContract({
-		abi: REDEEM_STAKE_ABI,
-		functionName: 'redeemStake',
-		address: REDEEM_STAKE_ADDRESS,
-		args: [reportingParticipants, disputeWindows]
-	})
 }
 
 export const getAvailableShareData = async (readClient: ReadClient, account: AccountAddress) => {

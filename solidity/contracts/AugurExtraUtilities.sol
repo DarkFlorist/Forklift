@@ -8,7 +8,7 @@ interface IMarket {
 
 interface IReportingParticipant {
 	function fork() external;
-	function redeem(address sebdTo) external returns (bool);
+	function redeem(address redeemFor) external returns (bool);
 	function getSize() external view returns (uint256);
 	function getStake() external view returns (uint256);
 	function getPayoutNumerators() external view returns (uint256[] memory);
@@ -18,6 +18,10 @@ interface IDisputeCrowdsourcer {
 	function getMarket() external view returns (IMarket);
 	function balanceOf(address owner) external view returns (uint256);
 	function getPayoutNumerators() external view returns (uint256[] memory);
+}
+
+interface IDisputeWindow {
+	function redeem(address redeemFor) external returns (bool);
 }
 
 interface IShareToken {
@@ -64,10 +68,10 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants) public returns (bool) {
+	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) public returns (bool) {
 		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].fork();
-			_reportingParticipants[i].redeem(msg.sender);
+			_reportingParticipants[i].redeem(_redeemFor);
 		}
 		return true;
 	}
@@ -95,9 +99,19 @@ contract AugurExtraUtilities {
 		}
 	}
 
-	function claimTradingProceedsForMarkets(IMarket[] memory _markets) external {
+	function claimTradingProceedsForMarkets(IMarket[] memory _markets, address _shareHolder) external {
 		for (uint256 _i = 0; _i < _markets.length; _i++) {
-			shareToken.claimTradingProceeds(_markets[_i], msg.sender, bytes32(0));
+			shareToken.claimTradingProceeds(_markets[_i], _shareHolder, bytes32(0));
 		}
+	}
+
+	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) public returns (bool) {
+		for (uint256 i=0; i < _reportingParticipants.length; i++) {
+			_reportingParticipants[i].redeem(_redeemFor);
+		}
+		for (uint256 i=0; i < _disputeWindows.length; i++) {
+			_disputeWindows[i].redeem(_redeemFor);
+		}
+		return true;
 	}
 }
