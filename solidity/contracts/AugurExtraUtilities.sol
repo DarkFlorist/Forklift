@@ -79,12 +79,12 @@ contract AugurExtraUtilities {
 	// copied from here https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/AuditFunds.sol#L112
 	// zero nonce case removed as contract cannot deploy a contract with 0 nonce
 	function addressFrom(address _origin, uint _nonce) internal pure returns (address) {
-		if(_nonce <= 0x7f)       return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
-		if(_nonce <= 0xff)       return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
-		if(_nonce <= 0xffff)     return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
-		if(_nonce <= 0xffffff)   return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce)))))));
+		if(_nonce <=       0x7f) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
+		if(_nonce <=       0xff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
+		if(_nonce <=     0xffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd8), bytes1(0x94), _origin, bytes1(0x82), uint16(_nonce)))))));
+		if(_nonce <=   0xffffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd9), bytes1(0x94), _origin, bytes1(0x83), uint24(_nonce)))))));
 		if(_nonce <= 0xffffffff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xda), bytes1(0x94), _origin, bytes1(0x84), uint32(_nonce)))))));
-		return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xdb), bytes1(0x94), _origin, bytes1(0x85), uint40(_nonce))))))); // more than 2^40 nonces not realistic
+		                         return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xdb), bytes1(0x94), _origin, bytes1(0x85), uint40(_nonce))))))); // more than 2^40 nonces not realistic
 	}
 
 	function getReportingParticipantsForMarket(IMarket _market, uint256 _offset, uint256 _num) external view returns (ReportingParticipant[] memory _data, bool _done) {
