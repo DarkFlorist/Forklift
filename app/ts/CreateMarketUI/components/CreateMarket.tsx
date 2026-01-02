@@ -331,8 +331,16 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		designatedReporterAddress.deepValue
 		description.value
 		longDescription.value
-		categories.value
-		tags.value
+		categories.deepValue
+		tags.deepValue
+		allowedRep.deepValue
+		allowedDai.deepValue
+		repBalance.deepValue
+		daiBalance.deepValue
+		marketCreationCostDai.deepValue
+		marketCreationCostRep.deepValue
+		endTime.value
+		marketTypeWithNumberOfOutcomes.value
 		return () => {
 			const marketEndTimeUnixTimeStamp = endTime.value !== undefined ? dateToBigintSeconds(endTime.value) : maximumMarketEndData.deepValue
 			const extraInfoString = JSON.stringify({
