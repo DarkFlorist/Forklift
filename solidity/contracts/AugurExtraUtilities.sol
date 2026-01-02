@@ -44,11 +44,10 @@ contract AugurExtraUtilities {
 	IShareToken shareToken = IShareToken(0x9e4799ff2023819b1272eee430eadf510eDF85f0);
 
 	function exists(address _address) internal view returns (bool) {
-		uint256 size;
-		assembly { size := extcodesize(_address) }
-		return size > 0;
+		return _address.code.length > 0;
 	}
 
+	// copied from https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/AuditFunds.sol#L94 but modified to fit
 	function getAvailableDisputesFromForkedMarkets(address _disputeCrowdsourcerFactory, address _account, uint256 _offset, uint256 _num) external view returns (StakeData[] memory _data, bool _done) {
 		_data = new StakeData[](_num);
 		for (uint256 _i = 0; _i < _num; _i++) {
@@ -68,6 +67,7 @@ contract AugurExtraUtilities {
 		}
 	}
 
+	// is batch version of for forkAndRedeem() of https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/reporting/DisputeCrowdsourcer.sol#L75
 	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) external returns (bool) {
 		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].fork();
@@ -76,6 +76,8 @@ contract AugurExtraUtilities {
 		return true;
 	}
 
+	// copied from here https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/AuditFunds.sol#L112
+	// zero nonce case removed as contract cannot deploy a contract with 0 nonce
 	function addressFrom(address _origin, uint _nonce) internal pure returns (address) {
 		if(_nonce <=       0x7f) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), _origin, bytes1(uint8(_nonce))))))));
 		if(_nonce <=       0xff) return address(uint160(uint256((keccak256(abi.encodePacked(bytes1(0xd7), bytes1(0x94), _origin, bytes1(0x81), uint8(_nonce)))))));
@@ -98,17 +100,19 @@ contract AugurExtraUtilities {
 		}
 	}
 
+	// batch version of claimTradingProceeds https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/reporting/ShareToken.sol#L298
 	function claimTradingProceedsForMarkets(IMarket[] memory _markets, address _shareHolder) external {
 		for (uint256 _i = 0; _i < _markets.length; _i++) {
 			shareToken.claimTradingProceeds(_markets[_i], _shareHolder, bytes32(0));
 		}
 	}
 
+	// copied from here https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/RedeemStake.sol#L19 added custom redeem address
 	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) external returns (bool) {
-		for (uint256 i=0; i < _reportingParticipants.length; i++) {
+		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
 			_reportingParticipants[i].redeem(_redeemFor);
 		}
-		for (uint256 i=0; i < _disputeWindows.length; i++) {
+		for (uint256 i = 0; i < _disputeWindows.length; i++) {
 			_disputeWindows[i].redeem(_redeemFor);
 		}
 		return true;
