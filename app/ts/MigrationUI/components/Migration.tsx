@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
-import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getRepTotalTheoreticalSupply, getTotalSupply, getUniverseForkingInformation, getUniverseInformation, getWinningChildUniverse, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
+import { fetchMarketData, getChildUniverse, getDisputeWindow, getDisputeWindowInfo, getForkValues, getParentUniverse, getReputationTotalTheoreticalSupply, getTotalSupply, getUniverseForkingInformation, getUniverseInformation, getWinningChildUniverse, migrateReputationToChildUniverseByPayout } from '../../utils/augurContractUtils.js'
 import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
@@ -93,7 +93,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 					winningUniverse.deepValue = undefined
 				}
 			}
-			repTotalTheoreticalSupply.deepValue = await getRepTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress)
+			repTotalTheoreticalSupply.deepValue = await getReputationTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress)
 			repSupply.deepValue = await getTotalSupply(readClient, universe.deepValue.reputationTokenAddress)
 		} finally {
 			loading.value = false

@@ -97,13 +97,14 @@ const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, c
 }
 
 interface WalletBalancesProps {
+	fetching: Signal<Boolean>
 	daiBalance: OptionalSignal<EthereumQuantity>
 	repBalance: OptionalSignal<EthereumQuantity>
 	ethBalance: OptionalSignal<EthereumQuantity>
 	universe: OptionalSignal<UniverseInformation>
 }
 
-const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe }: WalletBalancesProps) => {
+const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe, fetching }: WalletBalancesProps) => {
 	const balances = []
 	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
 	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) }`)
@@ -113,7 +114,7 @@ const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe }: Wallet
 		{ balances.map((balance, i) => (
 			<span key = { i }>{ balance }</span>
 		)) }
-		{ balances.length !== 3 ? <Spinner/> : <></>}
+		{ balances.length !== 3 && fetching.value ? <Spinner/> : <></>}
 	</div>
 }
 
@@ -189,7 +190,7 @@ export function App() {
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
 	const maybeWriteClient = useOptionalSignal<WriteClient>(undefined)
 	const isAugurExtraUtilitiesDeployedSignal = useOptionalSignal<boolean>(undefined)
-	const chainId = useSignal<number | undefined>(undefined)
+	const isValidChainId = useSignal<boolean | undefined>(undefined)
 	const selectedUniverse = useOptionalSignal<AccountAddress>(undefined)
 	const currentUniverse = useOptionalSignal<UniverseInformation>(undefined)
 	const selectedMarket = useOptionalSignal<AccountAddress>(undefined)
@@ -208,6 +209,7 @@ export function App() {
 
 	const pathSignal = useSignal<string>('')
 	const updateTokenBalancesSignal = useSignal<number>(0)
+	const fetchingBalances = useSignal<boolean>(false)
 
 	const unexpectedError = useSignal<string | undefined>(undefined)
 
@@ -318,7 +320,7 @@ export function App() {
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) return
 		try {
-			chainId.value = await getChainId(readClient)
+			isValidChainId.value = (await getChainId(readClient)) === 1
 		} catch(error: unknown) {
 			showUnexpectedError(error)
 		}
@@ -381,14 +383,22 @@ export function App() {
 		try {
 			await updateChainId()
 			await setUniverseIfValid()
-			if (maybeReadClient.deepValue === undefined) return
-			isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
 		} catch(e) {
 			showUnexpectedError(e)
 		}
 	}
 
 	useEffect(() => { initializeAccount(false) }, [])
+
+	useSignalEffect(() => {
+		if (isValidChainId.value === undefined || isValidChainId.value === false) return
+		if (maybeReadClient.deepValue === undefined) return
+		const checkExtraUtils = async () => {
+			if (maybeReadClient.deepValue === undefined) return
+			isAugurExtraUtilitiesDeployedSignal.deepValue = await isAugurExtraUtilitiesDeployed(maybeReadClient.deepValue)
+		}
+		checkExtraUtils()
+	})
 
 	const deployAugurExtraUtilitiesButton = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
@@ -399,11 +409,16 @@ export function App() {
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (writeClient === undefined) return
 		if (reputationTokenAddress === undefined) return
-		const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
-		const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
-		repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
-		daiBalance.deepValue = await daiPromise
-		ethBalance.deepValue = await ethPromise
+		fetchingBalances.value = true
+		try {
+			const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
+			const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
+			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
+			daiBalance.deepValue = await daiPromise
+			ethBalance.deepValue = await ethPromise
+		} finally {
+			fetchingBalances.value = false
+		}
 	}
 
 	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universeInformation: UniverseInformation | undefined) => {
@@ -413,9 +428,16 @@ export function App() {
 		universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation)
 	}
 
-	useSignalEffect(() => { fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError) })
+	useSignalEffect(() => {
+		if (!isValidChainId.value) return
+		fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
+	})
 
-	useSignalEffect(() => { updateTokenBalancesSignal.value; updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError) })
+	useSignalEffect(() => {
+		if (!isValidChainId.value) return
+		updateTokenBalancesSignal.value
+		updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
+	})
 
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
@@ -423,11 +445,20 @@ export function App() {
 		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
 	}
 
-	useSignalEffect(() => { updateForkValues(maybeReadClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError) })
+	useSignalEffect(() => {
+		if (!isValidChainId.value) return
+		updateForkValues(maybeReadClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
+	})
 
 	if (currentUniverse.deepValue === undefined) return <main style = 'overflow: hidden;'><div class = 'app'><CenteredBigSpinner/> </div></main>
 
 	const isDeployExtraUtilsDisabled = useComputed(() => maybeWriteClient.deepValue === undefined)
+
+	const chainIdError = useComputed(() => {
+		if (isValidChainId.value === undefined) return undefined
+		if (isValidChainId.value) return undefined
+		return 'You are not connected to Ethereum Mainnet, please switch to Ethereum Mainnet to use Augur ForkLift'
+	})
 
 	return <main style = 'overflow: hidden;'>
 		<div class = 'app'>
@@ -456,15 +487,16 @@ export function App() {
  				: <div></div> }
 				<div style = 'display: flex; align-items: center; justify-self: end;'>
 					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount }>
-						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse }/>
+						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse } fetching = { fetchingBalances }/>
 						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
 					</WalletComponent>
 				</div>
 			</div>
+			<UnexpectedError unexpectedError = { chainIdError }/>
 			<UnexpectedError unexpectedError = { unexpectedError }/>
 			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } pathSignal = { pathSignal }/>
 		</div>
-		<Tabs tabs = { tabs } activeTab = { activeTab }/>
+		{ isValidChainId.value === true && <Tabs tabs = { tabs } activeTab = { activeTab }/> }
 		<footer class = 'site-footer'>
 			<div>
 				Augur Forklift by&nbsp;
