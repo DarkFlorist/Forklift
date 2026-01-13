@@ -576,15 +576,6 @@ export const getMarketRepBondForNewMarket = async (client: ReadClient, universe:
 	})
 }
 
-export const getRepTotalTheoreticalSupply = async (client: ReadClient, repToken: AccountAddress) => {
-	return await client.readContract({
-		abi: REPUTATION_TOKEN_ABI,
-		functionName: 'getTotalTheoreticalSupply',
-		address: repToken,
-		args: []
-	})
-}
-
 export const getTotalSupply = async (client: ReadClient, repToken: AccountAddress) => {
 	return await client.readContract({
 		abi: REPUTATION_TOKEN_ABI,
