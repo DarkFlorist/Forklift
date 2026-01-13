@@ -24,7 +24,6 @@ export const createReadClient = (accountAddress: AccountAddress | undefined, rpc
 
 export const createWriteClient = (accountAddress: AccountAddress) => {
 	if (window.ethereum === undefined) throw new Error('no window.ethereum injected')
-	if (accountAddress === undefined) throw new Error('no accountAddress!')
 	return createWalletClient({ account: accountAddress, chain: mainnet, transport: custom(window.ethereum), cacheTime: 10_000 }).extend(publicActions)
 }
 

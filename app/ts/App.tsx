@@ -2,14 +2,14 @@ import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from 
 import { useEffect, useRef } from 'preact/hooks'
 import { AccountAddress, EthereumQuantity, UniverseInformation } from './types/types.js'
 import { OptionalSignal, useOptionalSignal } from './utils/OptionalSignal.js'
-import { createReadClient, createWriteClient, getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
+import { getAccounts, getChainId, ReadClient, requestAccounts, WriteClient } from './utils/ethereumWallet.js'
 import { CreateYesNoMarket } from './CreateMarketUI/components/CreateMarket.js'
 import { assertNever, ensureError } from './utils/errorHandling.js'
 import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
-import { bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
+import { addressString, bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getRepTokenName, getUniverseName } from './utils/augurUtils.js'
 import { getForkValues, getUniverseForkingInformation, getUniverseInformation } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
@@ -25,6 +25,8 @@ import { CenteredBigSpinner, Spinner } from './SharedUI/Spinner.js'
 import { UnexpectedError } from './SharedUI/UnexpectedError.js'
 import { SendTransactionButton, TransactionStatus } from './SharedUI/SendTransactionButton.js'
 import { Settings } from './Settings/Settings.js'
+import { createReadClientFromConnection, createWriteClientFromConnection, priorityConnectSafeIfFailsConnectWindowEthereum } from './gnosisSafeWallet/safe.js'
+import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -342,31 +344,38 @@ export function App() {
 		setUniverseIfValid()
 	})
 
-	const updateWalletSignals = (newAccount: AccountAddress | undefined) => {
-		if (newAccount === undefined) {
-			maybeReadClient.deepValue = createReadClient(undefined, getUsedRpc())
+	const updateWalletSignals = (newConnection: WalletConnection | undefined) => {
+		if (newConnection === undefined || (newConnection.type === 'window.ethereum' && newConnection.address === undefined)) {
+			maybeReadClient.deepValue = createReadClientFromConnection(undefined, getUsedRpc())
 			maybeWriteClient.deepValue = undefined
 		} else {
-			maybeReadClient.deepValue = createWriteClient(newAccount)
+			maybeReadClient.deepValue = createWriteClientFromConnection(newConnection)
 			maybeWriteClient.deepValue = maybeReadClient.deepValue
 		}
-		account.deepValue = newAccount
+		account.deepValue = newConnection ? (newConnection.type === 'window.ethereum' ? newConnection.address : addressString(newConnection.safeInfo.data.safeAddress)) : undefined
 	}
 
 	const initializeAccount = async (promptWallet: boolean) => {
-		if (window.ethereum === undefined) {
+		const wallet = await priorityConnectSafeIfFailsConnectWindowEthereum(false)
+		if (wallet === undefined) {
 			updateWalletSignals(undefined)
 		} else {
-			window.ethereum.on('accountsChanged', (accounts) => { updateWalletSignals(accounts[0]) })
-			window.ethereum.on('chainChanged', async () => { updateChainId() })
-			try {
-				loadingAccount.value = true
-				updateWalletSignals(promptWallet ? await requestAccounts() : await getAccounts())
-			} catch(e) {
-				showUnexpectedError(e)
-				updateWalletSignals(undefined)
-			} finally {
-				loadingAccount.value = false
+			if (wallet.type === 'window.ethereum') {
+				if (window.ethereum === undefined) throw new Error('window ethereum missing')
+				window.ethereum.on('accountsChanged', (accounts) => { updateWalletSignals({ type: 'window.ethereum', address: accounts[0] }) })
+				window.ethereum.on('chainChanged', async () => { updateChainId() })
+				try {
+					loadingAccount.value = true
+					updateWalletSignals({ type: 'window.ethereum', address: promptWallet ? await requestAccounts() : await getAccounts()})
+				} catch(e) {
+					showUnexpectedError(e)
+					updateWalletSignals(undefined)
+				} finally {
+					loadingAccount.value = false
+				}
+			}
+			else {
+				updateWalletSignals(wallet)
 			}
 		}
 		try {
