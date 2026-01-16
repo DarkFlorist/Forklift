@@ -606,7 +606,7 @@ export const getUniverseInformation = async (client: ReadClient, universeAddress
 		return {
 			universeAddress: GENESIS_UNIVERSE,
 			reputationTokenAddress: GENESIS_REPUTATION_V2_TOKEN_ADDRESS,
-			repTokenName: 'RepV2'
+			repTokenName: 'REPv2'
 		} as const
 	} else {
 		if (verify && !(await isKnownUniverse(client, universeAddress))) throw new Error(`${ universeAddress } is not an universe recognized by Augur.`)
