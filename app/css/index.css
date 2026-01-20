@@ -713,8 +713,7 @@ h3 {
 }
 
 .subApplication-card {
-	width: 100%;
-	max-width: 900px;
+	max-width: 1200px;
 	margin: 0rem auto;
 	padding: 20px;
 	background: #1e1e2f;
