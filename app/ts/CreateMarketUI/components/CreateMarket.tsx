@@ -109,7 +109,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					class = 'input reporting-panel-input'
 					type = 'text'
 					placeholder = { '' }
-					style = { { maxWidth: '300px' } }
+					style = { { maxWidth: '100px' } }
 					value = { daiAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
 					tryParse = { parse18DecimalBigintForInput }
@@ -134,7 +134,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					class = 'input reporting-panel-input'
 					type = 'text'
 					placeholder = ''
-					style = { { maxWidth: '300px' } }
+					style = { { maxWidth: '100px' } }
 					value = { repAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
 					tryParse = { parse18DecimalBigintForInput }
