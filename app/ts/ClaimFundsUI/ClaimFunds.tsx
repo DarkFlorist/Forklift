@@ -2,8 +2,8 @@ import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from 
 import { AccountAddress } from '../types/types.js'
 import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
-import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation } from '../utils/augurContractUtils.js'
-import { claimTradingProceedsForMarkets, forkAndRedeemReportingParticipants, getAvailableDisputesFromForkedMarkets, redeemStake } from '../utils/augurExtraUtilities.js'
+import { fetchMarketData, getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation } from '../utils/augurContractUtils.js'
+import { claimTradingProceedsForMarkets, getAvailableDisputesFromForkedMarkets, redeemStakeBatch } from '../utils/augurExtraUtilities.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { MarketLink } from '../SharedUI/links.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
@@ -13,6 +13,7 @@ import { getOutcomeName, getRepTokenName, hasForkEnded } from '../utils/augurUti
 import { LoadingButton } from '../SharedUI/LoadingButton.js'
 import { Input } from '../SharedUI/Input.js'
 import { parseAddressForInput, serializeAddressForInput } from '../utils/inputParsing.js'
+import { MarketData } from '../SharedUI/Market.js'
 
 const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
 	if (array.find((entry) => entry === newEntry)) {
@@ -112,6 +113,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 }
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
+	forkingMarketData: OptionalSignal<MarketData>
 	availableClaimsFromForkingDisputeCrowdSourcers: OptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
 	selectedForkedCrowdSourcers: Signal<readonly AccountAddress[]>
@@ -119,12 +121,13 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 	loading: ReadonlySignal<boolean>
 }
 
-const ForkAndRedeemDisputeCrowdSourcers = ({ isAugurExtraUtilitiesDeployedSignal, availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, loading }: ForkAndRedeemDisputeCrowdSourcersProps) => {
+const ForkAndRedeemDisputeCrowdSourcers = ({ forkingMarketData, isAugurExtraUtilitiesDeployedSignal, availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, loading }: ForkAndRedeemDisputeCrowdSourcersProps) => {
 	const results = useComputed(() => {
 		if (isAugurExtraUtilitiesDeployedSignal.deepValue === false) return <ClaimInfo text = 'Deploy extra utils to see...'/>
-		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || forkingMarketData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
 		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => {
+			if (forkingMarketData.deepValue === undefined) return
 			return <span class = 'claim-option' key = { disputeEntry.bond }>
 				<input
 					type = 'checkbox'
@@ -136,8 +139,14 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ isAugurExtraUtilitiesDeployedSignal
 					} }
 				/>
 				<div class = 'claim-info'>
-					<div><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/></b></div>
-					<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, disputeEntry.marketData) }` }</div>
+					{ disputeEntry.marketData === undefined ? <>
+						<div><b>Market <MarketLink address = { new Signal(forkingMarketData.deepValue.marketAddress) } pathSignal = { pathSignal }/></b></div>
+						<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeData.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, forkingMarketData.deepValue) }` }</div>
+
+					</> : <>
+						<div><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/></b></div>
+						<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeData.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, disputeEntry.marketData) }` }</div>
+					</> }
 				</div>
 			</span>
 		})
@@ -227,6 +236,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 
 	const viewingAddress = useOptionalSignal<AccountAddress>(undefined)
 	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeWriteClient.deepValue?.account.address : viewingAddress.deepValue)
+	const forkingMarketData = useOptionalSignal<MarketData>(undefined)
 
 	const [DisconnectedClaim] = useState(() => () => {
 		return <div class = 'subApplication'>
@@ -300,18 +310,23 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			isLoadingDisputeCrowdSourcers.value = true
 			selectedForkedCrowdSourcers.value = []
 			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
+			forkingMarketData.deepValue = undefined
 			if (readClient === undefined) return
 			if (claimForAddress.value === undefined) return
 			if (universeForkingInformation.deepValue === undefined) return
 			try {
 				if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
-				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) {
-					availableClaimsFromForkingDisputeCrowdSourcers.deepValue = []
-					return
+				if (universeForkingInformation.deepValue.forkingMarket !== undefined) {
+					forkingMarketData.deepValue = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
 				}
 				const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, claimForAddress.value)
 				availableClaimsFromForkingDisputeCrowdSourcers.deepValue = disputesClaims
-					.filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+					.filter((data) => data.universe === universeForkingInformation.deepValue?.universe.universeAddress)
+				if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) {
+					// if fork has ended, users can claim from forked dispute crowdsourcers only
+					availableClaimsFromForkingDisputeCrowdSourcers.deepValue =
+						availableClaimsFromForkingDisputeCrowdSourcers.deepValue.filter((data) => BigInt(data.market) === 0x0n )
+				}
 			} catch(error: unknown) {
 				showUnexpectedError(error)
 			} finally {
@@ -325,7 +340,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			const disputeWindows = Array.from(selectedDisputes.value) // Dispute Windows (Participation Tokens) the msg sender has tokens for
 			if (reportingParticipants.length === 0 && disputeWindows.length === 0) throw new Error('nothing to claim')
 			if (claimForAddress.value === undefined) throw new Error('no claiming for address')
-			return await redeemStake(writeClient, reportingParticipants, disputeWindows, claimForAddress.value)
+			return await redeemStakeBatch(writeClient, [...reportingParticipants, ...disputeWindows], [], claimForAddress.value)
 		}
 
 		const claimWinningShares = async () => {
@@ -337,8 +352,12 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
 			const selected = Array.from(selectedForkedCrowdSourcers.value) // Winning Initial Reporter or Dispute Crowdsourcer bonds the msg sender has stake in
 			if (selected.length === 0) throw new Error('nothing to claim')
-			if (claimForAddress.value === undefined) throw  new Error('no claiming for address')
-			return await forkAndRedeemReportingParticipants(writeClient, selected, claimForAddress.value)
+			if (claimForAddress.value === undefined) throw new Error('no claiming for address')
+			if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) throw new Error('no claims')
+			const needForking = selected.filter((selectedBond) => availableClaimsFromForkingDisputeCrowdSourcers.deepValue?.some((claim) => selectedBond === claim.bond && BigInt(claim.market) !== 0n) === true)
+			const directlyClaimable = selected.filter((selectedBond) => availableClaimsFromForkingDisputeCrowdSourcers.deepValue?.some((claim) => selectedBond === claim.bond && BigInt(claim.market) === 0n) === true)
+			if (needForking.length + directlyClaimable.length !== selected.length) throw new Error('claim mismatch')
+			return await redeemStakeBatch(writeClient, directlyClaimable, needForking, claimForAddress.value)
 		}
 
 		const isForkDisputesDisabled = useComputed(() => isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
@@ -392,7 +411,7 @@ export const ClaimFunds = ({ currentTimeInBigIntSeconds, isAugurExtraUtilitiesDe
 								callBackWhenIncluded = { queryDisputesAndReports }
 							/>
 						</> }
-						<ForkAndRedeemDisputeCrowdSourcers isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+						<ForkAndRedeemDisputeCrowdSourcers forkingMarketData = { forkingMarketData } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
 
 						<LoadingButton isLoading = { isLoadingDisputeCrowdSourcers } startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers } disabled = { isForkDisputesDisabled } className = 'button loading-button button-secondary'>
 							{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }

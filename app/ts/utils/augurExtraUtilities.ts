@@ -1,11 +1,11 @@
 import { encodePacked, getContractAddress, keccak256, numberToBytes } from 'viem'
 import { DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, PROXY_DEPLOYER_ADDRESS } from './constants.js'
-import { AccountAddress, EthereumQuantity } from '../types/types.js'
+import { AccountAddress } from '../types/types.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
 import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContracts.js'
-import { addMarketDataToClaims } from './augurContractUtils.js'
+import { addMarketDataToClaims, getUniverseInformation } from './augurContractUtils.js'
 
 export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
@@ -21,7 +21,7 @@ export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
 export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
 	let offset = 0n
 	const pageSize = 30n
-	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
+	let pages: { market: `0x${ string }`, universe: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
 	do {
 		const page = await readClient.readContract({
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
@@ -33,15 +33,24 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
-	return await addMarketDataToClaims(readClient, pages.filter((data) => EthereumQuantity.parse(data.market) !== 0n && data.amount > 0n))
+	const filteredPages = pages.filter((data) => data.amount > 0n)
+	const universes = Array.from(new Set(filteredPages.map((x) => x.universe)))
+	const universeInformations = await Promise.all(universes.map(async (universe) => await getUniverseInformation(readClient, universe, false)))
+	const withUniverseData = filteredPages.map((page) => {
+		const universeData = universeInformations.find((information) => page.universe === information.universeAddress)
+		if (universeData === undefined) throw new Error('universe was not found')
+		return { ...page, universeData }
+	})
+	const withMarketData = await addMarketDataToClaims(readClient, withUniverseData.filter((page) => BigInt(page.market) !== 0n))
+	return [...withUniverseData.filter((page) => BigInt(page.market) === 0n).map((page) => ({ ...page, marketData: undefined })), ...withMarketData]
 }
 
-export const forkAndRedeemReportingParticipants = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], redeemFor: AccountAddress) => {
+export const redeemStakeBatch = async (writeClient: WriteClient, redem: readonly AccountAddress[], forkAndRedeem: readonly AccountAddress[], redeemFor: AccountAddress) => {
 	return await writeClient.writeContract({
 		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
-		functionName: 'forkAndRedeemReportingParticipants',
+		functionName: 'redeemStakeBatch',
 		address: getAugurExtraUtilitiesAddress(),
-		args: [reportingParticipants, redeemFor]
+		args: [redem, forkAndRedeem, redeemFor]
 	})
 }
 
@@ -100,14 +109,5 @@ export const claimTradingProceedsForMarkets = async (writeClient: WriteClient, m
 		functionName: 'claimTradingProceedsForMarkets',
 		address: getAugurExtraUtilitiesAddress(),
 		args: [markets, shareHolder]
-	})
-}
-
-export const redeemStake = async (writeClient: WriteClient, reportingParticipants: readonly AccountAddress[], disputeWindows: readonly AccountAddress[], redeemFor: AccountAddress) => {
-	return await writeClient.writeContract({
-		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
-		functionName: 'redeemStake',
-		address: getAugurExtraUtilitiesAddress(),
-		args: [reportingParticipants, disputeWindows, redeemFor]
 	})
 }
