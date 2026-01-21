@@ -447,8 +447,13 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 	useSignalEffect(() => {
 		// auto refresh page if dispute window has passed
 		currentTimeInBigIntSeconds.value
+		const data = marketData.deepPeek()
+		if (data === undefined || loading.peek()) return
 		const disputeInfo = disputeWindowInfo.deepPeek()
-		if (disputeInfo !== undefined && currentTimeInBigIntSeconds.value > disputeInfo.startTime && loading.peek() === false && marketData.deepPeek()?.reportingState == 'AwaitingNextWindow') {
+		if (disputeInfo !== undefined && currentTimeInBigIntSeconds.value > disputeInfo.startTime && data.reportingState == 'AwaitingNextWindow') {
+			refreshData(maybeReadClient.deepPeek(), selectedMarket.deepPeek()).catch(showUnexpectedError)
+		}
+		else if (currentTimeInBigIntSeconds.value >= data.endTime && data.reportingState === 'PreReporting') {
 			refreshData(maybeReadClient.deepPeek(), selectedMarket.deepPeek()).catch(showUnexpectedError)
 		}
 	})
