@@ -43,19 +43,45 @@ export function decimalStringToBigint(value: string, power: bigint): bigint {
 	return BigInt(`${ integerPart }${ fractionalPart }`)
 }
 
-export function bigintToDecimalString(value: bigint, power: bigint, maxDecimals?: number): string {
-	const integerPart = value / 10n ** power
+export function bigintToDecimalString(value: bigint, power: bigint, maxDecimals?: number, roundUp?: boolean): string {
+	let integerPart = value / 10n ** power
 	const fractionalPart = value % 10n ** power
 	if (fractionalPart === 0n) return integerPart.toString(10)
 	const rawFractionalStr = fractionalPart.toString(10).padStart(Number(power), '0')
-	const trimmedFractionalStr = maxDecimals !== undefined ? rawFractionalStr.slice(0, maxDecimals) : rawFractionalStr
+	let trimmedFractionalStr = maxDecimals !== undefined ? rawFractionalStr.slice(0, maxDecimals) : rawFractionalStr
+	if (roundUp === true && maxDecimals !== undefined && rawFractionalStr.length > maxDecimals) {
+		const roundingDigit = rawFractionalStr[maxDecimals]
+		if (roundingDigit !== undefined && roundingDigit >= '5') {
+			let carry = 1
+			const digits = trimmedFractionalStr.split('')
+
+			for (let index = digits.length - 1; index >= 0; index--) {
+				const digit = Number(digits[index]) + carry
+
+				if (digit === 10) {
+					digits[index] = '0'
+					carry = 1
+				} else {
+					digits[index] = String(digit)
+					carry = 0
+					break
+				}
+			}
+
+			if (carry === 1) {
+				integerPart = integerPart + 1n
+			}
+
+			trimmedFractionalStr = digits.join('')
+		}
+	}
 	const finalFractionalStr = trimmedFractionalStr.replace(/0+$/, '')
 	if (finalFractionalStr === '') return integerPart.toString(10)
 	return `${ integerPart.toString(10) }.${ finalFractionalStr }`
 }
 
-export function bigintToDecimalStringWithUnknown(value: bigint | undefined, power: bigint, maxDecimals?: number): string {
-	return value === undefined ? '?' : bigintToDecimalString(value, power, maxDecimals)
+export function bigintToDecimalStringWithUnknown(value: bigint | undefined, power: bigint, maxDecimals?: number, roundUp?: boolean): string {
+	return value === undefined ? '?' : bigintToDecimalString(value, power, maxDecimals, roundUp)
 }
 
 export const isPracticallyInfinite = (value: bigint, power: bigint) => value / (10n ** power) > 2 ** 100
