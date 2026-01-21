@@ -1,4 +1,5 @@
 import { hexToBytes, padHex, stringToHex } from 'viem'
+import { AccountAddress } from '../types/types'
 
 export const bigintSecondsToDate = (seconds: bigint) => {
 	if (seconds > 8640000000000n) throw new Error(`Too big seconds value: ${ seconds }`)
@@ -68,3 +69,11 @@ export const formatDateForDatetimeLocal = (date: Date) => {
 }
 
 export const currentDateInAYear = () => new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+
+export const filterIfExistsAddOtherwise = (array: readonly AccountAddress[], newEntry: AccountAddress) => {
+	if (array.find((entry) => entry === newEntry)) {
+		return array.filter(((entry) => entry !== newEntry))
+	} else {
+		return [...array, newEntry]
+	}
+}
