@@ -6,7 +6,7 @@ import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
 import { bigintToDecimalStringWithUnknown, bigintToDecimalStringWithUnknownAndPracticallyInfinite, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
-import { dateToBigintSeconds, isNumeric } from '../../utils/utils.js'
+import { currentDateInAYear, dateToBigintSeconds, formatDateForDatetimeLocal, isNumeric } from '../../utils/utils.js'
 import { useEffect, useState } from 'preact/hooks'
 import { Input } from '../../SharedUI/Input.js'
 import { useThrottledSignalEffect } from '../../SharedUI/useThrottledSignalEffect.js'
@@ -482,7 +482,9 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 					</label>
 					<input
 						class = 'input'
-						type = 'date'
+						min = { formatDateForDatetimeLocal(new Date()) }
+						max = { formatDateForDatetimeLocal(maximumMarketEndData.deepValue !== undefined ? new Date(Number(maximumMarketEndData.deepValue) * 1000) : currentDateInAYear()) }
+						type = 'datetime-local'
 						onInput = { e => handleEndTimeInput(e.currentTarget.value) }
 					/>
 				</div>

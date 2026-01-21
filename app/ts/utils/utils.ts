@@ -61,3 +61,10 @@ export const convertStringToBytes32 = (inputText: string) => {
 	if (utf8Bytes.length > 32) throw new Error('Input text exceeds 32 byte limit for bytes32')
 	return padHex(utf8Hex, { size: 32, dir: 'right' })
 }
+
+export const formatDateForDatetimeLocal = (date: Date) => {
+	const isoString = date.toISOString()
+	return isoString.slice(0, 16)
+}
+
+export const currentDateInAYear = () => new Date(new Date().setFullYear(new Date().getFullYear() + 1))
