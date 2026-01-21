@@ -169,7 +169,7 @@ export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, 
 	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6, true))
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <p>
-		It costs <b> { ethCost.value } ETH</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
+		It costs <b> { ethCost.value } ETH (gas fee)</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
 }
 
@@ -341,6 +341,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		marketCreationCostRep.deepValue
 		endTime.value
 		marketTypeWithNumberOfOutcomes.value
+		maximumMarketEndData.value
 		return () => {
 			const marketEndTimeUnixTimeStamp = endTime.value !== undefined ? dateToBigintSeconds(endTime.value) : maximumMarketEndData.deepValue
 			const extraInfoString = JSON.stringify({
