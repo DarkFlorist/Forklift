@@ -123,7 +123,7 @@ const Countdown = ({ end, currentTimeInBigIntSeconds }: { end: ReadonlySignal<bi
 		const timer = setInterval(() => {
 			if (end.value === undefined) return
 			if (end.value - currentTimeInBigIntSeconds.value <= 0) {
-				setTimeLeft('The Market Has Ended')
+				setTimeLeft(`The Market Has Ended (${ humanReadableDateDeltaFromTo(end.value, currentTimeInBigIntSeconds.value) } ago)`)
 				clearInterval(timer)
 				return
 			}
@@ -210,7 +210,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 						<span>{ bigintToDecimalString(marketData.deepValue.openInterest, 18n, 2) } DAI Open Interest</span>
 					</div>
 					<div>
-						{ formatUnixTimestampIso(marketData.deepValue.endTime) }
+						Market end date: { formatUnixTimestampIso(marketData.deepValue.endTime) }
 					</div>
 				</div>
 			</header>
