@@ -560,6 +560,14 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 		return await finalizeMarket(writeClient, marketData.deepValue.marketAddress)
 	}
 
+	const refreshDisabled = useComputed(() => {
+		if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) return true
+		if (maybeReadClient.deepValue === undefined) return true
+		if (selectedMarket.deepValue === undefined) return true
+		if (universe.deepValue === undefined) return true
+		return false
+	})
+
 	return <div class = 'subApplication'>
 		<section class = 'subApplication-card'>
 			<div style = 'display: grid; width: 100%; gap: 10px;'>
@@ -577,7 +585,7 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 							tryParse = { parseAddressForInput }
 							serialize = { serializeAddressForInput }
 						/>
-						<LoadingButton isLoading = { loading } startLoading = { refreshDataButton } disabled = { useComputed(() => false) }>
+						<LoadingButton isLoading = { loading } startLoading = { refreshDataButton } disabled = { refreshDisabled }>
 							Refresh
 						</LoadingButton>
 					</div>
