@@ -5,7 +5,7 @@
 		"moduleResolution": "NodeNext",
 		"rootDir": "ts",
 		"outDir": "js",
-		"sourceMap": false,
+		"sourceMap": true,
 		"inlineSources": false,
 		"declaration": false,
 		"declarationMap": false,
