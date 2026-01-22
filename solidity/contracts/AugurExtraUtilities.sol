@@ -15,6 +15,7 @@ interface IReportingParticipant {
 }
 
 interface IDisputeCrowdsourcer {
+	function universe() external view returns (address);
 	function getMarket() external view returns (IMarket);
 	function balanceOf(address owner) external view returns (uint256);
 	function getPayoutNumerators() external view returns (uint256[] memory);
@@ -36,6 +37,7 @@ contract AugurExtraUtilities {
 	}
 	struct StakeData {
 		IMarket market;
+		address universe;
 		IDisputeCrowdsourcer bond;
 		uint256 amount;
 		uint256[] payoutNumerators;
@@ -57,23 +59,15 @@ contract AugurExtraUtilities {
 			}
 			IDisputeCrowdsourcer _bond = IDisputeCrowdsourcer(_disputeBondAddress);
 			IMarket _market = _bond.getMarket();
-			if (_market == IMarket(address(0x0)) || !_market.isForkingMarket()) {
+			if (_bond.balanceOf(_account) == 0) {
 				continue;
 			}
 			_data[_i].bond = _bond;
 			_data[_i].market = _market;
+			_data[_i].universe = _bond.universe();
 			_data[_i].amount = _bond.balanceOf(_account);
 			_data[_i].payoutNumerators = _bond.getPayoutNumerators();
 		}
-	}
-
-	// is batch version of for forkAndRedeem() of https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/reporting/DisputeCrowdsourcer.sol#L75
-	function forkAndRedeemReportingParticipants(IReportingParticipant[] memory _reportingParticipants, address _redeemFor) external returns (bool) {
-		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
-			_reportingParticipants[i].fork();
-			_reportingParticipants[i].redeem(_redeemFor);
-		}
-		return true;
 	}
 
 	// copied from here https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/AuditFunds.sol#L112
@@ -108,12 +102,13 @@ contract AugurExtraUtilities {
 	}
 
 	// copied from here https://github.com/AugurProject/augur/blob/dev/packages/augur-core/src/contracts/utility/RedeemStake.sol#L19 added custom redeem address
-	function redeemStake(IReportingParticipant[] memory _reportingParticipants, IDisputeWindow[] memory _disputeWindows, address _redeemFor) external returns (bool) {
-		for (uint256 i = 0; i < _reportingParticipants.length; i++) {
-			_reportingParticipants[i].redeem(_redeemFor);
+	function redeemStakeBatch(IReportingParticipant[] memory _redeem, IReportingParticipant[] memory _forkAndRedeem, address _redeemFor) external returns (bool) {
+		for (uint256 i = 0; i < _redeem.length; i++) {
+			_redeem[i].redeem(_redeemFor);
 		}
-		for (uint256 i = 0; i < _disputeWindows.length; i++) {
-			_disputeWindows[i].redeem(_redeemFor);
+		for (uint256 i = 0; i < _forkAndRedeem.length; i++) {
+			_forkAndRedeem[i].fork();
+			_forkAndRedeem[i].redeem(_redeemFor);
 		}
 		return true;
 	}
