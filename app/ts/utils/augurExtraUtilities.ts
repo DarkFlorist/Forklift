@@ -5,7 +5,8 @@ import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { MARKET_ABI } from '../ABI/MarketAbi.js'
 import { min } from './utils.js'
 import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContracts.js'
-import { addMarketDataToClaims, getUniverseInformation } from './augurContractUtils.js'
+import { addMarketDataToClaims, getBlock, getUniverseInformation } from './augurContractUtils.js'
+import { abortGuard, promiseAllMapAbortSafe } from './abortGuard.js'
 
 export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
@@ -18,30 +19,30 @@ export const isAugurExtraUtilitiesDeployed = async (readClient: ReadClient) => {
 	return deployedBytecode === `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.deployedBytecode.object }`
 }
 
-export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress) => {
+export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClient, account: AccountAddress, abortController: AbortController | undefined) => {
 	let offset = 0n
 	const pageSize = 30n
 	let pages: { market: `0x${ string }`, universe: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
 	do {
-		const page = await readClient.readContract({
+		const page = await abortGuard(abortController, () => readClient.readContract({
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getAvailableDisputesFromForkedMarkets',
 			address: getAugurExtraUtilitiesAddress(),
 			args: [DISPUTE_CROWDSOURCER_FACTORY_ADDRESS, account, offset, pageSize]
-		})
+		}))
 		pages.push(...page[0])
 		if (page[1]) break
 		offset += pageSize
 	} while(true)
 	const filteredPages = pages.filter((data) => data.amount > 0n)
 	const universes = Array.from(new Set(filteredPages.map((x) => x.universe)))
-	const universeInformations = await Promise.all(universes.map(async (universe) => await getUniverseInformation(readClient, universe, false)))
+	const universeInformations = await promiseAllMapAbortSafe(universes, async (universe) => await getUniverseInformation(readClient, universe, false, abortController))
 	const withUniverseData = filteredPages.map((page) => {
 		const universeData = universeInformations.find((information) => page.universe === information.universeAddress)
 		if (universeData === undefined) throw new Error('universe was not found')
 		return { ...page, universeData }
 	})
-	const withMarketData = await addMarketDataToClaims(readClient, withUniverseData.filter((page) => BigInt(page.market) !== 0n))
+	const withMarketData = await addMarketDataToClaims(readClient, withUniverseData.filter((page) => BigInt(page.market) !== 0n), abortController)
 	return [...withUniverseData.filter((page) => BigInt(page.market) === 0n).map((page) => ({ ...page, marketData: undefined })), ...withMarketData]
 }
 
@@ -54,25 +55,25 @@ export const redeemStakeBatch = async (writeClient: WriteClient, redem: readonly
 	})
 }
 
-export const getReportingParticipantsForMarket = async (readClient: ReadClient, market: AccountAddress) => {
+export const getReportingParticipantsForMarket = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
 	let offset = 0n
 	const pageSize = 30n
 	let pages: { size: bigint; stake: bigint; payoutNumerators: readonly bigint[]; }[] = []
-	const numParticipants = await readClient.readContract({
+	const numParticipants = await abortGuard(abortController, () => readClient.readContract({
 		abi: MARKET_ABI,
 		functionName: 'getNumParticipants',
 		address: market,
 		args: []
-	})
+	}))
 	do {
 		if (offset > numParticipants) return pages
 		const currentPageSize = min(numParticipants - offset, pageSize)
-		const page = await readClient.readContract({
+		const page = await abortGuard(abortController, () => readClient.readContract({
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getReportingParticipantsForMarket',
 			address: getAugurExtraUtilitiesAddress(),
 			args: [market, offset, currentPageSize]
-		})
+		}))
 		pages.push(...page[0].filter((page) => page.size > 0n || page.stake > 0n))
 		if (page[1]) break
 		offset += pageSize
@@ -86,7 +87,7 @@ type AggregatedData = {
 	payoutNumerators: readonly bigint[]
 }
 
-export const aggregateByPayoutDistribution = ( pages: { size: bigint; stake: bigint; payoutNumerators: readonly bigint[]; }[]): AggregatedData[] => {
+export const aggregateByPayoutDistribution = ( pages: { size: bigint, stake: bigint, payoutNumerators: readonly bigint[] }[]): AggregatedData[] => {
 	const map = new Map<string, AggregatedData>()
 	const payoutDistributionHash = (payoutNumerators: readonly bigint[]) => keccak256(encodePacked(['uint256[]'], [payoutNumerators]))
 	for (const page of pages) {
@@ -101,7 +102,7 @@ export const aggregateByPayoutDistribution = ( pages: { size: bigint; stake: big
 	return Array.from(map.values())
 }
 
-export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient) => (await readClient.getBlock()).timestamp
+export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient, abortController: AbortController | undefined) => (await getBlock(readClient, abortController)).timestamp
 
 export const claimTradingProceedsForMarkets = async (writeClient: WriteClient, markets: readonly AccountAddress[], shareHolder: AccountAddress) => {
 	return await writeClient.writeContract({

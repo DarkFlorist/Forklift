@@ -27,6 +27,7 @@ import { SendTransactionButton, TransactionStatus } from './SharedUI/SendTransac
 import { Settings } from './Settings/Settings.js'
 import { createReadClientFromConnection, createWriteClientFromConnection, priorityConnectSafeIfFailsConnectWindowEthereum } from './gnosisSafeWallet/safe.js'
 import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
+import { silenceChromeUnCaughtPromise } from './utils/abortGuard.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -185,6 +186,12 @@ const Time = ( { currentTimeInBigIntSeconds }: { currentTimeInBigIntSeconds: Rea
 
 const getLocalTimeInSeconds = () => BigInt(Math.floor(Date.now() / 1000))
 
+let refreshBalancesAbortController: AbortController | undefined = undefined
+let setUniverseIfValidAbortController: AbortController | undefined = undefined
+let fetchUniverseInfoAbortController: AbortController | undefined = undefined
+let updateForkValuesAbortController: AbortController | undefined = undefined
+let timeAbortController: AbortController | undefined = undefined
+
 export function App() {
 	const loadingAccount = useSignal<boolean>(false)
 	const maybeReadClient = useOptionalSignal<ReadClient>(undefined)
@@ -296,9 +303,13 @@ export function App() {
 
 	const refreshTime = async () => {
 		if (maybeReadClient.deepValue) {
+			if (timeAbortController !== undefined) timeAbortController.abort()
+			const abortController = new AbortController()
+			timeAbortController = abortController
 			try {
-				currentTimeInBigIntSeconds.value = await getCurrentBlockTimeInBigIntSeconds(maybeReadClient.deepValue)
+				currentTimeInBigIntSeconds.value = await getCurrentBlockTimeInBigIntSeconds(maybeReadClient.deepValue, abortController)
 			} catch(e: unknown) {
+				if (abortController.signal.aborted) return
 				showUnexpectedError(e)
 			}
 		} else {
@@ -325,14 +336,19 @@ export function App() {
 			showUnexpectedError(error)
 		}
 	}
-
 	const setUniverseIfValid = async () => {
 		const readClient = maybeReadClient.deepPeek()
 		if (readClient === undefined) return
 		if (selectedUniverse.deepValue === undefined) return
+
+		if (setUniverseIfValidAbortController !== undefined) setUniverseIfValidAbortController.abort()
+		const abortController = new AbortController()
+		setUniverseIfValidAbortController = abortController
 		try {
-			currentUniverse.deepValue = await getUniverseInformation(readClient, selectedUniverse.deepValue, true)
+			currentUniverse.deepValue = undefined
+			currentUniverse.deepValue = await getUniverseInformation(readClient, selectedUniverse.deepValue, true, abortController)
 		} catch(error: unknown) {
+			if (abortController.signal.aborted) return
 			showUnexpectedError(error)
 			currentUniverse.deepValue = undefined
 			selectedUniverse.deepValue = DEFAULT_UNIVERSE
@@ -409,23 +425,38 @@ export function App() {
 	const updateTokenBalances = async (writeClient: WriteClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (writeClient === undefined) return
 		if (reputationTokenAddress === undefined) return
+
+		if (refreshBalancesAbortController !== undefined) refreshBalancesAbortController.abort()
+		const abortController = new AbortController()
+		refreshBalancesAbortController = abortController
+
 		fetchingBalances.value = true
 		try {
-			const daiPromise = getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address)
-			const ethPromise = getEthereumBalance(writeClient, writeClient.account.address)
-			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address)
+			const daiPromise = silenceChromeUnCaughtPromise(getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, refreshBalancesAbortController))
+			const ethPromise = silenceChromeUnCaughtPromise(getEthereumBalance(writeClient, writeClient.account.address))
+			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address, refreshBalancesAbortController)
 			daiBalance.deepValue = await daiPromise
 			ethBalance.deepValue = await ethPromise
+		} catch(error: unknown) {
+			if (abortController.signal.aborted) return
 		} finally {
 			fetchingBalances.value = false
 		}
 	}
 
 	const fetchUniverseInfo = async (readClient: ReadClient | undefined, universeInformation: UniverseInformation | undefined) => {
-		universeForkingInformation.deepValue = undefined
 		if (readClient === undefined) return
 		if (universeInformation === undefined) return
-		universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation)
+		if (fetchUniverseInfoAbortController !== undefined) fetchUniverseInfoAbortController.abort()
+		const abortController = new AbortController()
+		fetchUniverseInfoAbortController = abortController
+		universeForkingInformation.deepValue = undefined
+		try {
+			universeForkingInformation.deepValue = await getUniverseForkingInformation(readClient, universeInformation, abortController)
+		} catch(error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
+		}
 	}
 
 	useSignalEffect(() => {
@@ -442,7 +473,16 @@ export function App() {
 	const updateForkValues = async (maybeReadClient: ReadClient | undefined, reputationTokenAddress: AccountAddress | undefined) => {
 		if (reputationTokenAddress === undefined) return
 		if (maybeReadClient === undefined) return
-		forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress)
+
+		if (updateForkValuesAbortController !== undefined) updateForkValuesAbortController.abort()
+		const abortController = new AbortController()
+		updateForkValuesAbortController = abortController
+		try {
+			forkValues.deepValue = await getForkValues(maybeReadClient, reputationTokenAddress, abortController)
+		} catch(error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
+		}
 	}
 
 	useSignalEffect(() => {

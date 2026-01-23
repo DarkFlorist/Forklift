@@ -17,6 +17,7 @@ import { CenteredBigSpinner } from '../../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTransactionButton.js'
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalBigintForInput, serializeAddressForInput } from '../../utils/inputParsing.js'
+import { promiseAllMapAbortSafe, silenceChromeUnCaughtPromise } from '../../utils/abortGuard.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -108,6 +109,8 @@ interface DisplayStakesProps {
 	universe: OptionalSignal<UniverseInformation>
 	pathSignal: Signal<string>
 }
+
+let fetchReportingHistoryAbortController: AbortController | undefined = undefined
 
 export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteClient, marketData, disputeWindowInfo, preemptiveDisputeCrowdsourcerStake, forkValues, refreshData, repBalance }: DisplayStakesProps) => {
 	const selectedOutcome = useSignal<string | null>(null)
@@ -345,10 +348,16 @@ export const ReportingHistory = ({ maybeReadClient, reportingHistory, marketData
 		reportingHistory.value = []
 		if (currentMarketData === undefined) throw new Error('missing reporting history')
 		if (maybeReadClient.deepValue === undefined) throw new Error('missing client')
-		if (!(currentMarketData.reportingState === 'PreReporting'
-			|| currentMarketData.reportingState === 'OpenReporting'
-			|| currentMarketData.reportingState === 'DesignatedReporting')) {
-			reportingHistory.value = await getReportingHistory(maybeReadClient.deepValue, currentMarketData.marketAddress, currentMarketData.disputeRound)
+		if ((currentMarketData.reportingState === 'PreReporting' || currentMarketData.reportingState === 'OpenReporting' || currentMarketData.reportingState === 'DesignatedReporting')) return
+
+		if (fetchReportingHistoryAbortController !== undefined) fetchReportingHistoryAbortController.abort()
+		const abortController = new AbortController()
+		fetchReportingHistoryAbortController = abortController
+		try {
+			reportingHistory.value = await getReportingHistory(maybeReadClient.deepValue, currentMarketData.marketAddress, currentMarketData.disputeRound, abortController)
+		} catch (error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
 		}
 	}
 
@@ -398,6 +407,8 @@ interface ReportingProps {
 	pathSignal: Signal<string>
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
+
+let refreshDataAbortController: AbortController | undefined = undefined
 
 export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, repBalance, maybeReadClient, maybeWriteClient, universe, forkValues, currentTimeInBigIntSeconds, selectedMarket, showUnexpectedError, universeForkingInformation }: ReportingProps) => {
 	const marketData = useOptionalSignal<MarketData>(undefined)
@@ -463,21 +474,25 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 		if (selectedMarket === undefined) return
 		if (universe.deepValue === undefined) return
 		if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) return
+		if (refreshDataAbortController !== undefined) refreshDataAbortController.abort()
+		const abortController = new AbortController()
+		refreshDataAbortController = abortController
+
 		forkingMarketFinalized.deepValue = undefined
 		isMarketDisavowed.deepValue = undefined
 		winningUniverse.deepValue = undefined
 		loading.value = true
 		reportingHistory.value = []
 		try {
-			validAugurMarket.deepValue = await isValidAugurMarket(maybeReadClient, selectedMarket)
+			validAugurMarket.deepValue = await isValidAugurMarket(maybeReadClient, selectedMarket, abortController)
 			if (validAugurMarket.deepValue === false) return
-			const marketdataPromise = fetchMarketData(maybeReadClient, selectedMarket)
-			const disputeWindowAddressPromise = getDisputeWindow(maybeReadClient, selectedMarket)
-			const preemptiveDisputeCrowdsourcerAddressPromise = getPreemptiveDisputeCrowdsourcer(maybeReadClient, selectedMarket)
+			const marketdataPromise = silenceChromeUnCaughtPromise(fetchMarketData(maybeReadClient, selectedMarket, abortController))
+			const disputeWindowAddressPromise = silenceChromeUnCaughtPromise(getDisputeWindow(maybeReadClient, selectedMarket, abortController))
+			const preemptiveDisputeCrowdsourcerAddressPromise = silenceChromeUnCaughtPromise(getPreemptiveDisputeCrowdsourcer(maybeReadClient, selectedMarket, abortController))
 			marketData.deepValue = await marketdataPromise
 			const currentMarketData = marketData.deepValue
 			const getAllInterestingPayoutNumerators = async() => {
-				const reportingParticipants = await getReportingParticipantsForMarket(maybeReadClient, currentMarketData.marketAddress)
+				const reportingParticipants = await getReportingParticipantsForMarket(maybeReadClient, currentMarketData.marketAddress, abortController)
 				switch (currentMarketData.marketType) {
 					case 'Categorical':
 					case 'Yes/No': {
@@ -494,9 +509,9 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 			}
 			if (showReporting.value) {
 				const allInterestingPayoutNumerators = await getAllInterestingPayoutNumerators()
-				const winningOutcome = await getWinningPayoutNumerators(maybeReadClient, selectedMarket)
+				const winningOutcome = await getWinningPayoutNumerators(maybeReadClient, selectedMarket, abortController)
 				const winningIndex = winningOutcome === undefined ? -1 : allInterestingPayoutNumerators.findIndex((outcome) => areEqualArrays(outcome.payoutNumerators, winningOutcome))
-				outcomeStakes.deepValue = await Promise.all(allInterestingPayoutNumerators.map(async (info, index) => {
+				outcomeStakes.deepValue = await promiseAllMapAbortSafe(allInterestingPayoutNumerators, async (info, index) => {
 					const payoutNumerators = info.payoutNumerators
 					const payoutHash = EthereumQuantity.parse(derivePayoutDistributionHash(payoutNumerators, currentMarketData.numTicks, currentMarketData.numOutcomes))
 					return {
@@ -504,19 +519,19 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 						repStake: info.stake,
 						status: index === winningIndex ? 'Winning' : (winningIndex === -1 ? 'Tie' : 'Losing'),
 						payoutNumerators,
-						alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(maybeReadClient, currentMarketData.marketAddress, payoutHash))?.stake,
+						alreadyContributedToOutcomeStake: (await getCrowdsourcerInfoByPayoutNumerator(maybeReadClient, currentMarketData.marketAddress, payoutHash, abortController))?.stake,
 						universe: undefined
 					}
-				}))
+				})
 				const disputeWindowAddress = await disputeWindowAddressPromise
 				if (EthereumAddress.parse(disputeWindowAddress) !== 0n) {
-					disputeWindowInfo.deepValue = await getDisputeWindowInfo(maybeReadClient, disputeWindowAddress)
+					disputeWindowInfo.deepValue = await getDisputeWindowInfo(maybeReadClient, disputeWindowAddress, abortController)
 				} else {
 					disputeWindowInfo.deepValue = undefined
 				}
 				preemptiveDisputeCrowdsourcerAddress.deepValue = await preemptiveDisputeCrowdsourcerAddressPromise
 				if (EthereumAddress.parse(preemptiveDisputeCrowdsourcerAddress.deepValue) !== 0n) {
-					preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(maybeReadClient, preemptiveDisputeCrowdsourcerAddress.deepValue)
+					preemptiveDisputeCrowdsourcerStake.deepValue = await getStakeOfReportingParticipant(maybeReadClient, preemptiveDisputeCrowdsourcerAddress.deepValue, abortController)
 				} else {
 					preemptiveDisputeCrowdsourcerStake.deepValue = undefined
 				}
@@ -527,22 +542,25 @@ export const Reporting = ({ pathSignal, isAugurExtraUtilitiesDeployedSignal, upd
 			}
 
 			if (currentMarketData.reportingState === 'Forking') {
-				const forkingMarketPromise = isMarketFinalized(maybeReadClient, selectedMarket)
-				const winningUniverseAddress = await getWinningChildUniverse(maybeReadClient, currentMarketData.universe.universeAddress)
+				const forkingMarketPromise = silenceChromeUnCaughtPromise(isMarketFinalized(maybeReadClient, selectedMarket, abortController))
+				const winningUniverseAddress = await getWinningChildUniverse(maybeReadClient, currentMarketData.universe.universeAddress, abortController)
 				if (winningUniverseAddress !== undefined && BigInt(winningUniverseAddress) !== 0n) {
-					winningUniverse.deepValue = await getUniverseInformation(maybeReadClient, winningUniverseAddress, false)
+					winningUniverse.deepValue = await getUniverseInformation(maybeReadClient, winningUniverseAddress, false, abortController)
 				} else {
 					winningUniverse.deepValue = undefined
 				}
 				forkingMarketFinalized.deepValue = await forkingMarketPromise
 
 				if (universeForkingInformation.deepValue?.isForking === false) {
-					universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeReadClient, universe.deepValue)
+					universeForkingInformation.deepValue = await getUniverseForkingInformation(maybeReadClient, universe.deepValue, abortController)
 				}
 			} else {
 				forkingMarketFinalized.deepValue = false
 				winningUniverse.deepValue = undefined
 			}
+		} catch (error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
 		} finally {
 			loading.value = false
 		}
