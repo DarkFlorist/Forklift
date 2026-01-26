@@ -3,7 +3,7 @@ import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { getPayoutNumeratorsFromScalarOutcome, getScalarOutcomeName, getTradeInterval, requiredStake } from '../utils/augurUtils.js'
-import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString, bigintToRoundedDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
 import { OutcomeStake } from './YesNoCategoricalMarketReportingOutcomes.js'
 import { UniverseLink } from './links.js'
@@ -95,7 +95,7 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 					} }
 					serialize = { (amount: NonHexBigInt | undefined) => {
 						if (amount === undefined) return ''
-						return bigintToDecimalString(amount, 18n, 18)
+						return bigintToRoundedDecimalString(amount, 18n, 18)
 					} }
 				/>
 				<div class = 'unit'> { unit.value } </div>
@@ -144,17 +144,17 @@ export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsour
 		outcomeStakes.deepValue.map((outcomeStake) => <div class = 'reporting-round'>
 			<span><b>Option: { outcomeStake.outcomeName } ({ outcomeStake.status })</b></span>
 			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
-				<span>Stake: { bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
+				<span>Stake: { bigintToRoundedDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
 				<span>
 					{ outcomeStake.status === 'Winning'
-						? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
-						: `Required for Dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
+						? `Prestaked: ${ bigintToRoundedDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
+						: `Required for Dispute: ${ bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
 					}
 				</span>
 			</> }
 			<span>
 				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
-				(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
+				(Already contributed: { bigintToRoundedDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
 				</> }
 			</span>
 		</div>)

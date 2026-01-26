@@ -1,6 +1,7 @@
 import { getBalance } from 'viem/actions'
 import { AccountAddress } from '../types/types.js'
 import { ReadClient } from './ethereumWallet.js'
+import { abs } from './utils.js'
 
 export const addressString = (address: bigint): `0x${ string }` => `0x${ address.toString(16).padStart(40, '0') }`
 export const bytes32String = (bytes32: bigint): `0x${ string }` => `0x${ bytes32.toString(16).padStart(64, '0') }`
@@ -43,27 +44,44 @@ export function decimalStringToBigint(value: string, power: bigint): bigint {
 	return BigInt(`${ integerPart }${ fractionalPart }`)
 }
 
-export function bigintToDecimalString(value: bigint, power: bigint, maxDecimals?: number): string {
-	const integerPart = value / 10n ** power
-	const fractionalPart = value % 10n ** power
-	if (fractionalPart === 0n) return integerPart.toString(10)
-	const rawFractionalStr = fractionalPart.toString(10).padStart(Number(power), '0')
-	const trimmedFractionalStr = maxDecimals !== undefined ? rawFractionalStr.slice(0, maxDecimals) : rawFractionalStr
-	const finalFractionalStr = trimmedFractionalStr.replace(/0+$/, '')
-	if (finalFractionalStr === '') return integerPart.toString(10)
-	return `${ integerPart.toString(10) }.${ finalFractionalStr }`
+export function bigintToDecimalString(value: bigint, power: bigint) {
+	const integerPart = abs(value / 10n ** power)
+	const fractionalPart = abs(value % 10n ** power)
+	const sign = value < 0n ? '-' : ''
+	if (fractionalPart === 0n) return `${ sign }${ integerPart.toString(10) }`
+	return `${ sign }${ integerPart.toString(10) }.${ fractionalPart.toString(10).padStart(Number(power), '0').replace(/0+$/, '') }`
 }
 
-export function bigintToDecimalStringWithUnknown(value: bigint | undefined, power: bigint, maxDecimals?: number): string {
-	return value === undefined ? '?' : bigintToDecimalString(value, power, maxDecimals)
+export function bigintToRoundedDecimalString(value: bigint, power: bigint, maxDecimals: number, roundUp?: boolean): string {
+	if (maxDecimals >= Number(power)) return bigintToDecimalString(value, power)
+
+	const isNegative = value < 0n
+	let absoluteValue = isNegative ? -value : value
+
+	const decimalsToDrop = power - BigInt(maxDecimals)
+	const dropFactor = 10n ** decimalsToDrop
+
+	if (roundUp === true) {
+		const roundingIncrement = dropFactor / 2n
+		absoluteValue = absoluteValue + roundingIncrement
+	}
+
+	const roundedValue = absoluteValue / dropFactor * dropFactor
+	const signedRoundedValue = isNegative ? -roundedValue : roundedValue
+
+	return bigintToDecimalString(signedRoundedValue, power)
+}
+
+export function bigintToRoundedDecimalStringWithUnknown(value: bigint | undefined, power: bigint, maxDecimals: number, roundUp?: boolean): string {
+	return value === undefined ? '?' : bigintToRoundedDecimalString(value, power, maxDecimals, roundUp)
 }
 
 export const isPracticallyInfinite = (value: bigint, power: bigint) => value / (10n ** power) > 2 ** 100
 
-export function bigintToDecimalStringWithUnknownAndPracticallyInfinite(value: bigint | undefined, power: bigint, maxDecimals?: number): string {
+export function bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite(value: bigint | undefined, power: bigint, maxDecimals: number): string {
 	if (value === undefined) return '?'
 	if (isPracticallyInfinite(value, power)) return 'Practically Infinite'
-	return bigintToDecimalString(value, power, maxDecimals)
+	return bigintToRoundedDecimalString(value, power, maxDecimals)
 }
 
 export const formatUnixTimestampIso = (timestamp: bigint): string => {

@@ -9,7 +9,7 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
-import { addressString, bigintToDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
+import { addressString, bigintToRoundedDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getRepTokenName, getUniverseName } from './utils/augurUtils.js'
 import { getForkValues, getUniverseForkingInformation, getUniverseInformation } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
@@ -106,9 +106,9 @@ interface WalletBalancesProps {
 
 const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe, fetching }: WalletBalancesProps) => {
 	const balances = []
-	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
-	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(repBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) }`)
-	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
+	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
+	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(repBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) }`)
+	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
 
 	return <div class = 'wallet-balances'>
 		{ balances.map((balance, i) => (

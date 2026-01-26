@@ -1,7 +1,7 @@
 import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity, UniverseInformation } from '../types/types.js'
-import { bigintToDecimalString } from '../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { createChildUniverse, getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 import { MarketData } from './Market.js'
@@ -63,11 +63,11 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketD
 					<b>{ outcomeStake.outcomeName }</b>
 					{ totalStake.value !== 0n && (
 						<>
-							<span>{ bigintToDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
+							<span>{ bigintToRoundedDecimalString(outcomeStake.repStake, 18n, 2, true) } { universe.value.repTokenName }</span>
 							<span>
 								{ outcomeStake.status === 'Winning'
-									? `Prestaked: ${ bigintToDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
-									: `Required for dispute: ${ bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
+									? `Prestaked: ${ bigintToRoundedDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2, true) } ${ universe.value.repTokenName }`
+									: `Required for dispute: ${ bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2, true) } ${ universe.value.repTokenName }`
 								}
 							</span>
 						</>
@@ -75,7 +75,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketD
 
 					{ outcomeStake.alreadyContributedToOutcomeStake !== undefined && (
 						<span class = 'outcome-contrib'>
-							(Already contributed: { bigintToDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
+							(Already contributed: { bigintToRoundedDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2, true) } { universe.value.repTokenName } / { bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2, true) } { universe.value.repTokenName })
 						</span>
 					)}
 				</div>
