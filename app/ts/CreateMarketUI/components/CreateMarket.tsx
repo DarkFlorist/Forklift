@@ -183,6 +183,7 @@ interface CreateYesNoMarketProps {
 	updateTokenBalancesSignal: Signal<number>
 	showUnexpectedError: (error: unknown) => void
 	pathSignal: Signal<string>
+	currentTimeInBigIntSeconds: Signal<bigint>
 }
 
 const affiliateFeeOptions = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map((divisor) => ({
@@ -213,7 +214,7 @@ const getNumberOfOutcomesToName = (outcomeOption: typeof outcomeOptions[number])
 	}
 }
 
-export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError, pathSignal }: CreateYesNoMarketProps) => {
+export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError, pathSignal, currentTimeInBigIntSeconds }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<Date | undefined>(undefined)
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
 	const affiliateValidator = useOptionalSignal<AccountAddress>('0x0000000000000000000000000000000000000000')
@@ -261,15 +262,16 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	const createMarketIssue = useComputed(() => {
 		if (endTime.value === undefined) return 'Market end date has not been set'
 		const seconds = dateToBigintSeconds(endTime.value)
-		if (maximumMarketEndData.deepValue === undefined) return 'End Date has not been fetch'
-		if (seconds > maximumMarketEndData.deepValue) return 'Market End data is too far in future'
+		if (maximumMarketEndData.deepValue === undefined) return 'End date has not been fetch'
+		if (seconds > maximumMarketEndData.deepValue) return 'Market end data is too far in future'
+		if (currentTimeInBigIntSeconds.value > seconds) return 'Market end data is in past'
 		if (affiliateValidator.deepValue === undefined) return 'Affiliate validator is missing'
 		if (affiliateFeeDivisor.deepValue === undefined) return 'Affiliate fee divisor is missing'
 		if (designatedReporterAddress.deepValue === undefined) return 'Designated reporter is missing'
-		if (description.value.length === 0) return 'Description is empty'
-		if (longDescription.value.length === 0) return 'Long Description is empty'
-		if (marketCreationCostRep.deepValue === undefined) return 'Market Creation Cost Rep is missing'
-		if (marketCreationCostDai.deepValue === undefined) return 'Market Creation Cost Dai is missing'
+		if (description.value.length === 0) return 'Title is missing'
+		if (longDescription.value.length === 0) return 'Long description is empty'
+		if (marketCreationCostRep.deepValue === undefined) return 'Market creation cost REP is missing'
+		if (marketCreationCostDai.deepValue === undefined) return 'Market creation cost DAI is missing'
 		if (allowedRep.deepValue === undefined) return 'Could not fetch allowed REP'
 		if (allowedDai.deepValue === undefined) return 'Could not fetch allowed Dai'
 		if (allowedRep.deepValue < marketCreationCostRep.deepValue) return 'REP Allowance is not high enough'
