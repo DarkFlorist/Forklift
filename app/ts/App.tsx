@@ -222,8 +222,8 @@ export function App() {
 		{ title: '404', path: '404', component: <PageNotFound/>, hide: true },
 		{ title: 'Market Creation', path: 'market-creation', component: <CreateYesNoMarket universeForkingInformation = { universeForkingInformation } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } repBalance = { repBalance } daiBalance = { daiBalance } showUnexpectedError = { showUnexpectedError } pathSignal = { pathSignal }/>, hide: false },
 		{ title: 'Reporting', path: 'reporting', component: <Reporting pathSignal = { pathSignal } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } repBalance = { repBalance } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } forkValues = { forkValues } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } selectedMarket = { selectedMarket } showUnexpectedError = { showUnexpectedError } universeForkingInformation = { universeForkingInformation }/>, hide: false },
-		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } universeForkingInformation = { universeForkingInformation } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
-		{ title: 'Universe Migration', path: 'migration', component: <Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Claim Funds', path: 'claim-funds', component: <ClaimFunds universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
+		{ title: 'Universe Migration', path: 'migration', component: <Migration isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } universe = { currentUniverse } universeForkingInformation = { universeForkingInformation } pathSignal = { pathSignal } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Rep V1 Migration', path: 'rep-v1-migration', component: <RepV1Migration updateTokenBalancesSignal = { updateTokenBalancesSignal } maybeReadClient = { maybeReadClient } maybeWriteClient = { maybeWriteClient } showUnexpectedError = { showUnexpectedError }/>, hide: false },
 		{ title: 'Settings', path: 'settings', component: <Settings/>, hide: false }
 	] as const
@@ -505,9 +505,9 @@ export function App() {
 				</a>
 			</div>
 			<nav class = 'footer-links'>
-				<a href = 'https://discord.gg/BeFnJA5Kjb' target = '_blank'>Discord</a>
-				<a href = 'https://twitter.com/DarkFlorist' target = '_blank'>Twitter</a>
-				<a href = 'https://github.com/DarkFlorist' target = '_blank'>GitHub</a>
+				<a href = 'https://discord.gg/aNBTq55' target = '_blank'>Augur Discord</a>
+				<a href = 'https://x.com/AugurProject' target = '_blank'>Augur X</a>
+				<a href = 'https://github.com/DarkFlorist/Forklift' target = '_blank'>ForkLift GitHub</a>
 			</nav>
 		</footer>
 	</main>
