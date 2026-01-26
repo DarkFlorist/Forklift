@@ -3,7 +3,7 @@ import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategorica
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { bigintToDecimalStringWithUnknown, bigintToDecimalStringWithUnknownAndPracticallyInfinite, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalStringWithUnknown, bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { currentDateInAYear, dateToBigintSeconds, formatDateForDatetimeLocal, isNumeric } from '../../utils/utils.js'
@@ -87,15 +87,15 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 	})
 
 	const daiAllowance = useComputed(() => {
-		const daiAmount = bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2)
-		const required = bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true)
+		const daiAmount = bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2)
+		const required = bigintToRoundedDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true)
 		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedDai.deepValue, marketCreationCostDai.deepValue) }` }>Allowed <b>{ daiAmount }</b> DAI (required: { required }) </p>
 	})
 
 	const repAllowance = useComputed(() => {
-		const repAmount = bigintToDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2)
+		const repAmount = bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2)
 		const repTokenName = getRepTokenName(universe.deepValue?.repTokenName)
-		const required = bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true)
+		const required = bigintToRoundedDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true)
 		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedRep.deepValue, marketCreationCostRep.deepValue) }` }>Allowed <b>{ repAmount }</b> { repTokenName } (required: { required }) </p>
 	})
 
@@ -109,7 +109,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					class = 'input reporting-panel-input'
 					type = 'text'
 					placeholder = { '' }
-					style = { { maxWidth: '300px' } }
+					style = { { maxWidth: '100px' } }
 					value = { daiAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
 					tryParse = { parse18DecimalBigintForInput }
@@ -134,7 +134,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 					class = 'input reporting-panel-input'
 					type = 'text'
 					placeholder = ''
-					style = { { maxWidth: '300px' } }
+					style = { { maxWidth: '100px' } }
 					value = { repAllowanceToBeSet }
 					sanitize = { (amount: string) => amount.trim() }
 					tryParse = { parse18DecimalBigintForInput }
@@ -166,10 +166,10 @@ interface CostsParams {
 }
 
 export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationGasCost, universe }: CostsParams) => {
-	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6, true))
+	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToRoundedDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6, true))
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <p>
-		It costs <b> { ethCost.value } ETH (gas fee)</b>, <b>{ bigintToDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true) } DAI </b> and <b>{ bigintToDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
+		It costs <b> { ethCost.value } ETH</b> (gas cost), <b>{ bigintToRoundedDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true) } DAI </b> and <b>{ bigintToRoundedDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
 }
 

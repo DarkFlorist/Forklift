@@ -1,6 +1,6 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
-import { bigintToDecimalString } from '../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation } from '../utils/augurContractUtils.js'
 import { claimTradingProceedsForMarkets, redeemStakeBatch } from '../utils/augurExtraUtilities.js'
@@ -48,7 +48,7 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
+					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToRoundedDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
 				</div>
 			</span>
 		})
@@ -88,7 +88,7 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 				/>
 				<div class = 'claim-info'>
 					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) }` }</span>
+					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToRoundedDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) }` }</span>
 				</div>
 			</span>
 		})
@@ -128,7 +128,7 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 				/>
 				<div class = 'claim-info'>
 					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToDecimalString(initialReport.amount, 18n, 2) } ${ getRepTokenName(initialReport.marketData.universe.repTokenName)} ` }</span>
+					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToRoundedDecimalString(initialReport.amount, 18n, 2) } ${ getRepTokenName(initialReport.marketData.universe.repTokenName)} ` }</span>
 				</div>
 			</span>
 		})
