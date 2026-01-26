@@ -1,6 +1,6 @@
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { contributeToMarketDispute, contributeToMarketDisputeOnTentativeOutcome, disavowCrowdsourcers, doInitialReport, fetchMarketData, finalizeMarket, getDisputeWindow, getDisputeWindowInfo, getForkValues, getPreemptiveDisputeCrowdsourcer, getReportingHistory, getStakeOfReportingParticipant, getWinningPayoutNumerators, migrateThroughOneFork, ReportingHistoryElement, getCrowdsourcerInfoByPayoutNumerator, derivePayoutDistributionHash, getWinningChildUniverse, isMarketFinalized, getUniverseInformation, isValidAugurMarket, getUniverseForkingInformation } from '../../utils/augurContractUtils.js'
-import { areEqualArrays, bigintToDecimalString } from '../../utils/ethereumUtils.js'
+import { areEqualArrays, bigintToRoundedDecimalString } from '../../utils/ethereumUtils.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress, EthereumAddress, EthereumQuantity, UniverseInformation } from '../../types/types.js'
 import { MarketOutcomeWithUniverse, MarketReportingOptionsForYesNoAndCategorical, OutcomeStake } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
@@ -292,10 +292,10 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 					<span class = 'unit'>{ getRepTokenName(universe.deepValue?.repTokenName)  }</span>
 					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
 						<>
-							<span style = 'white-space: nowrap'>/ { bigintToDecimalString(maxStakeAmount.value, 18n, 2, true) } { getRepTokenName(universe.deepValue?.repTokenName)  }</span>
+							<span style = 'white-space: nowrap'>/ { bigintToRoundedDecimalString(maxStakeAmount.value, 18n, 2, true) } { getRepTokenName(universe.deepValue?.repTokenName)  }</span>
 							<button class = 'button button-primary button-small' onClick = { setMaxStake }>Max</button>
 							{ marketData.deepValue?.repBond !== undefined && isInitialReporting.value && (
-								<span style = 'white-space: nowrap'>+ { bigintToDecimalString(marketData.deepValue.repBond, 18n, 2, true) } (initial reporter bond)</span>
+								<span style = 'white-space: nowrap'>+ { bigintToRoundedDecimalString(marketData.deepValue.repBond, 18n, 2, true) } (initial reporter bond)</span>
 							)}
 						</>
 					)}
@@ -308,7 +308,7 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 			sendTransaction = { handleReport }
 			maybeWriteClient = { maybeWriteClient }
 			disabled = { reportDisabled }
-			text = { useComputed(() => selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToDecimalString(amountInput.deepValue, 18n, 2, true) } ${ getRepTokenName(universe.deepValue?.repTokenName) }` : 'Report') }
+			text = { useComputed(() => selectedOutcomeName.value !== undefined && amountInput.deepValue !== undefined && !reportDisabled.value ? `Report "${ selectedOutcomeName.value }" for ${ bigintToRoundedDecimalString(amountInput.deepValue, 18n, 2, true) } ${ getRepTokenName(universe.deepValue?.repTokenName) }` : 'Report') }
 			callBackWhenIncluded = { refreshData }
 		/>
 		<p> Every non-prestaking and non-initial report that is decided to be correct will receive a 40% return in current or forked REP tokens once the dispute is resolved.</p>
@@ -367,8 +367,8 @@ export const ReportingHistory = ({ maybeReadClient, reportingHistory, marketData
 			return <div class = 'reporting-round'>
 				<span><b>{ round.type } Round { round.round }</b></span>
 				<span>Outcome: { outcomeName }</span>
-				<span>Stake: { bigintToDecimalString(round.stake, 18n, 2) } { repTokenName.value }</span>
-				<span>Size: { bigintToDecimalString(round.size, 18n, 2) } { repTokenName.value }</span>
+				<span>Stake: { bigintToRoundedDecimalString(round.stake, 18n, 2) } { repTokenName.value }</span>
+				<span>Size: { bigintToRoundedDecimalString(round.size, 18n, 2) } { repTokenName.value }</span>
 			</div>
 		})}
 
@@ -377,8 +377,8 @@ export const ReportingHistory = ({ maybeReadClient, reportingHistory, marketData
 		</LoadingButton>
 
 		<div class = 'reporting-summary'>
-			<span><b>Total { repTokenName.value } Staked:</b> { bigintToDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2, true) } { repTokenName.value }</span>
-			<span><b>Forking Augur After:</b> { bigintToDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2, true) } { repTokenName.value } staked within one round</span>
+			<span><b>Total { repTokenName.value } Staked:</b> { bigintToRoundedDecimalString(outcomeStakes.deepValue.reduce((current, prev) => prev.repStake + current, 0n), 18n, 2, true) } { repTokenName.value }</span>
+			<span><b>Forking Augur After:</b> { bigintToRoundedDecimalString(forkValues.deepValue.disputeThresholdForFork, 18n, 2, true) } { repTokenName.value } staked within one round</span>
 		</div>
 
 	</div>

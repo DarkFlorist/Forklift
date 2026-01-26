@@ -5,7 +5,7 @@ import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -139,7 +139,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 			['Universe Address', <EtherScanAddress address = { universeAddress } />],
 			...parentUniverse.deepValue === undefined ? [] : [['Parent Universe Address', <OptionalUniverseLink universe = { parentUniverse } pathSignal = { pathSignal }/> ]],
 			['Reputation Address For The Universe', <EtherScanAddress address = { reputationTokenAddress } />],
-			['Token supply and theoretical supply', `${ bigintToDecimalString(repSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } / ${ bigintToDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (${ bigintToDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2)}%)`],
+			['Token supply and theoretical supply', `${ bigintToRoundedDecimalString(repSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } / ${ bigintToRoundedDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (${ bigintToRoundedDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2) }%)`],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
 			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { forkingMarketAddress } pathSignal = { pathSignal }/>]],
 			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', <OptionalUniverseLink universe = { winningUniverse } pathSignal = { pathSignal }/>]],
@@ -173,7 +173,7 @@ export const Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWri
 		</span>
 	})
 
-	const migrateButtonText = useComputed(() => `Migrate ${ reputationToMigrate.deepValue === undefined ? '?' : bigintToDecimalString(reputationToMigrate.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`)
+	const migrateButtonText = useComputed(() => `Migrate ${ reputationToMigrate.deepValue === undefined ? '?' : bigintToRoundedDecimalString(reputationToMigrate.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } to the "${ selectedPayoutNumerators.deepValue === undefined || forkingMarketData.deepValue === undefined ? '?' : getOutcomeName(selectedPayoutNumerators.deepValue, forkingMarketData.deepValue) }" universe`)
 
 	const repName = useComputed(() => getRepTokenName(universeForkingInformation.deepValue?.universe.repTokenName))
 

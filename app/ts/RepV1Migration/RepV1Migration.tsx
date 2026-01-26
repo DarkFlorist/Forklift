@@ -4,7 +4,7 @@ import { migrateFromRepV1toRepV2GenesisToken } from '../utils/augurContractUtils
 import { approveErc20Token, getAllowanceErc20Token, getErc20TokenBalance } from '../utils/erc20.js'
 import { GENESIS_REPUTATION_V2_TOKEN_ADDRESS, REPUTATION_V1_TOKEN_ADDRESS } from '../utils/constants.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToDecimalString } from '../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
@@ -82,7 +82,7 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 
 	const repV1Info = useComputed(() => {
 		if (v1ReputationBalance.deepValue === undefined || v2ReputationBalance.deepValue === undefined) return <CenteredBigSpinner/>
-		return <Info text = { `You have ${ bigintToDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` } />
+		return <Info text = { `You have ${ bigintToRoundedDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToRoundedDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` } />
 	})
 
 	if (maybeWriteClient.deepValue === undefined) {
