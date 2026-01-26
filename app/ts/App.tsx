@@ -505,9 +505,9 @@ export function App() {
 				</a>
 			</div>
 			<nav class = 'footer-links'>
-				<a href = 'https://discord.gg/BeFnJA5Kjb' target = '_blank'>Discord</a>
-				<a href = 'https://twitter.com/DarkFlorist' target = '_blank'>Twitter</a>
-				<a href = 'https://github.com/DarkFlorist' target = '_blank'>GitHub</a>
+				<a href = 'https://discord.gg/aNBTq55' target = '_blank'>Augur Discord</a>
+				<a href = 'https://x.com/AugurProject' target = '_blank'>Augur X</a>
+				<a href = 'https://github.com/DarkFlorist/Forklift' target = '_blank'>ForkLift GitHub</a>
 			</nav>
 		</footer>
 	</main>
