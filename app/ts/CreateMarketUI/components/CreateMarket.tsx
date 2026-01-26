@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategoricalMarket, estimateGasCreateYesNoMarket, getCreatedMarketAddressFromTransactionhash, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
+import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategoricalMarket, estimateGasCreateYesNoMarket, getBlock, getCreatedMarketAddressFromTransactionhash, getMarketRepBondForNewMarket, getMaximumMarketEndDate, getUniverseForkingInformation, getValidityBond } from '../../utils/augurContractUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
@@ -61,13 +61,13 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 		return await approveErc20Token(writeClient, DAI_TOKEN_ADDRESS, AUGUR_CONTRACT, daiAllowanceToBeSet.deepValue)
 	}
 
-	const refreshBalances = async () => {
+	const refreshAllowances = async () => {
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
 		try {
-			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT)
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.deepValue.reputationTokenAddress, writeClient.account.address, universe.deepValue.universeAddress)
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT, undefined)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.deepValue.reputationTokenAddress, writeClient.account.address, universe.deepValue.universeAddress, undefined)
 		} catch(error: unknown) {
 			return showUnexpectedError(error)
 		}
@@ -126,7 +126,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { cannotSetDaiAllowance }
 				text = { useComputed(() => 'Set DAI allowance') }
-				callBackWhenIncluded = { refreshBalances }
+				callBackWhenIncluded = { refreshAllowances }
 			/>
 			{ repAllowance }
 			<div style = { { display: 'flex', alignItems: 'baseline', gap: '0.5em' } }>
@@ -151,7 +151,7 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 				maybeWriteClient = { maybeWriteClient }
 				disabled = { cannotSetRepAllowance }
 				text = { useComputed(() => `Set ${ getRepTokenName(universe.deepValue?.repTokenName) } allowance`) }
-				callBackWhenIncluded = { refreshBalances }
+				callBackWhenIncluded = { refreshAllowances }
 			/>
 		</div>
 	</div>
@@ -214,6 +214,9 @@ const getNumberOfOutcomesToName = (outcomeOption: typeof outcomeOptions[number])
 	}
 }
 
+let refreshAbortController: AbortController | undefined = undefined
+let estimateGasAbortController: AbortController | undefined = undefined
+
 export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, daiBalance, repBalance, showUnexpectedError, pathSignal, currentTimeInBigIntSeconds }: CreateYesNoMarketProps) => {
 	const endTime = useSignal<Date | undefined>(undefined)
 	const feePerCashInAttoCash = useOptionalSignal<bigint>(0n)
@@ -243,14 +246,22 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	const refresh = async (readClient: ReadClient | undefined, writeClient: WriteClient | undefined, universe: UniverseInformation | undefined) => {
 		if (isUniverseForking.value != false) return
 		if (readClient === undefined) return
-		baseFee.deepValue = (await readClient.getBlock()).baseFeePerGas || undefined
-		maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient)
-		if (universe === undefined) return
-		marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress)
-		marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress)
-		if (writeClient === undefined) return
-		allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress)
-		allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT)
+		if (refreshAbortController !== undefined) refreshAbortController.abort()
+		const abortController = new AbortController()
+		refreshAbortController = abortController
+		try {
+			baseFee.deepValue = (await getBlock(readClient, abortController)).baseFeePerGas || undefined
+			maximumMarketEndData.deepValue = await getMaximumMarketEndDate(readClient, abortController)
+			if (universe === undefined) return
+			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress, abortController)
+			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress, abortController)
+			if (writeClient === undefined) return
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress, abortController)
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT, abortController)
+		} catch(error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
+		}
 	}
 
 	useEffect(() => {
@@ -382,17 +393,22 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 				const readClient = maybeReadClient.deepPeek()
 				if (readClient === undefined) return
 				if (marketEndTimeUnixTimeStamp === undefined) return
+
+				if (estimateGasAbortController !== undefined) estimateGasAbortController.abort()
+				const abortController = new AbortController()
+				estimateGasAbortController = abortController
 				try {
 					if (marketTypeWithNumberOfOutcomes.value === 'yes-no') {
-				    	marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString)
+				    	marketCreationGasCost.deepValue = await estimateGasCreateYesNoMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, extraInfoString, abortController)
 					} else {
 						const outcomesToName = getNumberOfOutcomesToName(marketTypeWithNumberOfOutcomes.value)
 						for (let i = 0; i < outcomesToName; i++) {
 							if (outcomeName[i]?.deepValue === undefined || outcomeName[i]?.deepValue?.length === 0) return
 						}
-						marketCreationGasCost.deepValue = await estimateGasCreateCategoricalMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, getOutComeNamesArray(), extraInfoString)
+						marketCreationGasCost.deepValue = await estimateGasCreateCategoricalMarket(universe.deepValue.universeAddress, readClient, marketEndTimeUnixTimeStamp, feePerCashInAttoCashValue, affiliateValidatorValue, BigInt(affiliateFeeDivisorValue), designatedReporterAddressValue, getOutComeNamesArray(), extraInfoString, abortController)
 					}
 				} catch(error: unknown) {
+					if (abortController.signal.aborted) return
 					marketCreationGasCost.deepValue = undefined
 					if (error instanceof ContractFunctionExecutionError) return
 					showUnexpectedError(error)

@@ -19,6 +19,7 @@ import { useState } from 'preact/hooks'
 import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalBigintForInput, serializeAddressForInput } from '../../utils/inputParsing.js'
 import { getAvailableDisputesFromForkedMarkets, redeemStakeBatch } from '../../utils/augurExtraUtilities.js'
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
+import { promiseAllMapAbortSafe } from '../../utils/abortGuard.js'
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
 	forkingMarketData: OptionalSignal<MarketData>
@@ -105,6 +106,9 @@ interface MigrationProps {
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
 }
 
+let updateDataAbortController: AbortController | undefined = undefined
+let queryAvailableClaimsAbortController: AbortController | undefined = undefined
+
 export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, universe, universeForkingInformation, pathSignal, currentTimeInBigIntSeconds, showUnexpectedError }: MigrationProps) => {
 	const reputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const forkingOutcomeStakes = useOptionalSignal<readonly MarketOutcomeWithUniverse[]>(undefined)
@@ -160,15 +164,18 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 		claimForAddress.value
 		clearData()
 	})
-
 	const update = async (readClient: ReadClient | undefined ) => {
 		if (readClient === undefined) return
 		if (universe.deepValue === undefined) return
 		if (universeForkingInformation.deepValue === undefined) return
+
+		if (updateDataAbortController !== undefined) updateDataAbortController.abort()
+		const abortController = new AbortController()
+		updateDataAbortController = abortController
 		loading.value = true
 		try {
 			if (readClient.account?.address !== undefined) {
-				reputationBalance.deepValue = await getErc20TokenBalance(readClient, universe.deepValue.reputationTokenAddress, readClient.account.address)
+				reputationBalance.deepValue = await getErc20TokenBalance(readClient, universe.deepValue.reputationTokenAddress, readClient.account.address, abortController)
 			} else {
 				reputationBalance.deepValue = 0n
 			}
@@ -176,34 +183,37 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 				// retrieve v1 balance only for genesis universe as its only relevant there
 				parentUniverse.deepValue = undefined
 			} else if (universe.deepValue !== undefined) {
-				parentUniverse.deepValue = await getUniverseInformation(readClient, await getParentUniverse(readClient, universe.deepValue.universeAddress), false)
+				parentUniverse.deepValue = await getUniverseInformation(readClient, await getParentUniverse(readClient, universe.deepValue.universeAddress, abortController), false, abortController)
 			}
 			if (universeForkingInformation.deepValue?.isForking) {
-				const forkingMarket = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket)
+				const forkingMarket = await fetchMarketData(readClient, universeForkingInformation.deepValue.forkingMarket, abortController)
 				forkingMarketData.deepValue = forkingMarket
 				const outcomeStakes = getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket(forkingMarketData.deepValue.marketType, forkingMarketData.deepValue.numOutcomes, forkingMarketData.deepValue.numTicks, forkingMarketData.deepValue.outcomes)
-				forkingOutcomeStakes.deepValue = await Promise.all(outcomeStakes.map(async (outcomeStakes) => {
-					const childUniverse = await getChildUniverse(readClient, forkingMarket.universe.universeAddress, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes)
+				forkingOutcomeStakes.deepValue = await promiseAllMapAbortSafe(outcomeStakes, async (outcomeStakes) => {
+					const childUniverse = await getChildUniverse(readClient, forkingMarket.universe.universeAddress, outcomeStakes.payoutNumerators, forkingMarket.numTicks, forkingMarket.numOutcomes, abortController)
 					return {
 						...outcomeStakes,
-						universe: BigInt(childUniverse) === 0x0n ? undefined : await getUniverseInformation(readClient, childUniverse, false)
+						universe: BigInt(childUniverse) === 0x0n ? undefined : await getUniverseInformation(readClient, childUniverse, false, abortController)
 					}
-				}))
+				})
 
-				forkValues.deepValue = await getForkValues(readClient, universe.deepValue.reputationTokenAddress)
-				disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket)
+				forkValues.deepValue = await getForkValues(readClient, universe.deepValue.reputationTokenAddress, abortController)
+				disputeWindowAddress.deepValue = await getDisputeWindow(readClient, universeForkingInformation.deepValue.forkingMarket, abortController)
 				if (EthereumAddress.parse(disputeWindowAddress.deepValue) !== 0n) {
-					disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue)
+					disputeWindowInfo.deepValue = await getDisputeWindowInfo(readClient, disputeWindowAddress.deepValue, abortController)
 				}
-				const winningUniverseAddress = await getWinningChildUniverse(readClient, universe.deepValue.universeAddress)
+				const winningUniverseAddress = await getWinningChildUniverse(readClient, universe.deepValue.universeAddress, abortController)
 				if (winningUniverseAddress !== undefined && BigInt(winningUniverseAddress) !== 0x0n) {
-					winningUniverse.deepValue =  await getUniverseInformation(readClient, winningUniverseAddress, false)
+					winningUniverse.deepValue =  await getUniverseInformation(readClient, winningUniverseAddress, false, abortController)
 				} else {
 					winningUniverse.deepValue = undefined
 				}
 			}
-			repTotalTheoreticalSupply.deepValue = await getReputationTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress)
-			repSupply.deepValue = await getTotalSupply(readClient, universe.deepValue.reputationTokenAddress)
+			repTotalTheoreticalSupply.deepValue = await getReputationTotalTheoreticalSupply(readClient, universe.deepValue.reputationTokenAddress, abortController)
+			repSupply.deepValue = await getTotalSupply(readClient, universe.deepValue.reputationTokenAddress, abortController)
+		} catch (error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
 		} finally {
 			loading.value = false
 		}
@@ -289,15 +299,20 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 	const isLoadingDisputeCrowdSourcers = useSignal<boolean>(false)
 	const queryAvailableClaimsFromForkingDisputeCrowdSourcers = async () => {
 		const readClient = maybeReadClient.deepValue
-		isLoadingDisputeCrowdSourcers.value = true
-		selectedForkedCrowdSourcers.value = []
-		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
 		if (readClient === undefined) return
 		if (claimForAddress.value === undefined) return
 		if (universeForkingInformation.deepValue === undefined) return
+
+		if (queryAvailableClaimsAbortController !== undefined) queryAvailableClaimsAbortController.abort()
+		const abortController = new AbortController()
+		queryAvailableClaimsAbortController = abortController
+
+		selectedForkedCrowdSourcers.value = []
+		availableClaimsFromForkingDisputeCrowdSourcers.deepValue = undefined
+		isLoadingDisputeCrowdSourcers.value = true
 		try {
 			if (isAugurExtraUtilitiesDeployedSignal.deepValue !== true) throw new Error('extra utils not deployed')
-			const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, claimForAddress.value)
+			const disputesClaims = await getAvailableDisputesFromForkedMarkets(readClient, claimForAddress.value, abortController)
 			availableClaimsFromForkingDisputeCrowdSourcers.deepValue = disputesClaims
 				.filter((data) => data.universe === universeForkingInformation.deepValue?.universe.universeAddress)
 			if (hasForkEnded(universeForkingInformation.deepValue, currentTimeInBigIntSeconds.value)) {
@@ -305,7 +320,8 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 				availableClaimsFromForkingDisputeCrowdSourcers.deepValue =
 					availableClaimsFromForkingDisputeCrowdSourcers.deepValue.filter((data) => BigInt(data.market) === 0x0n )
 			}
-		} catch(error: unknown) {
+		} catch (error: unknown) {
+			if (abortController.signal.aborted) return
 			showUnexpectedError(error)
 		} finally {
 			isLoadingDisputeCrowdSourcers.value = false

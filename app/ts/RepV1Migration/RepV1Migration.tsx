@@ -26,6 +26,8 @@ const Info = ({ text }: { text: string }) => {
 	</div>
 }
 
+let updateAbortController: AbortController | undefined = undefined
+
 export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, showUnexpectedError }: RepV1MigrationProps) => {
 	const v2ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
 	const v1ReputationBalance = useOptionalSignal<EthereumQuantity>(undefined)
@@ -40,9 +42,18 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 		if (readClient === undefined) return
 		if (readClient.account?.address === undefined) return
 		isRepV1ApprovedForMigration.deepValue = undefined
-		v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readClient.account.address)
-		v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address)
-		isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS) >= v1ReputationBalance.deepValue
+
+		if (updateAbortController !== undefined) updateAbortController.abort()
+		const abortController = new AbortController()
+		updateAbortController = abortController
+		try {
+			v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readClient.account.address, abortController)
+			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, abortController)
+			isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, abortController) >= v1ReputationBalance.deepValue
+		} catch (error: unknown) {
+			if (abortController.signal.aborted) return
+			throw error
+		}
 	}
 
 	const migrateFromRepV1toRepV2GenesisTokenButton = async () => {

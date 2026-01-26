@@ -153,6 +153,9 @@ interface ClaimFundsProps {
 	universeForkingInformation: OptionalSignal<Awaited<ReturnType<typeof getUniverseForkingInformation>>>
 }
 
+let queryShareDataAbortController: AbortController | undefined = undefined
+let queryDisputesAndreportsAbortController: AbortController | undefined = undefined
+
 export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWriteClient, pathSignal, showUnexpectedError, universeForkingInformation }: ClaimFundsProps) => {
 	const availableShareData = useOptionalSignal<Awaited<ReturnType<typeof getAvailableShareData>>>(undefined)
 	const availableDisputes = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputes>>>(undefined)
@@ -205,10 +208,14 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 			const readClient = maybeReadClient.deepValue
 			if (readClient === undefined) return
 			if (claimForAddress.value === undefined) return
+			if (queryShareDataAbortController !== undefined) queryShareDataAbortController.abort()
+			const abortController = new AbortController()
+			queryShareDataAbortController = abortController
 			isLoadingShareData.value = true
 			try {
-				availableShareData.deepValue = (await getAvailableShareData(readClient, claimForAddress.value))
+				availableShareData.deepValue = (await getAvailableShareData(readClient, claimForAddress.value, abortController))
 			} catch(error: unknown) {
+				if (abortController.signal.aborted) return
 				showUnexpectedError(error)
 			} finally {
 				isLoadingShareData.value = false
@@ -219,17 +226,22 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 		const isLoadingDisputesAndReports = useSignal<boolean>(false)
 		const queryDisputesAndReports = async () => {
 			const readClient = maybeReadClient.deepValue
+			if (readClient === undefined) return
+			if (claimForAddress.value === undefined) return
+
+			if (queryDisputesAndreportsAbortController !== undefined) queryDisputesAndreportsAbortController.abort()
+			const abortController = new AbortController()
+			queryDisputesAndreportsAbortController = abortController
+			isLoadingDisputesAndReports.value = true
 			selectedDisputes.value = []
 			selectedReports.value = []
 			availableDisputes.deepValue = undefined
 			availableReports.deepValue = undefined
-			if (readClient === undefined) return
-			if (claimForAddress.value === undefined) return
-			isLoadingDisputesAndReports.value = true
 			try {
-				availableDisputes.deepValue = (await getAvailableDisputes(readClient, claimForAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
-				availableReports.deepValue = (await getAvailableReports(readClient, claimForAddress.value)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableDisputes.deepValue = (await getAvailableDisputes(readClient, claimForAddress.value, abortController)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
+				availableReports.deepValue = (await getAvailableReports(readClient, claimForAddress.value, abortController)).filter((data) => data.marketData.universe.universeAddress === universeForkingInformation.deepValue?.universe.universeAddress)
 			} catch(error: unknown) {
+				if (abortController.signal.aborted) return
 				showUnexpectedError(error)
 			} finally {
 				isLoadingDisputesAndReports.value = false
