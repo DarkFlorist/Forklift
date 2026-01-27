@@ -9,7 +9,7 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
-import { addressString, bigintToRoundedDecimalString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
+import { addressString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getRepTokenName, getUniverseName } from './utils/augurUtils.js'
 import { getForkValues, getUniverseForkingInformation, getUniverseInformation } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
@@ -28,6 +28,8 @@ import { Settings } from './Settings/Settings.js'
 import { createReadClientFromConnection, createWriteClientFromConnection, priorityConnectSafeIfFailsConnectWindowEthereum } from './gnosisSafeWallet/safe.js'
 import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
 import { silenceChromeUnCaughtPromise } from './utils/abortGuard.js'
+import { RoundedDecimalStringWithUnknown } from './SharedUI/RoundedBigInt.js'
+import Hint from './SharedUI/Hint.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -107,9 +109,9 @@ interface WalletBalancesProps {
 
 const WalletBalances = ({ daiBalance, repBalance, ethBalance, universe, fetching }: WalletBalancesProps) => {
 	const balances = []
-	if (ethBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(ethBalance.deepValue, 18n, 2) } ETH`)
-	if (repBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(repBalance.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) }`)
-	if (daiBalance.deepValue !== undefined) balances.push(`${ bigintToRoundedDecimalString(daiBalance.deepValue, 18n, 2) } DAI`)
+	if (ethBalance.deepValue !== undefined) balances.push(<><RoundedDecimalStringWithUnknown value = { ethBalance } power = { 18n } maxDecimals = { 4 }/> ETH</>)
+	if (repBalance.deepValue !== undefined) balances.push(<><RoundedDecimalStringWithUnknown value = { repBalance } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(universe.deepValue?.repTokenName) }</>)
+	if (daiBalance.deepValue !== undefined) balances.push(<><RoundedDecimalStringWithUnknown value = { daiBalance } power = { 18n } maxDecimals = { 2 }/> DAI</>)
 
 	return <div class = 'wallet-balances'>
 		{ balances.map((balance, i) => (
@@ -501,54 +503,56 @@ export function App() {
 	})
 
 	return <main style = 'overflow: hidden;'>
-		<div class = 'app'>
-			<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: 1fr auto 1fr;;'>
-				<div class = 'forklift'>
-					<img src = 'favicon.ico' alt = 'Icon' />
-					<div>
-						<span>Augur Forklift</span>
-						<UniverseComponent universe = { currentUniverse }/>
+		<Hint>
+			<div class = 'app'>
+				<div style = 'display: grid; justify-content: space-between; padding: 10px; grid-template-columns: 1fr auto 1fr;;'>
+					<div class = 'forklift'>
+						<img src = 'favicon.ico' alt = 'Icon' />
+						<div>
+							<span>Augur Forklift</span>
+							<UniverseComponent universe = { currentUniverse }/>
+						</div>
+					</div>
+					{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ?
+						<SendTransactionButton
+							outerStyle = { { 'align-self': 'center' } }
+							transactionStatus = { pendingExtraUtilsStatus }
+							sendTransaction = { deployAugurExtraUtilitiesButton }
+							maybeWriteClient = { maybeWriteClient }
+							disabled = { isDeployExtraUtilsDisabled }
+							text = { useComputed(() => 'Deploy Augur Extra Utilities') }
+							callBackWhenIncluded = { async () => {
+								isAugurExtraUtilitiesDeployedSignal.deepValue = true
+								await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
+								await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
+							} }
+						/>
+					: <div></div> }
+					<div style = 'display: flex; align-items: center; justify-self: end;'>
+						<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount }>
+							<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse } fetching = { fetchingBalances }/>
+							<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
+						</WalletComponent>
 					</div>
 				</div>
-				{ isAugurExtraUtilitiesDeployedSignal.deepValue === false ?
-					<SendTransactionButton
-						outerStyle = { { 'align-self': 'center' } }
-						transactionStatus = { pendingExtraUtilsStatus }
-						sendTransaction = { deployAugurExtraUtilitiesButton }
-						maybeWriteClient = { maybeWriteClient }
-						disabled = { isDeployExtraUtilsDisabled }
-						text = { useComputed(() => 'Deploy Augur Extra Utilities') }
-						callBackWhenIncluded = { async () => {
-							isAugurExtraUtilitiesDeployedSignal.deepValue = true
-							await fetchUniverseInfo(maybeReadClient.deepValue, currentUniverse.deepValue).catch(showUnexpectedError)
-							await updateTokenBalances(maybeWriteClient.deepValue, currentUniverse.deepValue?.reputationTokenAddress).catch(showUnexpectedError)
-						} }
-					/>
- 				: <div></div> }
-				<div style = 'display: flex; align-items: center; justify-self: end;'>
-					<WalletComponent loadingAccount = { loadingAccount } maybeReadClient = { maybeReadClient } initializeAccount = { initializeAccount }>
-						<WalletBalances ethBalance = { ethBalance } daiBalance = { daiBalance } repBalance = { repBalance } universe = { currentUniverse } fetching = { fetchingBalances }/>
-						<Time currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds }/>
-					</WalletComponent>
+				<UnexpectedError unexpectedError = { chainIdError }/>
+				<UnexpectedError unexpectedError = { unexpectedError }/>
+				<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } pathSignal = { pathSignal }/>
+			</div>
+			{ isValidChainId.value === true && <Tabs tabs = { tabs } activeTab = { activeTab }/> }
+			<footer class = 'site-footer'>
+				<div>
+					Augur Forklift by&nbsp;
+					<a href = 'https://dark.florist' target = '_blank' rel = 'noopener noreferrer'>
+						Dark Florist
+					</a>
 				</div>
-			</div>
-			<UnexpectedError unexpectedError = { chainIdError }/>
-			<UnexpectedError unexpectedError = { unexpectedError }/>
-			<UniverseForkingNotice universeForkingInformation = { universeForkingInformation } currentTimeInBigIntSeconds = { currentTimeInBigIntSeconds } pathSignal = { pathSignal }/>
-		</div>
-		{ isValidChainId.value === true && <Tabs tabs = { tabs } activeTab = { activeTab }/> }
-		<footer class = 'site-footer'>
-			<div>
-				Augur Forklift by&nbsp;
-				<a href = 'https://dark.florist' target = '_blank' rel = 'noopener noreferrer'>
-					Dark Florist
-				</a>
-			</div>
-			<nav class = 'footer-links'>
-				<a href = 'https://discord.gg/aNBTq55' target = '_blank'>Augur Discord</a>
-				<a href = 'https://x.com/AugurProject' target = '_blank'>Augur X</a>
-				<a href = 'https://github.com/DarkFlorist/Forklift' target = '_blank'>ForkLift GitHub</a>
-			</nav>
-		</footer>
+				<nav class = 'footer-links'>
+					<a href = 'https://discord.gg/aNBTq55' target = '_blank'>Augur Discord</a>
+					<a href = 'https://x.com/AugurProject' target = '_blank'>Augur X</a>
+					<a href = 'https://github.com/DarkFlorist/Forklift' target = '_blank'>ForkLift GitHub</a>
+				</nav>
+			</footer>
+		</Hint>
 	</main>
 }

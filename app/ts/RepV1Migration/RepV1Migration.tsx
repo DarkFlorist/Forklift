@@ -4,26 +4,16 @@ import { migrateFromRepV1toRepV2GenesisToken } from '../utils/augurContractUtils
 import { approveErc20Token, getAllowanceErc20Token, getErc20TokenBalance } from '../utils/erc20.js'
 import { GENESIS_REPUTATION_V2_TOKEN_ADDRESS, REPUTATION_V1_TOKEN_ADDRESS } from '../utils/constants.js'
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
+import { RoundedDecimalStringWithUnknown } from '../SharedUI/RoundedBigInt.js'
 
 interface RepV1MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
 	maybeWriteClient: OptionalSignal<WriteClient>
 	updateTokenBalancesSignal: Signal<number>
 	showUnexpectedError: (error: unknown) => void
-}
-
-const Info = ({ text }: { text: string }) => {
-	return <div class = 'claim-option'>
-		<div class = 'claim-info'>
-			<span>
-				{ text }
-			</span>
-		</div>
-	</div>
 }
 
 let updateAbortController: AbortController | undefined = undefined
@@ -93,7 +83,13 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 
 	const repV1Info = useComputed(() => {
 		if (v1ReputationBalance.deepValue === undefined || v2ReputationBalance.deepValue === undefined) return <CenteredBigSpinner/>
-		return <Info text = { `You have ${ bigintToRoundedDecimalString(v1ReputationBalance.deepValue, 18n, 2) } REPv1 and ${ bigintToRoundedDecimalString(v2ReputationBalance.deepValue, 18n, 2) } REPv2` } />
+		return  <div class = 'claim-option'>
+			<div class = 'claim-info'>
+				<span>
+					You have <RoundedDecimalStringWithUnknown value = { v1ReputationBalance } power = { 18n } maxDecimals = { 2 }/> REPv1 and <RoundedDecimalStringWithUnknown value = { v2ReputationBalance } power = { 18n } maxDecimals = { 2 }/> REPv2
+				</span>
+			</div>
+		</div>
 	})
 
 	if (maybeWriteClient.deepValue === undefined) {

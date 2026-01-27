@@ -1,5 +1,5 @@
 import { EthereumAddress, EthereumQuantity } from '../types/types.js'
-import { bigintToRoundedDecimalString, decimalStringToBigint, isDecimalString } from './ethereumUtils.js'
+import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from './ethereumUtils.js'
 
 export const parseAddressForInput = (maybeAddressString: string | undefined) => {
 	if (maybeAddressString === undefined) return { ok: false } as const
@@ -22,7 +22,7 @@ export const parseDecimalBigintForInput = (maybeAmount: string | undefined, deci
 
 export const serializeDecimalBigintForInput = (maybeAmount: EthereumQuantity | undefined, decimals: bigint) => {
 	if (maybeAmount === undefined) return ''
-	return bigintToRoundedDecimalString(maybeAmount, decimals, Number(decimals))
+	return bigintToDecimalString(maybeAmount, decimals)
 }
 
 export const parse18DecimalBigintForInput = (maybeAmount: string | undefined) => parseDecimalBigintForInput(maybeAmount, 18n)

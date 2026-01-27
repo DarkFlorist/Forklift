@@ -3,7 +3,7 @@ import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategorica
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { bigintToRoundedDecimalStringWithUnknown, bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
+import { formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { currentDateInAYear, dateToBigintSeconds, formatDateForDatetimeLocal, isNumeric } from '../../utils/utils.js'
@@ -16,6 +16,7 @@ import { getRepTokenName } from '../../utils/augurUtils.js'
 import { assertNever } from '../../utils/errorHandling.js'
 import { MarketLink } from '../../SharedUI/links.js'
 import { parse16DecimalBigintForInput, parse18DecimalBigintForInput, parseAddressForInput, parseCommaSeparatedString, serialize16DecimalBigintForInput, serialize18DecimalBigintForInput, serializeAddressForInput, serializeCommaSeparatedString } from '../../utils/inputParsing.js'
+import { RoundedDecimalStringWithUnknown, RoundedDecimalStringWithUnknownAndPracticallyInfinite } from '../../SharedUI/RoundedBigInt.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -87,16 +88,16 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 	})
 
 	const daiAllowance = useComputed(() => {
-		const daiAmount = bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite(allowedDai.deepValue, 18n, 2)
-		const required = bigintToRoundedDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true)
-		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedDai.deepValue, marketCreationCostDai.deepValue) }` }>Allowed <b>{ daiAmount }</b> DAI (required: { required }) </p>
+		const daiAmount =<RoundedDecimalStringWithUnknownAndPracticallyInfinite value = { allowedDai } power = { 18n } maxDecimals = { 2 }/>
+		const required = <RoundedDecimalStringWithUnknown value = { marketCreationCostDai } power = { 18n } maxDecimals = { 2 } roundUp = { true }/>
+		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedDai.deepValue, marketCreationCostDai.deepValue) }` }>Allowed <b>{ daiAmount }</b> DAI (required: { required })</p>
 	})
 
 	const repAllowance = useComputed(() => {
-		const repAmount = bigintToRoundedDecimalStringWithUnknownAndPracticallyInfinite(allowedRep.deepValue, 18n, 2)
+		const repAmount = <RoundedDecimalStringWithUnknownAndPracticallyInfinite value = { allowedRep } power = { 18n } maxDecimals = { 2 }/>
 		const repTokenName = getRepTokenName(universe.deepValue?.repTokenName)
-		const required = bigintToRoundedDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true)
-		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedRep.deepValue, marketCreationCostRep.deepValue) }` }>Allowed <b>{ repAmount }</b> { repTokenName } (required: { required }) </p>
+		const required = <RoundedDecimalStringWithUnknown value = { marketCreationCostRep } power = { 18n } maxDecimals = { 2 } roundUp = { true }/>
+		return <p style = { `margin: 0; color: ${ getAllowanceColor(allowedRep.deepValue, marketCreationCostRep.deepValue) }` }>Allowed <b>{ repAmount }</b> { repTokenName } (required: { required })</p>
 	})
 
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
@@ -166,10 +167,11 @@ interface CostsParams {
 }
 
 export const Costs = ( { marketCreationCostDai, marketCreationCostRep, baseFee, marketCreationGasCost, universe }: CostsParams) => {
-	const ethCost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? '?' : bigintToRoundedDecimalStringWithUnknown(marketCreationGasCost.deepValue * baseFee.deepValue, 18n, 6, true))
+	const cost = useComputed(() => marketCreationGasCost.deepValue === undefined || baseFee.deepValue === undefined ? undefined : marketCreationGasCost.deepValue * baseFee.deepValue)
+	const creationCost = <RoundedDecimalStringWithUnknown value = { cost } power = { 18n } maxDecimals = { 6 } roundUp = { true }/>
 	const repTokenName = useComputed(() => getRepTokenName(universe.deepValue?.repTokenName))
 	return <p>
-		It costs <b> { ethCost.value } ETH</b> (gas cost), <b>{ bigintToRoundedDecimalStringWithUnknown(marketCreationCostDai.deepValue, 18n, 2, true) } DAI </b> and <b>{ bigintToRoundedDecimalStringWithUnknown(marketCreationCostRep.deepValue, 18n, 2, true) } { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
+		It costs <b> { creationCost } ETH</b> (gas cost) <b><RoundedDecimalStringWithUnknown value = { marketCreationCostDai } power = { 18n } maxDecimals = { 2 } roundUp = { true } /> DAI</b> and <b><RoundedDecimalStringWithUnknown value = { marketCreationCostRep } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { repTokenName.value }</b> to create a market. The { repTokenName.value } will be returned to you after a successful initial report and the DAI will be returned to you if the market resolves to non-invalid.
 	</p>
 }
 
@@ -274,8 +276,8 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 		if (endTime.value === undefined) return 'Market end date has not been set'
 		const seconds = dateToBigintSeconds(endTime.value)
 		if (maximumMarketEndData.deepValue === undefined) return 'End date has not been fetch'
-		if (seconds > maximumMarketEndData.deepValue) return 'Market end data is too far in future'
-		if (currentTimeInBigIntSeconds.value > seconds) return 'Market end data is in past'
+		if (seconds > maximumMarketEndData.deepValue) return 'Market end date is too far in future'
+		if (currentTimeInBigIntSeconds.value > seconds) return 'Market end date is in past'
 		if (affiliateValidator.deepValue === undefined) return 'Affiliate validator is missing'
 		if (affiliateFeeDivisor.deepValue === undefined) return 'Affiliate fee divisor is missing'
 		if (designatedReporterAddress.deepValue === undefined) return 'Designated reporter is missing'

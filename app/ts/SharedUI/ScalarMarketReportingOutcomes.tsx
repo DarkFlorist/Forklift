@@ -3,7 +3,7 @@ import { Input } from './Input.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { getPayoutNumeratorsFromScalarOutcome, getScalarOutcomeName, getTradeInterval, requiredStake } from '../utils/augurUtils.js'
-import { bigintToDecimalString, bigintToRoundedDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString, decimalStringToBigint, isDecimalString } from '../utils/ethereumUtils.js'
 import { BigIntSlider } from './BigIntSlider.js'
 import { OutcomeStake } from './YesNoCategoricalMarketReportingOutcomes.js'
 import { UniverseLink } from './links.js'
@@ -11,6 +11,7 @@ import { SendTransactionButton, TransactionStatus } from './SendTransactionButto
 import { WriteClient } from '../utils/ethereumWallet.js'
 import { createChildUniverse } from '../utils/augurContractUtils.js'
 import { CenteredBigSpinner } from './Spinner.js'
+import { RoundedDecimalString } from './RoundedBigInt.js'
 
 type ScalarInputProps = {
 	value: OptionalSignal<bigint>
@@ -95,7 +96,7 @@ export function ScalarInput({ refreshStakes, maybeWriteClient, universe, value, 
 					} }
 					serialize = { (amount: NonHexBigInt | undefined) => {
 						if (amount === undefined) return ''
-						return bigintToRoundedDecimalString(amount, 18n, 18)
+						return bigintToDecimalString(amount, 18n)
 					} }
 				/>
 				<div class = 'unit'> { unit.value } </div>
@@ -144,17 +145,17 @@ export const ReportedScalarInputs = ({ outcomeStakes, preemptiveDisputeCrowdsour
 		outcomeStakes.deepValue.map((outcomeStake) => <div class = 'reporting-round'>
 			<span><b>Option: { outcomeStake.outcomeName } ({ outcomeStake.status })</b></span>
 			{ totalStake.value === 0n ? <><span></span><span></span></> : <>
-				<span>Stake: { bigintToRoundedDecimalString(outcomeStake.repStake, 18n, 2) } { universe.value.repTokenName }</span>
+				<span>Stake: <RoundedDecimalString value = { new Signal(outcomeStake.repStake) } power = { 18n } maxDecimals = { 2 }/> { universe.value.repTokenName }</span>
 				<span>
 					{ outcomeStake.status === 'Winning'
-						? `Prestaked: ${ bigintToRoundedDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2) } ${ universe.value.repTokenName }`
-						: `Required for Dispute: ${ bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } ${ universe.value.repTokenName }`
+						? <>Prestaked: <RoundedDecimalString value = { new Signal(preemptiveDisputeCrowdsourcerStake.deepValue || 0n) } power = { 18n } maxDecimals = { 2 }/> { universe.value.repTokenName } </>
+						: <>Required for Dispute: <RoundedDecimalString value = { new Signal(requiredStake(totalStake.value, outcomeStake.repStake)) } power = { 18n } maxDecimals = { 2 }/> { universe.value.repTokenName } </>
 					}
 				</span>
 			</> }
 			<span>
 				{ outcomeStake.alreadyContributedToOutcomeStake === undefined ? <></> : <>
-				(Already contributed: { bigintToRoundedDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2) } { universe.value.repTokenName } / { bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2) } { universe.value.repTokenName })
+				(Already contributed: <RoundedDecimalString value = { new Signal(outcomeStake.alreadyContributedToOutcomeStake) } power = { 18n } maxDecimals = { 2 }/> { universe.value.repTokenName } / <RoundedDecimalString value = { new Signal(requiredStake(totalStake.value, outcomeStake.repStake)) } power = { 18n } maxDecimals = { 2 }/> { universe.value.repTokenName })
 				</> }
 			</span>
 		</div>)
