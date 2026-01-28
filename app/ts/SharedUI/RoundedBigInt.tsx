@@ -25,7 +25,7 @@ function BaseRoundedDecimalString({ computedValue, power, maxDecimals, roundUp, 
 	const copyMessage = useComputed(() => `Copied ${ copyContent.value }`)
 
 	return (
-		<span style = 'display: inline; text-decoration: underline;'>
+		<span style = 'display: inline; text-decoration: underline; text-decoration-style: dotted;'>
 			<CopyToClipboard content = { copyContent.value } copyMessage = { copyMessage.value }>
 				<span className = 'noselect nopointer'>{ approxValue.value }</span>
 			</CopyToClipboard>

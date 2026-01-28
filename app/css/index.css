@@ -1115,7 +1115,7 @@ svg.spinner > circle {
 	font-size: var(--normal-font-size);
 }
 
-.preact-hint__content {
+.preact-hint-content {
 	padding: 5px;
 	margin: 5px;
 	border-radius: 0.5rem;

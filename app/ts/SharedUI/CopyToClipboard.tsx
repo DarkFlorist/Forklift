@@ -32,12 +32,12 @@ export function CopyToClipboard(props: CopyToClipboardProps) {
 	</div>
 }
 
-interface ToolTipParams {
+interface TooltipParams {
 	children: ComponentChildren
 	content: string
 }
 
-export function ToolTip(props: ToolTipParams) {
+export function ToolTip(props: TooltipParams) {
 	return <div style = 'display: inherit; overflow: inherit;'>
 		<div data-tooltip = { props.content } style = 'display: inherit; overflow: inherit; width: 100%;'>
 			{ props.children }
