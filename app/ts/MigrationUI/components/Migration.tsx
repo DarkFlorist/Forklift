@@ -20,6 +20,7 @@ import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalB
 import { getAvailableDisputesFromForkedMarkets, redeemStakeBatch } from '../../utils/augurExtraUtilities.js'
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { promiseAllMapAbortSafe } from '../../utils/abortGuard.js'
+import { RoundedDecimalString, RoundedDecimalStringWithUnknown } from '../../SharedUI/RoundedBigInt.js'
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
 	forkingMarketData: OptionalSignal<MarketData>
@@ -27,7 +28,7 @@ interface ForkAndRedeemDisputeCrowdSourcersProps {
 	isAugurExtraUtilitiesDeployedSignal: OptionalSignal<boolean>
 	selectedForkedCrowdSourcers: Signal<readonly AccountAddress[]>
 	pathSignal: Signal<string>
-	loading: ReadonlySignal<boolean>
+	isLoadingDisputeCrowdSourcers: ReadonlySignal<boolean>
 	viewingAddress: OptionalSignal<AccountAddress>
 }
 
@@ -41,10 +42,10 @@ const ClaimInfo = ({ text }: { text: string }) => {
 	</div>
 }
 
-const ForkAndRedeemDisputeCrowdSourcers = ({ viewingAddress, forkingMarketData, isAugurExtraUtilitiesDeployedSignal, availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, loading }: ForkAndRedeemDisputeCrowdSourcersProps) => {
+const ForkAndRedeemDisputeCrowdSourcers = ({ viewingAddress, forkingMarketData, isAugurExtraUtilitiesDeployedSignal, availableClaimsFromForkingDisputeCrowdSourcers, selectedForkedCrowdSourcers, pathSignal, isLoadingDisputeCrowdSourcers }: ForkAndRedeemDisputeCrowdSourcersProps) => {
 	const results = useComputed(() => {
 		if (isAugurExtraUtilitiesDeployedSignal.deepValue === false) return <ClaimInfo text = 'Deploy extra utils to see...'/>
-		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined || forkingMarketData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
+		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined) return isLoadingDisputeCrowdSourcers.value ? <CenteredBigSpinner/> : <ClaimInfo text = 'Click below to check whether you have any claims available'/>
 		if (availableClaimsFromForkingDisputeCrowdSourcers.deepValue.length === 0) return <ClaimInfo text = { 'No claims available' }/>
 		return availableClaimsFromForkingDisputeCrowdSourcers.deepValue.map((disputeEntry) => {
 			if (forkingMarketData.deepValue === undefined) return
@@ -61,11 +62,11 @@ const ForkAndRedeemDisputeCrowdSourcers = ({ viewingAddress, forkingMarketData, 
 				<div class = 'claim-info'>
 					{ disputeEntry.marketData === undefined ? <>
 						<div><b>Market <MarketLink address = { new Signal(forkingMarketData.deepValue.marketAddress) } pathSignal = { pathSignal }/></b></div>
-						<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeData.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, forkingMarketData.deepValue) }` }</div>
+						<div>Migrate <RoundedDecimalString value = { new Signal(disputeEntry.amount) } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(disputeEntry.universeData.repTokenName) } to { getOutcomeName(disputeEntry.payoutNumerators, forkingMarketData.deepValue) }</div>
 
 					</> : <>
 						<div><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/></b></div>
-						<div>{ `Migrate ${ bigintToDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.universeData.repTokenName) } to ${ getOutcomeName(disputeEntry.payoutNumerators, disputeEntry.marketData) }` }</div>
+						<div>Migrate <RoundedDecimalString value = { new Signal(disputeEntry.amount) } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(disputeEntry.universeData.repTokenName) } to { getOutcomeName(disputeEntry.payoutNumerators, disputeEntry.marketData) }</div>
 					</> }
 				</div>
 			</span>
@@ -251,6 +252,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 	const universeAddress = useComputed(() => universe.deepValue?.universeAddress)
 	const reputationTokenAddress = useComputed(() => universe.deepValue?.reputationTokenAddress)
 	const forkingMarketAddress = useComputed(() => universeForkingInformation.deepValue?.forkingMarket)
+	const percentage = useComputed(() => repSupply.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined ? undefined : repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue)
 
 	const universeValues = useComputed(() => {
 		if (universeForkingInformation.deepValue === undefined || repTotalTheoreticalSupply.deepValue === undefined || repSupply.deepValue === undefined) return <CenteredBigSpinner/>
@@ -258,7 +260,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 			['Universe Address', <EtherScanAddress address = { universeAddress } />],
 			...parentUniverse.deepValue === undefined ? [] : [['Parent Universe Address', <OptionalUniverseLink universe = { parentUniverse } pathSignal = { pathSignal }/> ]],
 			['Reputation Address For The Universe', <EtherScanAddress address = { reputationTokenAddress } />],
-			['Token supply and theoretical supply', `${ bigintToRoundedDecimalString(repSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } / ${ bigintToRoundedDecimalString(repTotalTheoreticalSupply.deepValue, 18n, 2) } ${ getRepTokenName(universe.deepValue?.repTokenName) } (${ bigintToRoundedDecimalString(repSupply.deepValue * 10000n / repTotalTheoreticalSupply.deepValue, 2n, 2) }%)`],
+			['Token supply and theoretical supply', <><RoundedDecimalStringWithUnknown value = { repSupply } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(universe.deepValue?.repTokenName) } / <RoundedDecimalStringWithUnknown value = { repTotalTheoreticalSupply } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(universe.deepValue?.repTokenName) } (<RoundedDecimalStringWithUnknown value = { percentage } power = { 2n } maxDecimals = { 2 }/>%)</>],
 			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
 			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { forkingMarketAddress } pathSignal = { pathSignal }/>]],
 			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', <OptionalUniverseLink universe = { winningUniverse } pathSignal = { pathSignal }/>]],
@@ -412,7 +414,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 					<MigrationButton/>
 				</div>
 
-				<ForkAndRedeemDisputeCrowdSourcers viewingAddress = { viewingAddress } forkingMarketData = { forkingMarketData } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } loading = { loading } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
+				<ForkAndRedeemDisputeCrowdSourcers viewingAddress = { viewingAddress } forkingMarketData = { forkingMarketData } isAugurExtraUtilitiesDeployedSignal = { isAugurExtraUtilitiesDeployedSignal } isLoadingDisputeCrowdSourcers = { isLoadingDisputeCrowdSourcers } pathSignal = { pathSignal } availableClaimsFromForkingDisputeCrowdSourcers = { availableClaimsFromForkingDisputeCrowdSourcers } selectedForkedCrowdSourcers = { selectedForkedCrowdSourcers }/>
 
 				<LoadingButton isLoading = { isLoadingDisputeCrowdSourcers } startLoading = { queryAvailableClaimsFromForkingDisputeCrowdSourcers } disabled = { isForkDisputesDisabled } className = 'button loading-button button-secondary'>
 					{ availableClaimsFromForkingDisputeCrowdSourcers.deepValue === undefined ? 'Fetch possible claims' : 'Refresh possible claims' }

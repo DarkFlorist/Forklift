@@ -1,6 +1,5 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AccountAddress } from '../types/types.js'
-import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal, useOptionalSignal } from '../utils/OptionalSignal.js'
 import { getAvailableDisputes, getAvailableReports, getAvailableShareData, getUniverseForkingInformation } from '../utils/augurContractUtils.js'
 import { claimTradingProceedsForMarkets, redeemStakeBatch } from '../utils/augurExtraUtilities.js'
@@ -14,6 +13,7 @@ import { LoadingButton } from '../SharedUI/LoadingButton.js'
 import { Input } from '../SharedUI/Input.js'
 import { parseAddressForInput, serializeAddressForInput } from '../utils/inputParsing.js'
 import { filterIfExistsAddOtherwise } from '../utils/utils.js'
+import { RoundedDecimalString } from '../SharedUI/RoundedBigInt.js'
 
 const ClaimInfo = ({ text }: { text: string }) => {
 	return <div class = 'claim-option'>
@@ -34,7 +34,7 @@ interface DisplayShareDataProps {
 
 const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, loading }: DisplayShareDataProps) => {
 	const results = useComputed(() => {
-		if (availableShareData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
+		if (availableShareData.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <ClaimInfo text = 'Click below to check whether you have any claims available'/>
 		if (availableShareData.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableShareData.deepValue.map((shareEntry) => {
 			return <span class = 'claim-option' key = { shareEntry.market }>
@@ -48,7 +48,7 @@ const DisplayShareData = ({ availableShareData, selectedShares, pathSignal, load
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>{ ': ' } `${ bigintToRoundedDecimalString(shareEntry.payout, 18n, 2) } DAI`</span>
+					<span><b>Market <MarketLink address = { new Signal(shareEntry.market) } pathSignal = { pathSignal }/></b>: <RoundedDecimalString value = { new Signal(shareEntry.payout) } power = { 18n } maxDecimals = { 2 }/> DAI</span>
 				</div>
 			</span>
 		})
@@ -73,7 +73,7 @@ interface DisplayDisputesDataProps {
 
 const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, loading }: DisplayDisputesDataProps) => {
 	const results = useComputed(() => {
-		if (availableDisputes.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
+		if (availableDisputes.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <ClaimInfo text = 'Click below to check whether you have any claims available'/>
 		if (availableDisputes.deepValue.length == 0) return <ClaimInfo text = 'No claims available'/>
 		return availableDisputes.deepValue.map((disputeEntry) => {
 			return <span class = 'claim-option' key = { disputeEntry.bond }>
@@ -87,8 +87,8 @@ const DisplayDisputesData = ({ availableDisputes, selectedDisputes, pathSignal, 
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' }Bond { disputeEntry.bond }{ ': ' }{ `${ bigintToRoundedDecimalString(disputeEntry.amount, 18n, 2) } ${ getRepTokenName(disputeEntry.marketData.universe.repTokenName) }` }</span>
+					<span><b>Market <MarketLink address = { new Signal(disputeEntry.market) } pathSignal = { pathSignal }/>: </b>
+					- Bond { disputeEntry.bond }: <RoundedDecimalString value = { new Signal(disputeEntry.amount) } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(disputeEntry.marketData.universe.repTokenName) }</span>
 				</div>
 			</span>
 		})
@@ -113,7 +113,7 @@ interface DisplayReportsDataProps {
 
 const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loading }: DisplayReportsDataProps) => {
 	const results = useComputed(() => {
-		if (availableReports.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <></>
+		if (availableReports.deepValue === undefined) return loading.value ? <CenteredBigSpinner/> : <ClaimInfo text = 'Click below to check whether you have any claims available'/>
 		if (availableReports.deepValue.length === 0) return <ClaimInfo text = 'No claims available'/>
 		return availableReports.deepValue.map((initialReport) => {
 			return <span class = 'claim-option' key = { initialReport.bond }>
@@ -127,8 +127,8 @@ const DisplayReportsData = ({ availableReports, selectedReports, pathSignal, loa
 					} }
 				/>
 				<div class = 'claim-info'>
-					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/> { ': ' }</b>
-					{ ' -  ' } Bond { initialReport.bond }{ ': ' }{ `${ bigintToRoundedDecimalString(initialReport.amount, 18n, 2) } ${ getRepTokenName(initialReport.marketData.universe.repTokenName)} ` }</span>
+					<span><b>Market <MarketLink address = { new Signal(initialReport.market) } pathSignal = { pathSignal }/>:</b>
+					- Bond { initialReport.bond }: <RoundedDecimalString value = { new Signal(initialReport.amount) } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(initialReport.marketData.universe.repTokenName) }</span>
 				</div>
 			</span>
 		})

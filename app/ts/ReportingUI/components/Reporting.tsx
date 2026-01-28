@@ -18,6 +18,7 @@ import { SendTransactionButton, TransactionStatus } from '../../SharedUI/SendTra
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalBigintForInput, serializeAddressForInput } from '../../utils/inputParsing.js'
 import { promiseAllMapAbortSafe, silenceChromeUnCaughtPromise } from '../../utils/abortGuard.js'
+import { RoundedDecimalStringWithUnknown } from '../../SharedUI/RoundedBigInt.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -256,6 +257,8 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 		<CenteredBigSpinner/>
 	</div>
 
+	const repBondSignal = useComputed(() => marketData.deepValue?.repBond)
+
 	return <div class = 'reporting-panel'>
 		<h3>Market Reporting:</h3>
 		{ isDisabled.value && (<div class = 'warning-box'> <p>The reporting window for this round is closed. Please check again in the next round.</p></div>)}
@@ -295,10 +298,10 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 					<span class = 'unit'>{ getRepTokenName(universe.deepValue?.repTokenName)  }</span>
 					{ maxStakeAmount.value !== undefined && !isDisabled.value && (
 						<>
-							<span style = 'white-space: nowrap'>/ { bigintToRoundedDecimalString(maxStakeAmount.value, 18n, 2, true) } { getRepTokenName(universe.deepValue?.repTokenName)  }</span>
+							<span style = 'white-space: nowrap'>/ <RoundedDecimalStringWithUnknown value = { maxStakeAmount } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { getRepTokenName(universe.deepValue?.repTokenName)  }</span>
 							<button class = 'button button-primary button-small' onClick = { setMaxStake }>Max</button>
 							{ marketData.deepValue?.repBond !== undefined && isInitialReporting.value && (
-								<span style = 'white-space: nowrap'>+ { bigintToRoundedDecimalString(marketData.deepValue.repBond, 18n, 2, true) } (initial reporter bond)</span>
+								<span style = 'white-space: nowrap'>+ <RoundedDecimalStringWithUnknown value = { repBondSignal } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> (initial reporter bond)</span>
 							)}
 						</>
 					)}

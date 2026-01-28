@@ -3,7 +3,7 @@ import { UniverseInformation } from '../types/types.js'
 import { fetchMarketData, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
 import { getOutcomeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
-import { bigintToDecimalString, bigintToRoundedDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../utils/utils.js'
 import { JSX } from 'preact/jsx-runtime'
@@ -11,6 +11,7 @@ import { ReadonlySignal, useComputed } from '@preact/signals'
 import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 import { EtherScanAddress } from './links.js'
 import { CenteredBigSpinner } from './Spinner.js'
+import { RoundedDecimalStringWithUnknown } from './RoundedBigInt.js'
 
 export type MarketData = Awaited<ReturnType<typeof fetchMarketData>>
 
@@ -183,6 +184,9 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 		</div>
 	</div>
 	const endTime = useComputed(() => marketData.deepValue?.endTime)
+	const openInterest = useComputed(() => marketData.deepValue?.openInterest)
+	const validityBond = useComputed(() => marketData.deepValue?.validityBond)
+	const repBond = useComputed(() => marketData.deepValue?.repBond)
 	return <div>
 		{ universe.deepValue !== undefined && BigInt(universe.deepValue.universeAddress) !== BigInt(marketData.deepValue.universe.universeAddress) ? <>
 			<div class = 'error-box'>
@@ -207,7 +211,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 				</div>
 				<div style = { { display: 'grid', gridTemplateColumns: 'auto auto', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' } }>
 					<div>
-						<span>{ bigintToRoundedDecimalString(marketData.deepValue.openInterest, 18n, 2) } DAI Open Interest</span>
+						<span><RoundedDecimalStringWithUnknown value = { openInterest } power = { 18n } maxDecimals = { 2 }/> DAI Open Interest</span>
 					</div>
 					<div>
 						Market end date: { formatUnixTimestampIso(marketData.deepValue.endTime) }
@@ -236,8 +240,8 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 					['Reporting Fee', marketData.deepValue.reportingFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.reportingFeeDivisor)).toFixed(2) }%` ],
 					['Affiliate Fee', marketData.deepValue.affiliateFeeDivisor === 0n ? '0.00%' : `${ (100 / Number(marketData.deepValue.affiliateFeeDivisor)).toFixed(2) }%` ],
 
-					['Validity Bond', `${ bigintToRoundedDecimalString(marketData.deepValue.validityBond, 18n, 2) } DAI`],
-					['Rep Bond', `${ bigintToRoundedDecimalString(marketData.deepValue.repBond, 18n, 2) } ${ marketData.deepValue.universe.repTokenName } `],
+					['Validity Bond', <><RoundedDecimalStringWithUnknown value = { validityBond } power = { 18n } maxDecimals = { 2 }/> DAI</>],
+					['Rep Bond', <><RoundedDecimalStringWithUnknown value = { repBond } power = { 18n } maxDecimals = { 2 }/> { marketData.deepValue.universe.repTokenName }</>],
 
 					['Categories', (marketData.deepValue.parsedExtraInfo?.categories || []).join(', ')],
 					['Tags', (marketData.deepValue.parsedExtraInfo?.tags || []).join(', ')],

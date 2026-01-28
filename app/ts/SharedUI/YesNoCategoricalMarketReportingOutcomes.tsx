@@ -1,7 +1,6 @@
 import { ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { EthereumQuantity, UniverseInformation } from '../types/types.js'
-import { bigintToRoundedDecimalString } from '../utils/ethereumUtils.js'
 import { createChildUniverse, getForkValues } from '../utils/augurContractUtils.js'
 import { maxStakeAmountForOutcome, requiredStake } from '../utils/augurUtils.js'
 import { MarketData } from './Market.js'
@@ -9,6 +8,7 @@ import { UniverseLink } from './links.js'
 import { SendTransactionButton, TransactionStatus } from './SendTransactionButton.js'
 import { WriteClient } from '../utils/ethereumWallet.js'
 import { CenteredBigSpinner } from './Spinner.js'
+import { RoundedDecimalString } from './RoundedBigInt.js'
 
 
 export type MarketOutcomeWithUniverse = {
@@ -63,11 +63,11 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketD
 					<b>{ outcomeStake.outcomeName }</b>
 					{ totalStake.value !== 0n && (
 						<>
-							<span>{ bigintToRoundedDecimalString(outcomeStake.repStake, 18n, 2, true) } { universe.value.repTokenName }</span>
+							<span><RoundedDecimalString value = { new Signal(outcomeStake.repStake) } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { universe.value.repTokenName }</span>
 							<span>
 								{ outcomeStake.status === 'Winning'
-									? `Prestaked: ${ bigintToRoundedDecimalString(preemptiveDisputeCrowdsourcerStake.deepValue || 0n, 18n, 2, true) } ${ universe.value.repTokenName }`
-									: `Required for dispute: ${ bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2, true) } ${ universe.value.repTokenName }`
+									? <>Prestaked: <RoundedDecimalString value = { new Signal(preemptiveDisputeCrowdsourcerStake.deepValue || 0n) } power = { 18n } maxDecimals = { 2 } roundUp = { true }/>{ universe.value.repTokenName }</>
+									: <>Required for dispute: <RoundedDecimalString value = { new Signal(requiredStake(totalStake.value, outcomeStake.repStake)) } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { universe.value.repTokenName }</>
 								}
 							</span>
 						</>
@@ -75,7 +75,7 @@ export const MarketReportingOptionsForYesNoAndCategorical = ({ universe, marketD
 
 					{ outcomeStake.alreadyContributedToOutcomeStake !== undefined && (
 						<span class = 'outcome-contrib'>
-							(Already contributed: { bigintToRoundedDecimalString(outcomeStake.alreadyContributedToOutcomeStake, 18n, 2, true) } { universe.value.repTokenName } / { bigintToRoundedDecimalString(requiredStake(totalStake.value, outcomeStake.repStake), 18n, 2, true) } { universe.value.repTokenName })
+							(Already contributed: <RoundedDecimalString value = { new Signal(outcomeStake.alreadyContributedToOutcomeStake) } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { universe.value.repTokenName } / <RoundedDecimalString value = { new Signal(requiredStake(totalStake.value, outcomeStake.repStake)) } power = { 18n } maxDecimals = { 2 } roundUp = { true }/> { universe.value.repTokenName })
 						</span>
 					)}
 				</div>
