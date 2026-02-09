@@ -4,6 +4,8 @@
 
 FROM node:20-alpine3.19@sha256:e96618520c7db4c3e082648678ab72a49b73367b9a1e7884cf75ac30a198e454 AS builder
 
+RUN npm install -g bun@1.3.9 --integrity=sha512-bf9864875baceec30d8df8a6584ef47e561b0f9235fea5906aa989e39ab6aa4e47ffb9ae4156b8efc2d2551485c864c1501a20d8bb0f4277c845d8f2589458f8
+
 # Install app dependencies
 COPY ./package.json /source/package.json
 COPY ./package-lock.json /source/package-lock.json
