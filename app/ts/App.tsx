@@ -547,6 +547,9 @@ export function App() {
 						Dark Florist
 					</a>
 				</div>
+				<nav style = 'margin-top: 12px;'>
+					You can learn more about the history of the Forklift project from the <a href = 'https://listed.to/authors/33689/posts/62531' target = '_blank'>GoFundMicah</a> and <a href = 'https://listed.to/authors/33689/posts/66981' target = '_blank'>WentFundMicah</a> blog posts. You can also read about Lituus Foundation's thoughts in the <a href = 'https://medium.com/@lituusfoundation/augur-cryptos-first-algorithmic-fork-4ae74926ca73' target = '_blank'>Augur: Crypto’s first algorithmic fork</a> blog post.
+				</nav>
 				<nav class = 'footer-links'>
 					<a href = 'https://discord.gg/aNBTq55' target = '_blank'>Augur Discord</a>
 					<a href = 'https://x.com/AugurProject' target = '_blank'>Augur X</a>
