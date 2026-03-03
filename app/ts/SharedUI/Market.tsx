@@ -3,7 +3,7 @@ import { UniverseInformation } from '../types/types.js'
 import { fetchMarketData, getDisputeWindowInfo, getForkValues } from '../utils/augurContractUtils.js'
 import { getOutcomeName, getTradeInterval, getUniverseName, getYesNoCategoricalOutcomeName } from '../utils/augurUtils.js'
 import { assertNever } from '../utils/errorHandling.js'
-import { bigintToDecimalString, formatUnixTimestampIso } from '../utils/ethereumUtils.js'
+import { bigintToDecimalString } from '../utils/ethereumUtils.js'
 import { OptionalSignal } from '../utils/OptionalSignal.js'
 import { bigintSecondsToDate, humanReadableDateDelta, humanReadableDateDeltaFromTo } from '../utils/utils.js'
 import { JSX } from 'preact/jsx-runtime'
@@ -12,6 +12,7 @@ import { SomeTimeAgo } from '../ReportingUI/components/SomeTimeAgo.js'
 import { EtherScanAddress } from './links.js'
 import { CenteredBigSpinner } from './Spinner.js'
 import { RoundedDecimalStringWithUnknown } from './RoundedBigInt.js'
+import { IsoTimestamp } from './IsoTimestamp.js'
 
 export type MarketData = Awaited<ReturnType<typeof fetchMarketData>>
 
@@ -165,12 +166,12 @@ const ResolvingTo = ({ disputeWindowInfo, marketData, forkValues, currentTimeInB
 			if (time <= 0) return <p>The market has resolved to "<b>{ winningOutcomeName.value }</b>"</p>
 			if (disputeWindowInfo.deepValue === undefined) return <></>
 			if (disputeWindowInfo.deepValue.isActive || !isSlowReporting.value) return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.endTime) })
+				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in { humanReadableDateDelta(time) } ( <IsoTimestamp timestamp = { disputeWindowInfo.deepValue.endTime }/>)
 			</p> </div>
 			const timeUntilNext = humanReadableDateDeltaFromTo(currentTimeInBigIntSeconds.value, disputeWindowInfo.deepValue.startTime)
 			const nextWindowLength = humanReadableDateDeltaFromTo(disputeWindowInfo.deepValue.startTime, disputeWindowInfo.deepValue.endTime)
 			return <div class = 'warning-box'> <p>
-				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ({ formatUnixTimestampIso(disputeWindowInfo.deepValue.startTime) } and lasts { nextWindowLength })
+				Resolving To "<b>{ winningOutcomeName.value }</b>" if not disputed in the next dispute round. Next round starts in { timeUntilNext } ( <IsoTimestamp timestamp = { disputeWindowInfo.deepValue.startTime }/> and lasts { nextWindowLength })
 			</p> </div>
 		}
 	}/>
@@ -214,7 +215,7 @@ export const Market = ({ marketData, universe, addressComponent, children, forkV
 						<span><RoundedDecimalStringWithUnknown value = { openInterest } power = { 18n } maxDecimals = { 2 }/> DAI Open Interest</span>
 					</div>
 					<div>
-						Market end date: { formatUnixTimestampIso(marketData.deepValue.endTime) }
+						Market end date: <IsoTimestamp timestamp = { marketData.deepValue.endTime }/>
 					</div>
 				</div>
 			</header>

@@ -3,7 +3,6 @@ import { createCategoricalMarket, createYesNoMarket, estimateGasCreateCategorica
 import { OptionalSignal, useOptionalSignal } from '../../utils/OptionalSignal.js'
 import { AccountAddress, UniverseInformation } from '../../types/types.js'
 import { AUGUR_CONTRACT, DAI_TOKEN_ADDRESS } from '../../utils/constants.js'
-import { formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
 import { approveErc20Token, getAllowanceErc20Token } from '../../utils/erc20.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
 import { currentDateInAYear, dateToBigintSeconds, formatDateForDatetimeLocal, isNumeric } from '../../utils/utils.js'
@@ -17,6 +16,7 @@ import { assertNever } from '../../utils/errorHandling.js'
 import { MarketLink } from '../../SharedUI/links.js'
 import { parse16DecimalBigintForInput, parse18DecimalBigintForInput, parseAddressForInput, parseCommaSeparatedString, serialize16DecimalBigintForInput, serialize18DecimalBigintForInput, serializeAddressForInput, serializeCommaSeparatedString } from '../../utils/inputParsing.js'
 import { RoundedDecimalStringWithUnknown, RoundedDecimalStringWithUnknownAndPracticallyInfinite } from '../../SharedUI/RoundedBigInt.js'
+import { IsoTimestamp } from '../../SharedUI/IsoTimestamp.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -497,7 +497,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 						End Time (UTC){ ' ' }
 						{ maximumMarketEndData.deepValue !== undefined && (
 							<span class = 'note-text'>
-								(Latest allowed date { formatUnixTimestampIso(maximumMarketEndData.deepValue) })
+								(Latest allowed date <IsoTimestamp timestamp = { maximumMarketEndData.deepValue }/>)
 							</span>
 						) }
 					</label>
