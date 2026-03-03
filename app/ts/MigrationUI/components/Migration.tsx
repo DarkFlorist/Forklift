@@ -5,7 +5,7 @@ import { getErc20TokenBalance } from '../../utils/erc20.js'
 import { AugurMarkets, InvalidRules } from '../../utils/constants.js'
 import { getYesNoCategoricalOutcomeNamesAndNumeratorCombinationsForMarket, getUniverseName, isGenesisUniverse, getOutcomeName, getRepTokenName, hasForkEnded } from '../../utils/augurUtils.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { bigintToRoundedDecimalString, formatUnixTimestampIso } from '../../utils/ethereumUtils.js'
+import { bigintToRoundedDecimalString } from '../../utils/ethereumUtils.js'
 import { Market, MarketData } from '../../SharedUI/Market.js'
 import { MarketOutcomeWithUniverse } from '../../SharedUI/YesNoCategoricalMarketReportingOutcomes.js'
 import { ReadClient, WriteClient } from '../../utils/ethereumWallet.js'
@@ -21,6 +21,7 @@ import { getAvailableDisputesFromForkedMarkets, redeemStakeBatch } from '../../u
 import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { promiseAllMapAbortSafe } from '../../utils/abortGuard.js'
 import { RoundedDecimalString, RoundedDecimalStringWithUnknown } from '../../SharedUI/RoundedBigInt.js'
+import { IsoTimestamp } from '../../SharedUI/IsoTimestamp.js'
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
 	forkingMarketData: OptionalSignal<MarketData>
@@ -261,7 +262,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 			...parentUniverse.deepValue === undefined ? [] : [['Parent Universe Address', <OptionalUniverseLink universe = { parentUniverse } pathSignal = { pathSignal }/> ]],
 			['Reputation Address For The Universe', <EtherScanAddress address = { reputationTokenAddress } />],
 			['Token supply and theoretical supply', <><RoundedDecimalStringWithUnknown value = { repSupply } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(universe.deepValue?.repTokenName) } / <RoundedDecimalStringWithUnknown value = { repTotalTheoreticalSupply } power = { 18n } maxDecimals = { 2 }/> { getRepTokenName(universe.deepValue?.repTokenName) } (<RoundedDecimalStringWithUnknown value = { percentage } power = { 2n } maxDecimals = { 2 }/>%)</>],
-			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } (${ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) })`]],
+			...universeForkingInformation.deepValue.forkEndTime === undefined ? [] : [['Forking End Time', `${ humanReadableDateDelta(Number(universeForkingInformation.deepValue.forkEndTime - currentTimeInBigIntSeconds.value)) } ( ${ <IsoTimestamp timestamp = { universeForkingInformation.deepValue.forkEndTime }/> })`]],
 			...universeForkingInformation.deepValue.forkingMarket === undefined ? [] : [['Forking Market', <MarketLink address = { forkingMarketAddress } pathSignal = { pathSignal }/>]],
 			...winningUniverse.deepValue === undefined ? [] : [['Winning Universe', <OptionalUniverseLink universe = { winningUniverse } pathSignal = { pathSignal }/>]],
 		].map(([label, val]) => (

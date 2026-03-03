@@ -1126,3 +1126,7 @@ svg.spinner > circle {
 	word-break: break-word;
 	font-size: var(--normal-font-size);
 }
+
+.description {
+    white-space: pre;
+}

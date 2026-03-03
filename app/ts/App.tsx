@@ -9,7 +9,7 @@ import { Reporting } from './ReportingUI/components/Reporting.js'
 import { ClaimFunds } from './ClaimFundsUI/ClaimFunds.js'
 import { JSX } from 'preact'
 import { DAI_TOKEN_ADDRESS, DEFAULT_UNIVERSE } from './utils/constants.js'
-import { addressString, formatUnixTimestampIso, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
+import { addressString, formatUnixTimestampIsoDate, getEthereumBalance } from './utils/ethereumUtils.js'
 import { getRepTokenName, getUniverseName } from './utils/augurUtils.js'
 import { getForkValues, getUniverseForkingInformation, getUniverseInformation } from './utils/augurContractUtils.js'
 import { SomeTimeAgo } from './ReportingUI/components/SomeTimeAgo.js'
@@ -29,6 +29,7 @@ import { createReadClientFromConnection, createWriteClientFromConnection, priori
 import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
 import { RoundedDecimalStringWithUnknown } from './SharedUI/RoundedBigInt.js'
 import Hint from './SharedUI/Hint.js'
+import { IsoTimestamp } from './SharedUI/IsoTimestamp.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -64,7 +65,7 @@ const UniverseForkingNotice = ({ universeForkingInformation, currentTimeInBigInt
 					</>
 					return <>
 						The universe <b> <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/></b> is currently forking.
-						The fork will conclude in { humanReadableDateDelta(time) } ({ formatUnixTimestampIso(universeForkingInformation.deepValue.forkEndTime) }).
+						The fork will conclude in { humanReadableDateDelta(time) } ( <IsoTimestamp timestamp = { universeForkingInformation.deepValue.forkEndTime }/>).
 						This fork was triggered by a disagreement over the outcome of the market <MarketLink address = { forkingMarketSignal } pathSignal = { pathSignal }/>.
 						Please migrate your reputation tokens before the fork ends to avoid losing them. You can migrate your tokens from migration page: <UniverseLink universe = { universeSignal } pathSignal = { pathSignal }/>.
 					</>
