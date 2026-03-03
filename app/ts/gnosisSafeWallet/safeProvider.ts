@@ -132,7 +132,7 @@ export class SafeAppProvider {
 				})
 			}
 
-			case 'eth_estimateGas': return await safeRequest('eth_getEstimateGas', params)
+			case 'eth_estimateGas': return await safeRequest('eth_estimateGas', params)
 			case 'eth_call': return await safeRequest('eth_call', params)
 			case 'eth_getLogs': return await safeRequest('eth_getPastLogs', params)
 			case 'eth_gasPrice': return await safeRequest('eth_getGasPrice', [])

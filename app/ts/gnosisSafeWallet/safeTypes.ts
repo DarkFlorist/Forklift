@@ -36,7 +36,7 @@ export const SafeReply = funtypes.Union(
 		id: funtypes.String,
 		success: funtypes.Literal(true),
 		version: funtypes.String,
-		data: funtypes.String
+		data: funtypes.Unknown
 	}),
 	funtypes.ReadonlyObject({
 		id: funtypes.String,

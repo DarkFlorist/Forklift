@@ -6,7 +6,6 @@ export async function abortGuard<ReturnValue>(abortController: AbortController |
 	return value
 }
 
-
 export const silenceChromeUnCaughtPromise = async <ReturnValue>(maybeAwaitedFunction: Promise<ReturnValue>) => {
 	maybeAwaitedFunction.catch(() => undefined)
 	return maybeAwaitedFunction

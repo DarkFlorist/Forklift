@@ -27,7 +27,6 @@ import { SendTransactionButton, TransactionStatus } from './SharedUI/SendTransac
 import { Settings } from './Settings/Settings.js'
 import { createReadClientFromConnection, createWriteClientFromConnection, priorityConnectSafeIfFailsConnectWindowEthereum } from './gnosisSafeWallet/safe.js'
 import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
-import { silenceChromeUnCaughtPromise } from './utils/abortGuard.js'
 import { RoundedDecimalStringWithUnknown } from './SharedUI/RoundedBigInt.js'
 import Hint from './SharedUI/Hint.js'
 
@@ -432,15 +431,19 @@ export function App() {
 		const abortController = new AbortController()
 		refreshBalancesAbortController = abortController
 
-		fetchingBalances.value = true
 		try {
-			const daiPromise = silenceChromeUnCaughtPromise(getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, refreshBalancesAbortController))
-			const ethPromise = silenceChromeUnCaughtPromise(getEthereumBalance(writeClient, writeClient.account.address))
-			repBalance.deepValue = await getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address, refreshBalancesAbortController)
-			daiBalance.deepValue = await daiPromise
-			ethBalance.deepValue = await ethPromise
-		} catch(error: unknown) {
-			if (abortController.signal.aborted) return
+			fetchingBalances.value = true
+			const [rep, dai, eth] = await Promise.all([
+				getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address, refreshBalancesAbortController),
+				getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, refreshBalancesAbortController),
+				getEthereumBalance(writeClient, writeClient.account.address)
+			])
+			repBalance.deepValue = rep
+			daiBalance.deepValue = dai
+			ethBalance.deepValue = eth
+		} catch (error: unknown) {
+			if (abortController?.signal.aborted) return
+			throw error
 		} finally {
 			fetchingBalances.value = false
 		}

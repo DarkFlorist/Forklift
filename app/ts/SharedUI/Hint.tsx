@@ -121,7 +121,7 @@ function Hint(props: HintProps) {
 	}, [props.clickPosition])
 
 	return <div class = 'preact-hint' style = { dialogPosition }>
-		<span class = 'preact-hint__content' ref = { hintElementRef }>
+		<span class = 'preact-hint-content' ref = { hintElementRef }>
 			{ props.template ? props.template(props.content) : props.content }
 		</span>
 	</div>
