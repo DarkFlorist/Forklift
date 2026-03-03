@@ -36,7 +36,7 @@ export const safeRequest = async (rpcMethod: string, params: unknown): Promise<u
 			if (parsedReply.value.id !== id) return
 			if (!parsedReply.value.success) return reject(new Error(parsedReply.value.error))
 			window.removeEventListener('message', messageListener)
-			return resolve(parsedReply.value.data)
+			return resolve(event.data.data)
 		}
 		window.addEventListener('message', messageListener)
 		window.parent.postMessage({ ...VERSION, method: 'rpcCall', params: { call: rpcMethod, params }, id }, '*')
