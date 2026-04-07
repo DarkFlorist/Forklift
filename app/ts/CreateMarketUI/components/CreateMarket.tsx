@@ -17,6 +17,7 @@ import { MarketLink } from '../../SharedUI/links.js'
 import { parse16DecimalBigintForInput, parse18DecimalBigintForInput, parseAddressForInput, parseCommaSeparatedString, serialize16DecimalBigintForInput, serialize18DecimalBigintForInput, serializeAddressForInput, serializeCommaSeparatedString } from '../../utils/inputParsing.js'
 import { RoundedDecimalStringWithUnknown, RoundedDecimalStringWithUnknownAndPracticallyInfinite } from '../../SharedUI/RoundedBigInt.js'
 import { IsoTimestamp } from '../../SharedUI/IsoTimestamp.js'
+import { getCurrentReadAccount, getCurrentWriteAccount } from '../../utils/safe.js'
 
 interface AllowancesProps {
 	maybeWriteClient: OptionalSignal<WriteClient>
@@ -66,9 +67,10 @@ export const Allowances = ( { maybeWriteClient, universe, marketCreationCostDai,
 		const writeClient = maybeWriteClient.deepPeek()
 		if (writeClient === undefined) throw new Error('missing writeClient')
 		if (universe.deepValue === undefined) throw new Error('missing universe')
+		const account = getCurrentWriteAccount(writeClient)
 		try {
-			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, AUGUR_CONTRACT, undefined)
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.deepValue.reputationTokenAddress, writeClient.account.address, universe.deepValue.universeAddress, undefined)
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, account, AUGUR_CONTRACT, undefined)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.deepValue.reputationTokenAddress, account, universe.deepValue.universeAddress, undefined)
 		} catch(error: unknown) {
 			return showUnexpectedError(error)
 		}
@@ -258,8 +260,9 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 			marketCreationCostRep.deepValue = await getMarketRepBondForNewMarket(readClient, universe.universeAddress, abortController)
 			marketCreationCostDai.deepValue = await getValidityBond(readClient, universe.universeAddress, abortController)
 			if (writeClient === undefined) return
-			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, writeClient?.account.address, universe.universeAddress, abortController)
-			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, writeClient?.account.address, AUGUR_CONTRACT, abortController)
+			const account = getCurrentWriteAccount(writeClient)
+			allowedRep.deepValue = await getAllowanceErc20Token(writeClient, universe.reputationTokenAddress, account, universe.universeAddress, abortController)
+			allowedDai.deepValue = await getAllowanceErc20Token(writeClient, DAI_TOKEN_ADDRESS, account, AUGUR_CONTRACT, abortController)
 		} catch(error: unknown) {
 			if (abortController.signal.aborted) return
 			throw error
@@ -267,7 +270,7 @@ export const CreateYesNoMarket = ({ universeForkingInformation, updateTokenBalan
 	}
 
 	useEffect(() => {
-		designatedReporterAddress.deepValue = maybeWriteClient.deepValue?.account.address
+		designatedReporterAddress.deepValue = getCurrentReadAccount(maybeWriteClient.deepValue)
 	}, [maybeWriteClient.deepValue?.account.address])
 
 	useSignalEffect(() => { refresh(maybeReadClient.deepValue, maybeWriteClient.deepValue, universe.deepValue).catch(showUnexpectedError) })

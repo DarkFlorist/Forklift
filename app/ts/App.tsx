@@ -30,6 +30,7 @@ import { WalletConnection } from './gnosisSafeWallet/safeTypes.js'
 import { RoundedDecimalStringWithUnknown } from './SharedUI/RoundedBigInt.js'
 import Hint from './SharedUI/Hint.js'
 import { IsoTimestamp } from './SharedUI/IsoTimestamp.js'
+import { getCurrentReadAccount, getCurrentWriteAccount, isValidSafeAccountWalletCombination } from './utils/safe.js'
 
 interface UniverseComponentProps {
 	universe: OptionalSignal<UniverseInformation>
@@ -84,7 +85,7 @@ interface WalletComponentProps {
 
 const WalletComponent = ({ maybeReadClient, initializeAccount, loadingAccount, children }: WalletComponentProps) => {
 	if (loadingAccount.value) return <Spinner/>
-	const accountAddress = useComputed(() => maybeReadClient.deepValue?.account?.address)
+	const accountAddress = useComputed(() => getCurrentReadAccount(maybeReadClient.deepValue))
 	return <div class = 'wallet-container'>
 		{ accountAddress.value !== undefined ? <>
 			<span class = 'wallet-connected-label'>
@@ -375,6 +376,13 @@ export function App() {
 		account.deepValue = newConnection ? (newConnection.type === 'window.ethereum' ? newConnection.address : addressString(newConnection.safeInfo.data.safeAddress)) : undefined
 	}
 
+	const reCheckSafeConnection = async () => {
+		if (maybeWriteClient.deepValue === undefined) return
+		if (!(await isValidSafeAccountWalletCombination(maybeWriteClient.deepValue))) {
+			showUnexpectedError(`window.ethereum's account does not match the safe owner`)
+		}
+	}
+
 	const initializeAccount = async (promptWallet: boolean) => {
 		const wallet = await priorityConnectSafeIfFailsConnectWindowEthereum(false)
 		if (wallet === undefined) {
@@ -382,7 +390,10 @@ export function App() {
 		} else {
 			if (wallet.type === 'window.ethereum') {
 				if (window.ethereum === undefined) throw new Error('window ethereum missing')
-				window.ethereum.on('accountsChanged', (accounts) => { updateWalletSignals({ type: 'window.ethereum', address: accounts[0] }) })
+				window.ethereum.on('accountsChanged', (accounts) => {
+					updateWalletSignals({ type: 'window.ethereum', address: accounts[0] })
+					reCheckSafeConnection()
+				})
 				window.ethereum.on('chainChanged', async () => { updateChainId() })
 				try {
 					loadingAccount.value = true
@@ -404,6 +415,8 @@ export function App() {
 		} catch(e) {
 			showUnexpectedError(e)
 		}
+
+		await reCheckSafeConnection()
 	}
 
 	useEffect(() => { initializeAccount(false) }, [])
@@ -434,10 +447,11 @@ export function App() {
 
 		try {
 			fetchingBalances.value = true
+			const account = getCurrentWriteAccount(writeClient)
 			const [rep, dai, eth] = await Promise.all([
-				getErc20TokenBalance(writeClient, reputationTokenAddress, writeClient.account.address, refreshBalancesAbortController),
-				getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, writeClient.account.address, refreshBalancesAbortController),
-				getEthereumBalance(writeClient, writeClient.account.address)
+				getErc20TokenBalance(writeClient, reputationTokenAddress, account, refreshBalancesAbortController),
+				getErc20TokenBalance(writeClient, DAI_TOKEN_ADDRESS, account, refreshBalancesAbortController),
+				getEthereumBalance(writeClient, account)
 			])
 			repBalance.deepValue = rep
 			daiBalance.deepValue = dai

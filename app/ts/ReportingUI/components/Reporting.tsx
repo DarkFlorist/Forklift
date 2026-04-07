@@ -19,6 +19,7 @@ import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { parse18DecimalBigintForInput, parseAddressForInput, serialize18DecimalBigintForInput, serializeAddressForInput } from '../../utils/inputParsing.js'
 import { promiseAllMapAbortSafe, silenceChromeUnCaughtPromise } from '../../utils/abortGuard.js'
 import { RoundedDecimalStringWithUnknown } from '../../SharedUI/RoundedBigInt.js'
+import { getCurrentReadAccount } from '../../utils/safe.js'
 
 interface ForkMigrationProps {
 	marketData: OptionalSignal<MarketData>
@@ -123,7 +124,7 @@ export const DisplayStakes = ({ pathSignal, universe, outcomeStakes, maybeWriteC
 	const amountInput = useOptionalSignal<EthereumQuantity>(undefined)
 	const isSlowReporting = useComputed(() => marketData.deepValue?.lastCompletedCrowdSourcer !== undefined && forkValues.deepValue !== undefined && marketData.deepValue.lastCompletedCrowdSourcer.size >= forkValues.deepValue.disputeThresholdForDisputePacing)
 	const isInitialReporting = useComputed(() => marketData.deepValue?.reportingState === 'OpenReporting' || marketData.deepValue?.reportingState === 'DesignatedReporting')
-	const canInitialReport = useComputed(() => marketData.deepValue?.reportingState === 'OpenReporting' || (marketData.deepValue?.reportingState === 'DesignatedReporting' && marketData.deepValue.designatedReporter === maybeWriteClient.deepValue?.account.address))
+	const canInitialReport = useComputed(() => marketData.deepValue?.reportingState === 'OpenReporting' || (marketData.deepValue?.reportingState === 'DesignatedReporting' && marketData.deepValue.designatedReporter === getCurrentReadAccount(maybeWriteClient.deepValue)))
 
 	const areOutcomesDisabled = useComputed(() => !disputeWindowInfo.deepValue?.isActive && isSlowReporting.value)
 

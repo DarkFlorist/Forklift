@@ -7,6 +7,7 @@ import { min } from './utils.js'
 import { AugurExtraUtilities_AugurExtraUtilities } from '../ABI/VendoredContracts.js'
 import { addMarketDataToClaims, getBlock, getUniverseInformation } from './augurContractUtils.js'
 import { abortGuard, promiseAllMapAbortSafe } from './abortGuard.js'
+import { readContractSafeWrapIfSafeIsEnabled, writeContractSafeWrapIfSafeIsEnabled } from './safe.js'
 
 export const getAugurExtraUtilitiesAddress = () => getContractAddress({ bytecode: `0x${ AugurExtraUtilities_AugurExtraUtilities.evm.bytecode.object }`, from: PROXY_DEPLOYER_ADDRESS, opcode: 'CREATE2', salt: numberToBytes(0) })
 
@@ -24,7 +25,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 	const pageSize = 30n
 	let pages: { market: `0x${ string }`, universe: `0x${ string }`, bond: `0x${ string }`, amount: bigint, payoutNumerators: readonly bigint[] }[] = []
 	do {
-		const page = await abortGuard(abortController, () => readClient.readContract({
+		const page = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getAvailableDisputesFromForkedMarkets',
 			address: getAugurExtraUtilitiesAddress(),
@@ -47,7 +48,7 @@ export const getAvailableDisputesFromForkedMarkets = async (readClient: ReadClie
 }
 
 export const redeemStakeBatch = async (writeClient: WriteClient, redem: readonly AccountAddress[], forkAndRedeem: readonly AccountAddress[], redeemFor: AccountAddress) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 		functionName: 'redeemStakeBatch',
 		address: getAugurExtraUtilitiesAddress(),
@@ -59,7 +60,7 @@ export const getReportingParticipantsForMarket = async (readClient: ReadClient, 
 	let offset = 0n
 	const pageSize = 30n
 	let pages: { size: bigint; stake: bigint; payoutNumerators: readonly bigint[]; }[] = []
-	const numParticipants = await abortGuard(abortController, () => readClient.readContract({
+	const numParticipants = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'getNumParticipants',
 		address: market,
@@ -68,7 +69,7 @@ export const getReportingParticipantsForMarket = async (readClient: ReadClient, 
 	do {
 		if (offset > numParticipants) return pages
 		const currentPageSize = min(numParticipants - offset, pageSize)
-		const page = await abortGuard(abortController, () => readClient.readContract({
+		const page = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 			functionName: 'getReportingParticipantsForMarket',
 			address: getAugurExtraUtilitiesAddress(),
@@ -105,7 +106,7 @@ export const aggregateByPayoutDistribution = ( pages: { size: bigint, stake: big
 export const getCurrentBlockTimeInBigIntSeconds = async (readClient: ReadClient, abortController: AbortController | undefined) => (await getBlock(readClient, abortController)).timestamp
 
 export const claimTradingProceedsForMarkets = async (writeClient: WriteClient, markets: readonly AccountAddress[], shareHolder: AccountAddress) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: AugurExtraUtilities_AugurExtraUtilities.abi,
 		functionName: 'claimTradingProceedsForMarkets',
 		address: getAugurExtraUtilitiesAddress(),

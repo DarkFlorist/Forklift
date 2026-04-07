@@ -14,6 +14,7 @@ import { Input } from '../SharedUI/Input.js'
 import { parseAddressForInput, serializeAddressForInput } from '../utils/inputParsing.js'
 import { filterIfExistsAddOtherwise } from '../utils/utils.js'
 import { RoundedDecimalString } from '../SharedUI/RoundedBigInt.js'
+import { getCurrentReadAccount } from '../utils/safe.js'
 
 const ClaimInfo = ({ text }: { text: string }) => {
 	return <div class = 'claim-option'>
@@ -174,7 +175,7 @@ export const ClaimFunds = ({ updateTokenBalancesSignal, maybeReadClient, maybeWr
 	const participationTokensDisabled = useComputed(() => selectedDisputes.value.length + selectedReports.value.length === 0)
 
 	const viewingAddress = useOptionalSignal<AccountAddress>(undefined)
-	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeWriteClient.deepValue?.account.address : viewingAddress.deepValue)
+	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? getCurrentReadAccount(maybeWriteClient.deepValue) : viewingAddress.deepValue)
 
 	const [DisconnectedClaim] = useState(() => () => {
 		return <div class = 'subApplication'>

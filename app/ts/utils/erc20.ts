@@ -3,9 +3,10 @@ import { ERC20_ABI } from '../ABI/Erc20Abi.js'
 import { AccountAddress, EthereumQuantity } from '../types/types.js'
 import { ReadClient, WriteClient } from './ethereumWallet.js'
 import { abortGuard } from './abortGuard.js'
+import { readContractSafeWrapIfSafeIsEnabled, writeContractSafeWrapIfSafeIsEnabled } from './safe.js'
 
 export const approveErc20Token = async (writeClient: WriteClient, tokenAddress: AccountAddress, spender: AccountAddress, amount: EthereumQuantity) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		chain: mainnet,
 		abi: ERC20_ABI,
 		functionName: 'approve',
@@ -15,7 +16,7 @@ export const approveErc20Token = async (writeClient: WriteClient, tokenAddress: 
 }
 
 export const getAllowanceErc20Token = async (readClient: ReadClient, tokenAddress: AccountAddress, account: AccountAddress, spender: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: ERC20_ABI,
 		functionName: 'allowance',
 		address: tokenAddress,
@@ -24,7 +25,7 @@ export const getAllowanceErc20Token = async (readClient: ReadClient, tokenAddres
 }
 
 export const getErc20TokenBalance = async(readClient: ReadClient, tokenAddress: AccountAddress, account: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: ERC20_ABI,
 		functionName: 'balanceOf',
 		address: tokenAddress,
@@ -33,7 +34,7 @@ export const getErc20TokenBalance = async(readClient: ReadClient, tokenAddress: 
 }
 
 export const getErc20TokenSymbol = async(readClient: ReadClient, tokenAddress: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: ERC20_ABI,
 		functionName: 'symbol',
 		address: tokenAddress,
