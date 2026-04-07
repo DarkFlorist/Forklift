@@ -378,8 +378,11 @@ export function App() {
 
 	const reCheckSafeConnection = async () => {
 		if (maybeWriteClient.deepValue === undefined) return
-		if (!(await isValidSafeAccountWalletCombination(maybeWriteClient.deepValue))) {
-			showUnexpectedError(`window.ethereum's account does not match the safe owner`)
+		try {
+			const valid = await isValidSafeAccountWalletCombination(maybeWriteClient.deepValue)
+			if (!valid) showUnexpectedError(`window.ethereum's account does not match the safe owner`)
+		} catch(error: unknown) {
+			showUnexpectedError(error)
 		}
 	}
 
