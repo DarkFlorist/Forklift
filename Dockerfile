@@ -2,21 +2,19 @@
 # App Setup: Install dependencies and build app
 # ---------------------------------------------
 
-FROM node:20-alpine3.19@sha256:e96618520c7db4c3e082648678ab72a49b73367b9a1e7884cf75ac30a198e454 AS builder
-
-RUN npm install -g bun@1.3.9 --integrity=sha512-bf9864875baceec30d8df8a6584ef47e561b0f9235fea5906aa989e39ab6aa4e47ffb9ae4156b8efc2d2551485c864c1501a20d8bb0f4277c845d8f2589458f8
+FROM oven/bun:1.3.11-alpine@sha256:d5033b198b338c67e514f404e777ee818e18d1b031b0c4ac0eb1112032ae7bf7 AS builder
 
 # Install app dependencies
 COPY ./package.json /source/package.json
-COPY ./package-lock.json /source/package-lock.json
+COPY ./bun.lock /source/bun.lock
 WORKDIR /source
-RUN npm ci
+RUN bun install --frozen-lockfile
 
 # Install Solidity dependencies
 COPY ./solidity/package.json /source/solidity/package.json
-COPY ./solidity/package-lock.json /source/solidity/package-lock.json
+COPY ./solidity/bun.lock /source/solidity/bun.lock
 WORKDIR /source/solidity
-RUN npm ci
+RUN bun install --frozen-lockfile
 
 # Vendoring files
 COPY ./tsconfig.vendor.json /source/tsconfig.vendor.json
@@ -35,7 +33,7 @@ COPY ./tsconfig.json /source/tsconfig.json
 COPY ./app/css/ /source/app/css/
 COPY ./app/ts/ /source/app/ts/
 COPY ./app/favicon.ico /source/app/favicon.ico
-RUN npm run setup
+RUN bun run setup
 
 # --------------------------------------------------------
 # Base Image: Create the base image that will host the app
