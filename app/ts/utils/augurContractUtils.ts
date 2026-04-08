@@ -17,6 +17,7 @@ import { LiteralConverterParserFactory } from '../types/types.js'
 import { getErc20TokenSymbol } from './erc20.js'
 import { convertStringToBytes32 } from './utils.js'
 import { abortGuard, promiseAllMapAbortSafe, silenceChromeUnCaughtPromise } from './abortGuard.js'
+import { readContractSafeWrapIfSafeIsEnabled, writeContractSafeWrapIfSafeIsEnabled } from './safe.js'
 
 export type ExtraInfo = funtypes.Static<typeof ExtraInfo>
 export const ExtraInfo = funtypes.Intersect(
@@ -33,7 +34,7 @@ export const ExtraInfo = funtypes.Intersect(
 )
 
 export const createYesNoMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, extraInfo: string) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		address: universe,
 		abi: UNIVERSE_ABI,
 		functionName: 'createYesNoMarket',
@@ -42,7 +43,7 @@ export const createYesNoMarket = async (universe: AccountAddress, writeClient: W
 }
 
 export const createCategoricalMarket = async (universe: AccountAddress, writeClient: WriteClient, endTime: bigint, feePerCashInAttoCash: bigint, affiliateValidator: AccountAddress, affiliateFeeDivisor: bigint, designatedReporterAddress: AccountAddress, outcomes: string[], extraInfo: string) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		address: universe,
 		abi: UNIVERSE_ABI,
 		functionName: 'createCategoricalMarket',
@@ -77,7 +78,7 @@ const parseMarketExtraInfo = (extraInfo: string) => {
 }
 
 export const isValidAugurMarket = async (readClient: ReadClient, marketAddress: AccountAddress, abortController: AbortController | undefined) => {
-	const marketCreationData = await abortGuard(abortController, () => readClient.readContract({
+	const marketCreationData = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: AUGUR_ABI,
 		functionName: 'getMarketCreationData',
 		address: AUGUR_CONTRACT,
@@ -88,7 +89,7 @@ export const isValidAugurMarket = async (readClient: ReadClient, marketAddress: 
 
 export const fetchMarketData = async (readClient: ReadClient, marketAddress: AccountAddress, abortController: AbortController | undefined) => {
 	const repBondPromise = silenceChromeUnCaughtPromise(getRepBond(readClient, marketAddress, abortController))
-	const hotLoadingMarketData = await abortGuard(abortController, () => readClient.readContract({
+	const hotLoadingMarketData = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: HOT_LOADING_ABI,
 		functionName: 'getMarketData',
 		address: HOT_LOADING_ADDRESS,
@@ -104,7 +105,7 @@ export const fetchMarketData = async (readClient: ReadClient, marketAddress: Acc
 }
 
 export const doInitialReport = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], description: string, additionalStake: EthereumQuantity) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'doInitialReport',
 		address: market,
@@ -113,7 +114,7 @@ export const doInitialReport = async (writeClient: WriteClient, market: AccountA
 }
 
 export const finalizeMarket = async (writeClient: WriteClient, market: AccountAddress) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'finalize',
 		address: market,
@@ -132,7 +133,7 @@ export const derivePayoutDistributionHash = (payoutNumerators: readonly bigint[]
 }
 
 export const getStakeInOutcome = async (readClient: ReadClient, market: AccountAddress, payoutDistributionHash: EthereumBytes32, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'getStakeInOutcome',
 		address: market,
@@ -141,7 +142,7 @@ export const getStakeInOutcome = async (readClient: ReadClient, market: AccountA
 }
 
 export const contributeToMarketDispute = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'contribute',
 		address: market,
@@ -150,7 +151,7 @@ export const contributeToMarketDispute = async (writeClient: WriteClient, market
 }
 
 export const contributeToMarketDisputeOnTentativeOutcome = async (writeClient: WriteClient, market: AccountAddress, payoutNumerators: readonly EthereumQuantity[], amount: EthereumQuantity, reason: string) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'contributeToTentative',
 		address: market,
@@ -159,7 +160,7 @@ export const contributeToMarketDisputeOnTentativeOutcome = async (writeClient: W
 }
 
 export const getDisputeWindow = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'getDisputeWindow',
 		address: market,
@@ -168,19 +169,19 @@ export const getDisputeWindow = async (readClient: ReadClient, market: AccountAd
 }
 
 export const getDisputeWindowInfo = async (readClient: ReadClient, disputeWindow: AccountAddress, abortController: AbortController | undefined) => {
-	const startTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const startTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getStartTime',
 		address: disputeWindow,
 		args: []
 	})))
-	const endTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const endTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'getEndTime',
 		address: disputeWindow,
 		args: []
 	})))
-	const isActivePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const isActivePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: DISPUTE_WINDOW_ABI,
 		functionName: 'isActive',
 		address: disputeWindow,
@@ -194,7 +195,7 @@ export const getDisputeWindowInfo = async (readClient: ReadClient, disputeWindow
 }
 
 export const getWinningReportingParticipant = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'getWinningReportingParticipant',
 		address: market,
@@ -203,7 +204,7 @@ export const getWinningReportingParticipant = async (readClient: ReadClient, mar
 }
 
 export const getPayoutNumeratorsForReportingParticipant = async (readClient: ReadClient, reportingParticipant: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getPayoutNumerators',
 		address: reportingParticipant,
@@ -218,7 +219,7 @@ export const getWinningPayoutNumerators = async (readClient: ReadClient, market:
 }
 
 export const getPreemptiveDisputeCrowdsourcer = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'preemptiveDisputeCrowdsourcer',
 		address: market,
@@ -227,7 +228,7 @@ export const getPreemptiveDisputeCrowdsourcer = async (readClient: ReadClient, m
 }
 
 export const getStakeOfReportingParticipant = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getStake',
 		address: market,
@@ -236,7 +237,7 @@ export const getStakeOfReportingParticipant = async (readClient: ReadClient, mar
 }
 
 export const getReputationTotalTheoreticalSupply = async (readClient: ReadClient, reputationTokenAddress: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'getTotalTheoreticalSupply',
 		address: reputationTokenAddress,
@@ -275,19 +276,19 @@ export type ReportingHistoryElement = {
 }
 
 export const getCrowdsourcerInfo = async (readClient: ReadClient, participantAddress: AccountAddress, abortController: AbortController | undefined) => {
-	const payoutNumeratorsPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const payoutNumeratorsPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getPayoutNumerators',
 		address: participantAddress,
 		args: []
 	})))
-	const stakePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const stakePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getStake',
 		address: participantAddress,
 		args: []
 	})))
-	const sizePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const sizePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPORTING_PARTICIPANT_ABI,
 		functionName: 'getSize',
 		address: participantAddress,
@@ -306,7 +307,7 @@ export const getReportingHistory = async(readClient: ReadClient, market: Account
 	const result: ReportingHistoryElement[] = []
 
 	for (let round = 0n; round <= currentRound; round++) {
-		const participantAddress = await abortGuard(abortController, () => readClient.readContract({
+		const participantAddress = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: MARKET_ABI,
 			functionName: 'participants',
 			address: market,
@@ -318,7 +319,7 @@ export const getReportingHistory = async(readClient: ReadClient, market: Account
 			...await getCrowdsourcerInfo(readClient, participantAddress, abortController)
 		})
 	}
-	const preemptiveDisputeCrowdsourcer = await abortGuard(abortController, () => readClient.readContract({
+	const preemptiveDisputeCrowdsourcer = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'preemptiveDisputeCrowdsourcer',
 		address: market,
@@ -335,7 +336,7 @@ export const getReportingHistory = async(readClient: ReadClient, market: Account
 }
 
 export const getLastCompletedCrowdSourcer = async(readClient: ReadClient, market: AccountAddress, currentRound: bigint, abortController: AbortController | undefined) => {
-	const participantAddress = await abortGuard(abortController, () => readClient.readContract({
+	const participantAddress = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'participants',
 		address: market,
@@ -346,7 +347,7 @@ export const getLastCompletedCrowdSourcer = async(readClient: ReadClient, market
 }
 
 export const getCrowdsourcerInfoByPayoutNumerator = async (readClient: ReadClient, market: AccountAddress, payoutDistributionHash: bigint, abortController: AbortController | undefined) => {
-	const crowdsourcer = await abortGuard(abortController, () => readClient.readContract({
+	const crowdsourcer = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'getCrowdsourcer',
 		address: market,
@@ -361,7 +362,7 @@ export const getAvailableShareData = async (readClient: ReadClient, account: Acc
 	const pageSize = 30n
 	let pages: { market: `0x${ string }`, payout: bigint }[] = []
 	do {
-		const page = await abortGuard(abortController, () => readClient.readContract({
+		const page = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableShareData',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -379,7 +380,7 @@ export const getAvailableReports = async (readClient: ReadClient, account: Accou
 	const pageSize = 30n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
-		const page = await abortGuard(abortController, () => readClient.readContract({
+		const page = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableReports',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -408,7 +409,7 @@ export const getAvailableDisputes = async (readClient: ReadClient, account: Acco
 	const pageSize = 10n
 	let pages: { market: `0x${ string }`, bond: `0x${ string }`, amount: bigint }[] = []
 	do {
-		const page = await abortGuard(abortController, () => readClient.readContract({
+		const page = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: AUDIT_FUNDS_ABI,
 			functionName: 'getAvailableDisputes',
 			address: AUDIT_FUNDS_ADDRESS,
@@ -423,7 +424,7 @@ export const getAvailableDisputes = async (readClient: ReadClient, account: Acco
 }
 
 export const migrateThroughOneFork = async (writeClient: WriteClient, market: AccountAddress, initialReportPayoutNumerators: readonly EthereumQuantity[], initialReportReason: string) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'migrateThroughOneFork',
 		address: market,
@@ -433,7 +434,7 @@ export const migrateThroughOneFork = async (writeClient: WriteClient, market: Ac
 
 export const isMarketFinalized = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
 	if (BigInt(market) === 0n) return false
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'isFinalized',
 		address: market,
@@ -442,7 +443,7 @@ export const isMarketFinalized = async (readClient: ReadClient, market: AccountA
 }
 
 export const disavowCrowdsourcers = async (writeClient: WriteClient, market: AccountAddress) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: MARKET_ABI,
 		functionName: 'disavowCrowdsourcers',
 		address: market,
@@ -451,26 +452,26 @@ export const disavowCrowdsourcers = async (writeClient: WriteClient, market: Acc
 }
 
 export const getUniverseForkingInformation = async (readClient: ReadClient, universe: UniverseInformation, abortController: AbortController | undefined) => {
-	const isForking = await abortGuard(abortController, () => readClient.readContract({
+	const isForking = await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'isForking',
 		address: universe.universeAddress,
 		args: []
 	}))
 	if (isForking === false) return { universe, isForking } as const
-	const forkEndTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const forkEndTimePromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkEndTime',
 		address: universe.universeAddress,
 		args: []
 	})))
-	const forkingMarketPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const forkingMarketPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getForkingMarket',
 		address: universe.universeAddress,
 		args: []
 	})))
-	const payoutNumeratorsPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readClient.readContract({
+	const payoutNumeratorsPromise = silenceChromeUnCaughtPromise(abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getPayoutNumerators',
 		address: universe.universeAddress,
@@ -486,7 +487,7 @@ export const getUniverseForkingInformation = async (readClient: ReadClient, univ
 }
 
 export const migrateReputationToChildUniverseByPayout = async (writeClient: WriteClient, reputationTokenAddress: AccountAddress, payoutNumerators: readonly bigint[], attotokens: bigint) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateOutByPayout',
 		address: reputationTokenAddress,
@@ -495,7 +496,7 @@ export const migrateReputationToChildUniverseByPayout = async (writeClient: Writ
 }
 
 export const migrateFromRepV1toRepV2GenesisToken = async (writeClient: WriteClient, genesisReputationV2TokenAddress: AccountAddress) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'migrateFromLegacyReputationToken',
 		address: genesisReputationV2TokenAddress,
@@ -504,7 +505,7 @@ export const migrateFromRepV1toRepV2GenesisToken = async (writeClient: WriteClie
 }
 
 export const getReputationTokenForUniverse = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getReputationToken',
 		address: universe,
@@ -514,7 +515,7 @@ export const getReputationTokenForUniverse = async (readClient: ReadClient, univ
 
 // there's a bug in this method that it doesn't return the max end date, but max end date + 1
 export const getMaximumMarketEndDate = async (readClient: ReadClient, abortController: AbortController | undefined) => {
-	return (await abortGuard(abortController, () => readClient.readContract({
+	return (await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: AUGUR_ABI_GET_MAXIUM_MARKET_END_DATE,
 		functionName: 'getMaximumMarketEndDate',
 		address: AUGUR_CONTRACT,
@@ -523,7 +524,7 @@ export const getMaximumMarketEndDate = async (readClient: ReadClient, abortContr
 }
 
 export const isKnownUniverse = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: AUGUR_ABI,
 		functionName: 'isKnownUniverse',
 		address: AUGUR_CONTRACT,
@@ -532,7 +533,7 @@ export const isKnownUniverse = async (readClient: ReadClient, universe: AccountA
 }
 
 export const getParentUniverse = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getParentUniverse',
 		address: universe,
@@ -542,7 +543,7 @@ export const getParentUniverse = async (readClient: ReadClient, universe: Accoun
 
 export const getChildUniverse = async (readClient: ReadClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[], numTicks: bigint, numOutcomes: bigint, abortController: AbortController | undefined) => {
 	const PayoutDistributionHash = derivePayoutDistributionHash(payoutNumerators, numTicks, numOutcomes)
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI,
 		functionName: 'getChildUniverse',
 		address: universe,
@@ -551,7 +552,7 @@ export const getChildUniverse = async (readClient: ReadClient, universe: Account
 }
 
 export const getRepBond = async (readClient: ReadClient, market: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => readClient.readContract({
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: MARKET_ABI,
 		functionName: 'repBond',
 		address: market,
@@ -559,8 +560,8 @@ export const getRepBond = async (readClient: ReadClient, market: AccountAddress,
 	}))
 }
 
-export const getValidityBond = async (client: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => client.readContract({
+export const getValidityBond = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI_SHORT,
 		functionName: 'getOrCacheValidityBond',
 		address: universe,
@@ -568,8 +569,8 @@ export const getValidityBond = async (client: ReadClient, universe: AccountAddre
 	}))
 }
 
-export const getMarketRepBondForNewMarket = async (client: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => client.readContract({
+export const getMarketRepBondForNewMarket = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: UNIVERSE_ABI_SHORT,
 		functionName: 'getOrCacheMarketRepBond',
 		address: universe,
@@ -577,8 +578,8 @@ export const getMarketRepBondForNewMarket = async (client: ReadClient, universe:
 	}))
 }
 
-export const getTotalSupply = async (client: ReadClient, repToken: AccountAddress, abortController: AbortController | undefined) => {
-	return await abortGuard(abortController, () => client.readContract({
+export const getTotalSupply = async (readClient: ReadClient, repToken: AccountAddress, abortController: AbortController | undefined) => {
+	return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 		abi: REPUTATION_TOKEN_ABI,
 		functionName: 'totalSupply',
 		address: repToken,
@@ -586,9 +587,9 @@ export const getTotalSupply = async (client: ReadClient, repToken: AccountAddres
 	}))
 }
 
-export const getWinningChildUniverse = async (client: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
+export const getWinningChildUniverse = async (readClient: ReadClient, universe: AccountAddress, abortController: AbortController | undefined) => {
 	try {
-		return await abortGuard(abortController, () => client.readContract({
+		return await abortGuard(abortController, () => readContractSafeWrapIfSafeIsEnabled(readClient, {
 			abi: UNIVERSE_ABI,
 			functionName: 'getWinningChildUniverse',
 			address: universe,
@@ -621,7 +622,7 @@ export const getUniverseInformation = async (client: ReadClient, universeAddress
 }
 
 export const createChildUniverse = async (writeClient: WriteClient, universe: AccountAddress, payoutNumerators: readonly EthereumQuantity[]) => {
-	return await writeClient.writeContract({
+	return await writeContractSafeWrapIfSafeIsEnabled(writeClient, {
 		address: universe,
 		abi: UNIVERSE_ABI,
 		functionName: 'createChildUniverse',

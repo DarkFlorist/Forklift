@@ -8,6 +8,7 @@ import { ReadClient, WriteClient } from '../utils/ethereumWallet.js'
 import { CenteredBigSpinner } from '../SharedUI/Spinner.js'
 import { SendTransactionButton, TransactionStatus } from '../SharedUI/SendTransactionButton.js'
 import { RoundedDecimalStringWithUnknown } from '../SharedUI/RoundedBigInt.js'
+import { getCurrentReadAccount } from '../utils/safe.js'
 
 interface RepV1MigrationProps {
 	maybeReadClient: OptionalSignal<ReadClient>
@@ -30,16 +31,17 @@ export const RepV1Migration = ({ updateTokenBalancesSignal, maybeReadClient, may
 
 	const update = async (readClient: ReadClient | undefined ) => {
 		if (readClient === undefined) return
-		if (readClient.account?.address === undefined) return
+		const readAccount = getCurrentReadAccount(readClient)
+		if (readAccount === undefined) return
 		isRepV1ApprovedForMigration.deepValue = undefined
 
 		if (updateAbortController !== undefined) updateAbortController.abort()
 		const abortController = new AbortController()
 		updateAbortController = abortController
 		try {
-			v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readClient.account.address, abortController)
-			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, abortController)
-			isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readClient.account.address, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, abortController) >= v1ReputationBalance.deepValue
+			v2ReputationBalance.deepValue = await getErc20TokenBalance(readClient, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, readAccount, abortController)
+			v1ReputationBalance.deepValue = await getErc20TokenBalance(readClient, REPUTATION_V1_TOKEN_ADDRESS, readAccount, abortController)
+			isRepV1ApprovedForMigration.deepValue = await getAllowanceErc20Token(readClient, REPUTATION_V1_TOKEN_ADDRESS, readAccount, GENESIS_REPUTATION_V2_TOKEN_ADDRESS, abortController) >= v1ReputationBalance.deepValue
 		} catch (error: unknown) {
 			if (abortController.signal.aborted) return
 			throw error

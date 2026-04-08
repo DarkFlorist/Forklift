@@ -73,3 +73,6 @@ export type UniverseInformation = {
 	reputationTokenAddress: AccountAddress
 	repTokenName: string
 }
+
+export type RemoveFields<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+
