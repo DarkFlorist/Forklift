@@ -74,5 +74,7 @@ export type UniverseInformation = {
 	repTokenName: string
 }
 
-export type RemoveFields<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+// https://github.com/microsoft/TypeScript/issues/54451
+export type RemoveFields<T, K extends keyof T> = { [P in keyof T as P extends K ? never : P]: T[P] };
+
 
