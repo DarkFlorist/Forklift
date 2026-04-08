@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"scripts": {
-		"contracts": "npm ci --ignore-scripts && npm run compile && cd .. && npm run vendor",
+		"contracts": "bun install --frozen-lockfile && bun run compile && cd .. && bun run vendor",
 		"compile": "bun ./ts/compile.js"
 	},
 	"license": "ISC",
