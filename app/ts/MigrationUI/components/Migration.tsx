@@ -22,7 +22,7 @@ import { LoadingButton } from '../../SharedUI/LoadingButton.js'
 import { promiseAllMapAbortSafe } from '../../utils/abortGuard.js'
 import { RoundedDecimalString, RoundedDecimalStringWithUnknown } from '../../SharedUI/RoundedBigInt.js'
 import { IsoTimestamp } from '../../SharedUI/IsoTimestamp.js'
-import { getCurrentReadAccount } from '../../utils/safe.js'
+import { getCurrentReadAccount, maybeGetCurrentWriteAccount } from '../../utils/safe.js'
 
 interface ForkAndRedeemDisputeCrowdSourcersProps {
 	forkingMarketData: OptionalSignal<MarketData>
@@ -134,7 +134,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 	const claimForkDisputesDisabled = useComputed(() => selectedForkedCrowdSourcers.value.length === 0 || isAugurExtraUtilitiesDeployedSignal.deepValue !== true)
 
 	const viewingAddress = useOptionalSignal<AccountAddress>(undefined)
-	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? getCurrentReadAccount(maybeWriteClient.deepValue) : viewingAddress.deepValue)
+	const claimForAddress = useComputed(() => viewingAddress.deepValue === undefined ? maybeGetCurrentWriteAccount(maybeWriteClient.deepValue) : viewingAddress.deepValue)
 	const availableClaimsFromForkingDisputeCrowdSourcers = useOptionalSignal<Awaited<ReturnType<typeof getAvailableDisputesFromForkedMarkets>>>(undefined)
 
 	const claimForkDisputes = async () => {

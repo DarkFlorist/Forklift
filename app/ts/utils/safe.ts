@@ -80,6 +80,11 @@ export const getCurrentWriteAccount = (client: WriteClient) => {
 	return safeAddress
 }
 
+export const maybeGetCurrentWriteAccount = (client: WriteClient | undefined) => {
+	if (client === undefined) return undefined
+	return getCurrentWriteAccount(client)
+}
+
 export const isValidSafeAccountWalletCombination = async (client: WriteClient) => {
 	const safeAddress = getSafeAddress()
 	if (safeAddress === undefined) return true
