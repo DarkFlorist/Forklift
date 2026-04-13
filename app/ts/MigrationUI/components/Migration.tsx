@@ -288,7 +288,7 @@ export const Migration = ({ isAugurExtraUtilitiesDeployedSignal, updateTokenBala
 		if (universeForkingInformation.deepValue.forkEndTime > currentTimeInBigIntSeconds.value) {
 			return <span class = 'universe-forking'>
 				<h2>The Universe is forking! Please migrate your Reputation tokens!</h2>
-				<p>Please read the market description carefully and migrate your Reputation tokens to the outcome that you believe is the truthfull outcome of this market. Please also check the market against Augur V2 Reporting rules.
+				<p>Please read the market description carefully and migrate your Reputation tokens to the outcome that you believe is the truthful outcome of this market. Please also check the market against Augur V2 Reporting rules.
 				<br/><br/>If you participated in the dispute process, you must claim each crowdsourcer individually. Below is a list of all the crowdsourcers you participated in and can claim.
 				</p>
 			</span>
